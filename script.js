@@ -5,22 +5,27 @@ import {
   deleteStudentRecord,
   getSchedules,
   getStudents,
+  getTeacherProfile,
   isFirebaseReady,
   signInTeacher,
   signOutTeacher,
+  updateTeacherProfile,
   updateScheduleRecord,
   updateStudentRecord,
   watchTeacherAuthState
 } from "./firebase-api.js";
+import { uploadImageToCloudinary } from "./cloudinary-api.js";
 
 let students = [];
 let schedules = [];
 let editingStudentIndex = null;
+let teacherProfile = null;
 
 const username = document.getElementById("username");
 const password = document.getElementById("password");
 const studentId = document.getElementById("studentId");
 const studentName = document.getElementById("studentName");
+const studentPhotoFile = document.getElementById("studentPhotoFile");
 const studentList = document.getElementById("studentList");
 const classDate = document.getElementById("classDate");
 const classTime = document.getElementById("classTime");
@@ -28,21 +33,29 @@ const classDay = document.getElementById("classDay");
 const studentCheckList = document.getElementById("studentCheckList");
 const scheduleList = document.getElementById("scheduleList");
 const loginStudentId = document.getElementById("loginStudentId");
+const studentProfilePhoto = document.getElementById("studentProfilePhoto");
 const studentData = document.getElementById("studentData");
+const studentRecordModal = document.getElementById("studentRecordModal");
+const studentModalBody = document.getElementById("studentModalBody");
+const teacherLoginPhoto = document.getElementById("teacherLoginPhoto");
+const teacherDashboardPhoto = document.getElementById("teacherDashboardPhoto");
+const teacherPhotoFile = document.getElementById("teacherPhotoFile");
 const whatsappMsg = document.getElementById("whatsappMsg");
 const feePending = document.getElementById("feePending");
 const studentSubmitBtn = document.getElementById("studentSubmitBtn");
 const studentCancelBtn = document.getElementById("studentCancelBtn");
 
 const FIREBASE_WARNING = "Firebase config missing. Open firebase-api.js and paste your Firebase web app config.";
+const DEFAULT_TEACHER_PHOTO = "https://placehold.co/300x300/f2efe6/8b5e34?text=Teacher";
+const DEFAULT_STUDENT_PHOTO = "https://placehold.co/300x300/e8f5f1/1f6f66?text=Student";
 const RESET_STUDENT_IDS = ["81", "82", "7"];
 const INITIAL_STUDENTS = [
-  { id: "101", name: "Anushak Kumari", feePending: false },
-  { id: "9", name: "Rahul Kumar", feePending: false },
-  { id: "102", name: "Abhishek Francis", feePending: false },
-  { id: "81", name: "Saket Kumar", feePending: false },
-  { id: "82", name: "Ashwin Kumar", feePending: false },
-  { id: "7", name: "Arpit Kumar", feePending: false }
+  { id: "101", name: "Anushak Kumari", feePending: false, photoUrl: "" },
+  { id: "9", name: "Rahul Kumar", feePending: false, photoUrl: "" },
+  { id: "102", name: "Abhishek Francis", feePending: false, photoUrl: "" },
+  { id: "81", name: "Saket Kumar", feePending: false, photoUrl: "" },
+  { id: "82", name: "Ashwin Kumar", feePending: false, photoUrl: "" },
+  { id: "7", name: "Arpit Kumar", feePending: false, photoUrl: "" }
 ];
 
 window.teacherLogin = teacherLogin;
@@ -55,9 +68,12 @@ window.cancelStudentEdit = cancelStudentEdit;
 window.saveSchedule = saveSchedule;
 window.deleteSchedule = deleteSchedule;
 window.loadStudentData = loadStudentData;
+window.closeStudentModal = closeStudentModal;
 window.sendWhatsApp = sendWhatsApp;
+window.uploadTeacherPhoto = uploadTeacherPhoto;
 
 initializeScheduleDefaults();
+initializeStudentModal();
 initializeAppData();
 
 async function initializeAppData() {
@@ -68,6 +84,7 @@ async function initializeAppData() {
 
   try {
     initializeTeacherAuth();
+    await loadTeacherProfile();
     await refreshFirestoreData();
     await resetSpecificStudents();
     await seedInitialStudents();
@@ -141,16 +158,22 @@ async function addStudent() {
   }
 
   try {
+    let photoUrl = editingStudentIndex !== null ? students[editingStudentIndex].photoUrl || "" : "";
+
+    if (studentPhotoFile.files[0]) {
+      photoUrl = await uploadImageToCloudinary(studentPhotoFile.files[0], "tuition-project/students");
+    }
+
     if (editingStudentIndex !== null) {
-      await saveStudentUpdate(editingStudentIndex, { id, name, feePending: fee });
+      await saveStudentUpdate(editingStudentIndex, { id, name, feePending: fee, photoUrl });
     } else {
       if (students.find((student) => student.id === id)) {
         alert("Student ID already exists");
         return;
       }
 
-      const firestoreId = await addStudentRecord({ id, name, feePending: fee });
-      students.push({ firestoreId, id, name, feePending: fee });
+      const firestoreId = await addStudentRecord({ id, name, feePending: fee, photoUrl });
+      students.push({ firestoreId, id, name, feePending: fee, photoUrl });
     }
 
     showStudents();
@@ -167,6 +190,7 @@ function showStudents() {
   students.forEach((student, index) => {
     studentList.innerHTML += `
       <div class="box">
+        <img class="profile-avatar record-photo" src="${student.photoUrl || DEFAULT_STUDENT_PHOTO}" alt="${student.name} photo">
         ${student.name} (ID:${student.id})<br>
         Fee Status: <strong>${student.feePending ? "Pending" : "Clear"}</strong>
         <div class="box-actions">
@@ -218,6 +242,7 @@ function editStudent(index) {
   studentId.value = student.id;
   studentName.value = student.name;
   feePending.checked = student.feePending;
+  studentPhotoFile.value = "";
   studentSubmitBtn.textContent = "Update Student";
   studentCancelBtn.style.display = "block";
   studentId.focus();
@@ -310,15 +335,22 @@ async function deleteSchedule(index) {
 function loadStudentData() {
   const id = loginStudentId.value.trim();
   studentData.innerHTML = "";
+  studentModalBody.innerHTML = "";
+  studentProfilePhoto.src = DEFAULT_STUDENT_PHOTO;
 
-  let found = false;
+  const matchedRecords = [];
+  const studentProfile = students.find((student) => student.id === id);
+
+  if (studentProfile?.photoUrl) {
+    studentProfilePhoto.src = studentProfile.photoUrl;
+  }
 
   schedules.forEach((schedule) => {
     schedule.students.forEach((student) => {
       if (student.id === id) {
-        found = true;
-        studentData.innerHTML += `
+        const studentRecordHtml = `
           <div class="box">
+            <img class="profile-avatar record-photo" src="${student.photoUrl || DEFAULT_STUDENT_PHOTO}" alt="${student.name} photo">
             <strong>Name:</strong> ${student.name}<br>
             <strong>Class Date:</strong> ${schedule.date}<br>
             <strong>Class Time:</strong> ${formatTime12Hour(schedule.time)}<br>
@@ -326,13 +358,22 @@ function loadStudentData() {
             <strong>Fee Status:</strong> ${student.feePending ? '<span style="color:red;">Pending</span>' : "Clear"}
           </div>
         `;
+        matchedRecords.push(studentRecordHtml);
       }
     });
   });
 
-  if (!found) {
+  if (matchedRecords.length === 0) {
     studentData.innerHTML = "<strong>No record found</strong>";
+    studentModalBody.innerHTML = '<div class="box"><strong>No record found</strong></div>';
+    openStudentModal();
+    return;
   }
+
+  const recordsMarkup = matchedRecords.join("");
+  studentData.innerHTML = recordsMarkup;
+  studentModalBody.innerHTML = recordsMarkup;
+  openStudentModal();
 }
 
 function sendWhatsApp() {
@@ -405,6 +446,7 @@ function resetStudentForm() {
   editingStudentIndex = null;
   studentId.value = "";
   studentName.value = "";
+  studentPhotoFile.value = "";
   feePending.checked = false;
   studentSubmitBtn.textContent = "Add Student";
   studentCancelBtn.style.display = "none";
@@ -527,4 +569,55 @@ function initializeTeacherAuth() {
       showPage("loginPage");
     }
   });
+}
+
+function initializeStudentModal() {
+  studentRecordModal.addEventListener("click", (event) => {
+    if (event.target === studentRecordModal) {
+      closeStudentModal();
+    }
+  });
+}
+
+function openStudentModal() {
+  studentRecordModal.classList.add("active");
+  studentRecordModal.setAttribute("aria-hidden", "false");
+}
+
+function closeStudentModal() {
+  studentRecordModal.classList.remove("active");
+  studentRecordModal.setAttribute("aria-hidden", "true");
+}
+
+async function uploadTeacherPhoto() {
+  if (!teacherPhotoFile.files[0]) {
+    alert("Choose a teacher photo first");
+    return;
+  }
+
+  try {
+    const photoUrl = await uploadImageToCloudinary(teacherPhotoFile.files[0], "tuition-project/teachers");
+    teacherProfile = {
+      ...(teacherProfile || {}),
+      photoUrl
+    };
+    await updateTeacherProfile(teacherProfile);
+    applyTeacherProfile();
+    teacherPhotoFile.value = "";
+    alert("Teacher photo saved");
+  } catch (error) {
+    console.error(error);
+    alert("Unable to upload teacher photo");
+  }
+}
+
+async function loadTeacherProfile() {
+  teacherProfile = await getTeacherProfile();
+  applyTeacherProfile();
+}
+
+function applyTeacherProfile() {
+  const teacherPhoto = teacherProfile?.photoUrl || DEFAULT_TEACHER_PHOTO;
+  teacherLoginPhoto.src = teacherPhoto;
+  teacherDashboardPhoto.src = teacherPhoto;
 }

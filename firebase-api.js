@@ -30,7 +30,8 @@ const firebaseConfig = {
 
 const COLLECTIONS = {
   students: "students",
-  schedules: "schedules"
+  schedules: "schedules",
+  teacherProfiles: "teacherProfiles"
 };
 
 const isConfigured = Object.values(firebaseConfig).every(
@@ -141,4 +142,37 @@ export async function updateScheduleRecord(firestoreId, schedule) {
     ...schedule,
     updatedAt: serverTimestamp()
   });
+}
+
+export async function getTeacherProfile() {
+  ensureConfigured();
+  const teacherProfileRef = doc(db, COLLECTIONS.teacherProfiles, "primary");
+  const snapshot = await getDocSafe(teacherProfileRef);
+  if (!snapshot.exists()) {
+    return null;
+  }
+
+  return {
+    firestoreId: snapshot.id,
+    ...snapshot.data()
+  };
+}
+
+export async function updateTeacherProfile(profile) {
+  ensureConfigured();
+  const teacherProfileRef = doc(db, COLLECTIONS.teacherProfiles, "primary");
+  await updateDocSafe(teacherProfileRef, {
+    ...profile,
+    updatedAt: serverTimestamp()
+  });
+}
+
+async function getDocSafe(ref) {
+  const { getDoc } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+  return getDoc(ref);
+}
+
+async function updateDocSafe(ref, data) {
+  const { setDoc } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+  await setDoc(ref, data, { merge: true });
 }
