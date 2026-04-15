@@ -26,6 +26,8 @@ const password = document.getElementById("password");
 const studentId = document.getElementById("studentId");
 const studentName = document.getElementById("studentName");
 const studentPhotoFile = document.getElementById("studentPhotoFile");
+const studentCycleStartDay = document.getElementById("studentCycleStartDay");
+const studentCycleEndDay = document.getElementById("studentCycleEndDay");
 const studentList = document.getElementById("studentList");
 const classDate = document.getElementById("classDate");
 const classTime = document.getElementById("classTime");
@@ -33,7 +35,6 @@ const classDay = document.getElementById("classDay");
 const studentCheckList = document.getElementById("studentCheckList");
 const scheduleList = document.getElementById("scheduleList");
 const loginStudentId = document.getElementById("loginStudentId");
-const studentProfilePhoto = document.getElementById("studentProfilePhoto");
 const studentData = document.getElementById("studentData");
 const studentRecordModal = document.getElementById("studentRecordModal");
 const studentModalBody = document.getElementById("studentModalBody");
@@ -48,14 +49,16 @@ const studentCancelBtn = document.getElementById("studentCancelBtn");
 const FIREBASE_WARNING = "Firebase config missing. Open firebase-api.js and paste your Firebase web app config.";
 const DEFAULT_TEACHER_PHOTO = "https://placehold.co/300x300/f2efe6/8b5e34?text=Teacher";
 const DEFAULT_STUDENT_PHOTO = "https://placehold.co/300x300/e8f5f1/1f6f66?text=Student";
+const DEFAULT_FEE_CYCLE_START_DAY = 1;
+const DEFAULT_FEE_CYCLE_END_DAY = 30;
 const RESET_STUDENT_IDS = ["81", "82", "7"];
 const INITIAL_STUDENTS = [
-  { id: "101", name: "Anushak Kumari", feePending: false, photoUrl: "" },
-  { id: "9", name: "Rahul Kumar", feePending: false, photoUrl: "" },
-  { id: "102", name: "Abhishek Francis", feePending: false, photoUrl: "" },
-  { id: "81", name: "Saket Kumar", feePending: false, photoUrl: "" },
-  { id: "82", name: "Ashwin Kumar", feePending: false, photoUrl: "" },
-  { id: "7", name: "Arpit Kumar", feePending: false, photoUrl: "" }
+  { id: "101", name: "Anushak Kumari", feePending: false, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY },
+  { id: "9", name: "Rahul Kumar", feePending: false, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY },
+  { id: "102", name: "Abhishek Francis", feePending: false, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY },
+  { id: "81", name: "Saket Kumar", feePending: false, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY },
+  { id: "82", name: "Ashwin Kumar", feePending: false, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY },
+  { id: "7", name: "Arpit Kumar", feePending: false, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY }
 ];
 
 window.teacherLogin = teacherLogin;
@@ -86,6 +89,7 @@ async function initializeAppData() {
     initializeTeacherAuth();
     await loadTeacherProfile();
     await refreshFirestoreData();
+    await normalizeAllStudentFeeCycles();
     await resetSpecificStudents();
     await seedInitialStudents();
   } catch (error) {
@@ -146,9 +150,21 @@ async function addStudent() {
   const id = studentId.value.trim();
   const name = studentName.value.trim();
   const fee = feePending.checked;
+  const cycleStartDay = Number(studentCycleStartDay.value);
+  const cycleEndDay = Number(studentCycleEndDay.value);
 
   if (!id || !name) {
     alert("Enter Student ID and Name");
+    return;
+  }
+
+  if (!Number.isInteger(cycleStartDay) || !Number.isInteger(cycleEndDay) || cycleStartDay < 1 || cycleEndDay < 1 || cycleStartDay > 31 || cycleEndDay > 31) {
+    alert("Enter valid student fee cycle days between 1 and 31");
+    return;
+  }
+
+  if (cycleStartDay > cycleEndDay) {
+    alert("Student fee cycle start day should be less than or equal to end day");
     return;
   }
 
@@ -164,16 +180,25 @@ async function addStudent() {
       photoUrl = await uploadImageToCloudinary(studentPhotoFile.files[0], "tuition-project/students");
     }
 
+    const studentPayload = {
+      id,
+      name,
+      feePending: fee,
+      photoUrl,
+      feeCycleStartDay: cycleStartDay,
+      feeCycleEndDay: cycleEndDay
+    };
+
     if (editingStudentIndex !== null) {
-      await saveStudentUpdate(editingStudentIndex, { id, name, feePending: fee, photoUrl });
+      await saveStudentUpdate(editingStudentIndex, studentPayload);
     } else {
       if (students.find((student) => student.id === id)) {
         alert("Student ID already exists");
         return;
       }
 
-      const firestoreId = await addStudentRecord({ id, name, feePending: fee, photoUrl });
-      students.push({ firestoreId, id, name, feePending: fee, photoUrl });
+      const firestoreId = await addStudentRecord(studentPayload);
+      students.push({ firestoreId, ...studentPayload });
     }
 
     showStudents();
@@ -192,7 +217,8 @@ function showStudents() {
       <div class="box">
         <img class="profile-avatar record-photo" src="${student.photoUrl || DEFAULT_STUDENT_PHOTO}" alt="${student.name} photo">
         ${student.name} (ID:${student.id})<br>
-        Fee Status: <strong>${student.feePending ? "Pending" : "Clear"}</strong>
+        Fee Cycle: <strong>${student.feeCycleStartDay || DEFAULT_FEE_CYCLE_START_DAY} to ${student.feeCycleEndDay || DEFAULT_FEE_CYCLE_END_DAY}</strong><br>
+        Fee Status: <strong>${getFeeStatusText(student)}</strong>
         <div class="box-actions">
           <button class="ghost-btn" onclick="editStudent(${index})">Edit</button>
           <button class="delete" onclick="deleteStudent(${index})">Remove</button>
@@ -242,6 +268,8 @@ function editStudent(index) {
   studentId.value = student.id;
   studentName.value = student.name;
   feePending.checked = student.feePending;
+  studentCycleStartDay.value = student.feeCycleStartDay || DEFAULT_FEE_CYCLE_START_DAY;
+  studentCycleEndDay.value = student.feeCycleEndDay || DEFAULT_FEE_CYCLE_END_DAY;
   studentPhotoFile.value = "";
   studentSubmitBtn.textContent = "Update Student";
   studentCancelBtn.style.display = "block";
@@ -336,14 +364,8 @@ function loadStudentData() {
   const id = loginStudentId.value.trim();
   studentData.innerHTML = "";
   studentModalBody.innerHTML = "";
-  studentProfilePhoto.src = DEFAULT_STUDENT_PHOTO;
 
   const matchedRecords = [];
-  const studentProfile = students.find((student) => student.id === id);
-
-  if (studentProfile?.photoUrl) {
-    studentProfilePhoto.src = studentProfile.photoUrl;
-  }
 
   schedules.forEach((schedule) => {
     schedule.students.forEach((student) => {
@@ -355,7 +377,7 @@ function loadStudentData() {
             <strong>Class Date:</strong> ${schedule.date}<br>
             <strong>Class Time:</strong> ${formatTime12Hour(schedule.time)}<br>
             <strong>Day:</strong> ${schedule.day}<br>
-            <strong>Fee Status:</strong> ${student.feePending ? '<span style="color:red;">Pending</span>' : "Clear"}
+            <strong>Fee Status:</strong> ${formatFeeStatusHtml(student)}
           </div>
         `;
         matchedRecords.push(studentRecordHtml);
@@ -447,6 +469,8 @@ function resetStudentForm() {
   studentId.value = "";
   studentName.value = "";
   studentPhotoFile.value = "";
+  studentCycleStartDay.value = DEFAULT_FEE_CYCLE_START_DAY;
+  studentCycleEndDay.value = DEFAULT_FEE_CYCLE_END_DAY;
   feePending.checked = false;
   studentSubmitBtn.textContent = "Add Student";
   studentCancelBtn.style.display = "none";
@@ -620,4 +644,75 @@ function applyTeacherProfile() {
   const teacherPhoto = teacherProfile?.photoUrl || DEFAULT_TEACHER_PHOTO;
   teacherLoginPhoto.src = teacherPhoto;
   teacherDashboardPhoto.src = teacherPhoto;
+}
+
+function getFeeStatusText(student) {
+  if (!student.feePending) {
+    return "Clear";
+  }
+
+  if (hasFeeCycleCrossed(new Date(), student)) {
+    return `Pending - ${getPendingMonthLabel(new Date())}`;
+  }
+
+  return `Pending - Current Cycle`;
+}
+
+function formatFeeStatusHtml(student) {
+  const feeStatus = getFeeStatusText(student);
+  if (feeStatus.startsWith("Pending")) {
+    return `<span style="color:red;">${feeStatus}</span>`;
+  }
+
+  return feeStatus;
+}
+
+function hasFeeCycleCrossed(date, student) {
+  return date.getDate() > Number(student.feeCycleEndDay || DEFAULT_FEE_CYCLE_END_DAY);
+}
+
+async function normalizeAllStudentFeeCycles() {
+  let studentsUpdated = false;
+
+  for (let index = 0; index < students.length; index += 1) {
+    const student = students[index];
+    const needsUpdate =
+      Number(student.feeCycleStartDay) !== DEFAULT_FEE_CYCLE_START_DAY ||
+      Number(student.feeCycleEndDay) !== DEFAULT_FEE_CYCLE_END_DAY;
+
+    if (!needsUpdate) {
+      continue;
+    }
+
+    const updatedStudent = {
+      ...student,
+      feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY,
+      feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY
+    };
+
+    await updateStudentRecord(student.firestoreId, {
+      id: updatedStudent.id,
+      name: updatedStudent.name,
+      feePending: updatedStudent.feePending,
+      photoUrl: updatedStudent.photoUrl || "",
+      feeCycleStartDay: updatedStudent.feeCycleStartDay,
+      feeCycleEndDay: updatedStudent.feeCycleEndDay
+    });
+
+    students[index] = updatedStudent;
+    await syncStudentInSchedules(student.id, updatedStudent);
+    studentsUpdated = true;
+  }
+
+  if (studentsUpdated) {
+    showStudents();
+    showStudentCheckList();
+  }
+}
+
+function getPendingMonthLabel(date) {
+  return date.toLocaleString("en-US", {
+    month: "long",
+    year: "numeric"
+  });
 }

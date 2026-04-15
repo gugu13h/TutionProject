@@ -17,6 +17,13 @@
 <main class="app-shell">
   <div id="loginPage" class="page active">
     <div class="login-layout">
+      <section class="hero-card student-auth-card">
+        <span class="eyebrow">Student Access</span>
+        <h1>See your upcoming classes</h1>
+        <p>Students can quickly view upcoming classes, check fee status, and send a message to the teacher.</p>
+        <button class="secondary-btn large-login-btn" onclick="showStudentPage()">Student Login</button>
+      </section>
+
       <section class="panel-card auth-card teacher-auth-card">
         <div class="teacher-login-top">
           <img id="teacherLoginPhoto" class="profile-avatar large-avatar" src="https://res.cloudinary.com/den0tn3tb/image/upload/v1/defaults/teacher-avatar" alt="Teacher profile">
@@ -38,13 +45,6 @@
         </div>
 
         <button onclick="teacherLogin()">Teacher Login</button>
-      </section>
-
-      <section class="hero-card student-auth-card">
-        <span class="eyebrow">Student Access</span>
-        <h1>Open your schedule and fee details in one tap</h1>
-        <p>Students can quickly view upcoming classes, check fee status, and send a message to the teacher without any confusion.</p>
-        <button class="secondary-btn large-login-btn" onclick="showStudentPage()">Student Login</button>
       </section>
     </div>
   </div>
@@ -90,7 +90,18 @@
           <input id="studentPhotoFile" type="file" accept="image/*">
         </div>
 
-        <label class="check-row"><input type="checkbox" id="feePending"> Fee Pending</label>
+        <div class="action-row">
+          <div class="field-group">
+            <label for="studentCycleStartDay">Fee Cycle Start Day</label>
+            <input id="studentCycleStartDay" type="number" min="1" max="31" placeholder="Start day">
+          </div>
+          <div class="field-group">
+            <label for="studentCycleEndDay">Fee Cycle End Day</label>
+            <input id="studentCycleEndDay" type="number" min="1" max="31" placeholder="End day">
+          </div>
+        </div>
+
+        <label class="check-row"><input type="checkbox" id="feePending"> Fee Pending For Current Cycle</label>
         <div class="action-row">
           <button id="studentSubmitBtn" onclick="addStudent()">Add Student</button>
           <button id="studentCancelBtn" type="button" class="ghost-btn" onclick="cancelStudentEdit()" style="display:none;">Cancel</button>
@@ -134,18 +145,18 @@
 
       <section class="panel-card wide-card">
         <div class="section-head">
-          <h3>Students List</h3>
-          <span class="badge">Live Records</span>
+          <h3>Today's Classes</h3>
+          <span class="badge">Daily Schedule</span>
         </div>
-        <div id="studentList" class="stack-list"></div>
+        <div id="scheduleList" class="stack-list"></div>
       </section>
 
       <section class="panel-card wide-card">
         <div class="section-head">
-          <h3>All Classes</h3>
-          <span class="badge">Saved Schedule</span>
+          <h3>Students List</h3>
+          <span class="badge">Live Records</span>
         </div>
-        <div id="scheduleList" class="stack-list"></div>
+        <div id="studentList" class="stack-list"></div>
       </section>
     </div>
   </div>
@@ -155,7 +166,7 @@
       <div>
         <span class="eyebrow">Student Access</span>
         <h2>Student Dashboard</h2>
-        <p class="section-note">Check your upcoming classes and contact the teacher in one place.</p>
+        <p class="section-note">Check your upcoming classes here.</p>
       </div>
       <button class="secondary-btn compact-btn" onclick="logout()">Logout</button>
     </div>
@@ -163,9 +174,6 @@
     <div class="dashboard-grid student-grid">
       <section class="panel-card">
         <h3>View My Data</h3>
-        <div class="student-profile-spot">
-          <img id="studentProfilePhoto" class="profile-avatar xl-avatar" src="https://res.cloudinary.com/den0tn3tb/image/upload/v1/defaults/student-avatar" alt="Student profile">
-        </div>
         <div class="field-group">
           <label for="loginStudentId">Student ID</label>
           <input id="loginStudentId" placeholder="Enter your student ID">
