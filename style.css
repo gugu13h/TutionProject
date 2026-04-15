@@ -243,6 +243,28 @@ button:hover {
   min-width: 120px;
 }
 
+.action-row,
+.box-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.action-row button,
+.box-actions button {
+  width: 100%;
+}
+
+.ghost-btn {
+  background: #ffffff;
+  color: var(--text-main);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  box-shadow: none;
+}
+
+.ghost-btn:hover {
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
+}
+
 .divider {
   display: flex;
   align-items: center;

@@ -27,8 +27,8 @@
       <p class="section-note">Choose how you want to continue.</p>
 
       <div class="field-group">
-        <label for="username">Teacher Username</label>
-        <input id="username" placeholder="Enter username">
+        <label for="username">Teacher Email</label>
+        <input id="username" type="email" placeholder="Enter teacher email">
       </div>
 
       <div class="field-group">
@@ -69,7 +69,10 @@
         </div>
 
         <label class="check-row"><input type="checkbox" id="feePending"> Fee Pending</label>
-        <button onclick="addStudent()">Add Student</button>
+        <div class="action-row">
+          <button id="studentSubmitBtn" onclick="addStudent()">Add Student</button>
+          <button id="studentCancelBtn" type="button" class="ghost-btn" onclick="cancelStudentEdit()" style="display:none;">Cancel</button>
+        </div>
       </section>
 
       <section class="panel-card">
@@ -95,6 +98,7 @@
             <option>Thursday</option>
             <option>Friday</option>
             <option>Saturday</option>
+            <option>Sunday</option>
           </select>
         </div>
 

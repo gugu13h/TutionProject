@@ -5,11 +5,17 @@ import {
   deleteStudentRecord,
   getSchedules,
   getStudents,
-  isFirebaseReady
+  isFirebaseReady,
+  signInTeacher,
+  signOutTeacher,
+  updateScheduleRecord,
+  updateStudentRecord,
+  watchTeacherAuthState
 } from "./firebase-api.js";
 
 let students = [];
 let schedules = [];
+let editingStudentIndex = null;
 
 const username = document.getElementById("username");
 const password = document.getElementById("password");
@@ -25,21 +31,33 @@ const loginStudentId = document.getElementById("loginStudentId");
 const studentData = document.getElementById("studentData");
 const whatsappMsg = document.getElementById("whatsappMsg");
 const feePending = document.getElementById("feePending");
+const studentSubmitBtn = document.getElementById("studentSubmitBtn");
+const studentCancelBtn = document.getElementById("studentCancelBtn");
 
-const USER = "teacher";
-const PASS = "12345";
 const FIREBASE_WARNING = "Firebase config missing. Open firebase-api.js and paste your Firebase web app config.";
+const RESET_STUDENT_IDS = ["81", "82", "7"];
+const INITIAL_STUDENTS = [
+  { id: "101", name: "Anushak Kumari", feePending: false },
+  { id: "9", name: "Rahul Kumar", feePending: false },
+  { id: "102", name: "Abhishek Francis", feePending: false },
+  { id: "81", name: "Saket Kumar", feePending: false },
+  { id: "82", name: "Ashwin Kumar", feePending: false },
+  { id: "7", name: "Arpit Kumar", feePending: false }
+];
 
 window.teacherLogin = teacherLogin;
 window.showStudentPage = showStudentPage;
 window.logout = logout;
 window.addStudent = addStudent;
 window.deleteStudent = deleteStudent;
+window.editStudent = editStudent;
+window.cancelStudentEdit = cancelStudentEdit;
 window.saveSchedule = saveSchedule;
 window.deleteSchedule = deleteSchedule;
 window.loadStudentData = loadStudentData;
 window.sendWhatsApp = sendWhatsApp;
 
+initializeScheduleDefaults();
 initializeAppData();
 
 async function initializeAppData() {
@@ -49,7 +67,10 @@ async function initializeAppData() {
   }
 
   try {
+    initializeTeacherAuth();
     await refreshFirestoreData();
+    await resetSpecificStudents();
+    await seedInitialStudents();
   } catch (error) {
     console.error(error);
     alert("Unable to load Firestore data. Check your Firebase config and Firestore rules.");
@@ -65,8 +86,8 @@ async function teacherLogin() {
   const u = username.value.trim();
   const p = password.value.trim();
 
-  if (u !== USER || p !== PASS) {
-    alert("Wrong Login (teacher / 12345)");
+  if (!u || !p) {
+    alert("Enter teacher email and password");
     return;
   }
 
@@ -75,8 +96,14 @@ async function teacherLogin() {
     return;
   }
 
-  await refreshFirestoreData();
-  showPage("teacherPage");
+  try {
+    await signInTeacher(u, p);
+    await refreshFirestoreData();
+    showPage("teacherPage");
+  } catch (error) {
+    console.error(error);
+    alert("Teacher login failed. Check Firebase Authentication email/password credentials.");
+  }
 }
 
 function showStudentPage() {
@@ -84,7 +111,18 @@ function showStudentPage() {
 }
 
 function logout() {
-  showPage("loginPage");
+  if (!isFirebaseReady()) {
+    showPage("loginPage");
+    return;
+  }
+
+  signOutTeacher()
+    .catch((error) => {
+      console.error(error);
+    })
+    .finally(() => {
+      showPage("loginPage");
+    });
 }
 
 async function addStudent() {
@@ -102,19 +140,22 @@ async function addStudent() {
     return;
   }
 
-  if (students.find((student) => student.id === id)) {
-    alert("Student ID already exists");
-    return;
-  }
-
   try {
-    const firestoreId = await addStudentRecord({ id, name, feePending: fee });
-    students.push({ firestoreId, id, name, feePending: fee });
+    if (editingStudentIndex !== null) {
+      await saveStudentUpdate(editingStudentIndex, { id, name, feePending: fee });
+    } else {
+      if (students.find((student) => student.id === id)) {
+        alert("Student ID already exists");
+        return;
+      }
+
+      const firestoreId = await addStudentRecord({ id, name, feePending: fee });
+      students.push({ firestoreId, id, name, feePending: fee });
+    }
+
     showStudents();
     showStudentCheckList();
-    studentId.value = "";
-    studentName.value = "";
-    feePending.checked = false;
+    resetStudentForm();
   } catch (error) {
     console.error(error);
     alert(error.message || "Unable to save student to Firestore");
@@ -128,7 +169,10 @@ function showStudents() {
       <div class="box">
         ${student.name} (ID:${student.id})<br>
         Fee Status: <strong>${student.feePending ? "Pending" : "Clear"}</strong>
-        <button onclick="deleteStudent(${index})" style="margin-left:10px;">Remove</button>
+        <div class="box-actions">
+          <button class="ghost-btn" onclick="editStudent(${index})">Edit</button>
+          <button class="delete" onclick="deleteStudent(${index})">Remove</button>
+        </div>
       </div>
     `;
   });
@@ -143,6 +187,11 @@ async function deleteStudent(index) {
   try {
     await deleteStudentRecord(students[index].firestoreId);
     students.splice(index, 1);
+    if (editingStudentIndex === index) {
+      resetStudentForm();
+    } else if (editingStudentIndex !== null && editingStudentIndex > index) {
+      editingStudentIndex -= 1;
+    }
     showStudents();
     showStudentCheckList();
   } catch (error) {
@@ -161,6 +210,21 @@ function showStudentCheckList() {
       </label>
     `;
   });
+}
+
+function editStudent(index) {
+  const student = students[index];
+  editingStudentIndex = index;
+  studentId.value = student.id;
+  studentName.value = student.name;
+  feePending.checked = student.feePending;
+  studentSubmitBtn.textContent = "Update Student";
+  studentCancelBtn.style.display = "block";
+  studentId.focus();
+}
+
+function cancelStudentEdit() {
+  resetStudentForm();
 }
 
 async function saveSchedule() {
@@ -202,9 +266,8 @@ async function saveSchedule() {
     const firestoreId = await addScheduleRecord(schedulePayload);
     schedules.push({ firestoreId, ...schedulePayload });
     loadSchedules();
-    classDate.value = "";
+    setScheduleFieldsToDate(new Date());
     classTime.value = "";
-    classDay.value = "";
     showStudentCheckList();
   } catch (error) {
     console.error(error);
@@ -218,7 +281,7 @@ function loadSchedules() {
     scheduleList.innerHTML += `
       <div class="box">
         <strong>Date:</strong> ${schedule.date}<br>
-        <strong>Time:</strong> ${schedule.time}<br>
+        <strong>Time:</strong> ${formatTime12Hour(schedule.time)}<br>
         <strong>Day:</strong> ${schedule.day}<br>
         <strong>Students:</strong><br>
         ${schedule.students.map((student) => `- ${student.name} (${student.id}) ${student.feePending ? "Pending" : ""}`).join("<br>")}
@@ -258,7 +321,7 @@ function loadStudentData() {
           <div class="box">
             <strong>Name:</strong> ${student.name}<br>
             <strong>Class Date:</strong> ${schedule.date}<br>
-            <strong>Class Time:</strong> ${schedule.time}<br>
+            <strong>Class Time:</strong> ${formatTime12Hour(schedule.time)}<br>
             <strong>Day:</strong> ${schedule.day}<br>
             <strong>Fee Status:</strong> ${student.feePending ? '<span style="color:red;">Pending</span>' : "Clear"}
           </div>
@@ -289,4 +352,179 @@ async function refreshFirestoreData() {
   showStudents();
   showStudentCheckList();
   loadSchedules();
+}
+
+async function seedInitialStudents() {
+  let hasInserted = false;
+
+  for (const student of INITIAL_STUDENTS) {
+    const alreadyExists = students.some((existingStudent) => existingStudent.id === student.id);
+
+    if (alreadyExists) {
+      continue;
+    }
+
+    try {
+      const firestoreId = await addStudentRecord(student);
+      students.push({ firestoreId, ...student });
+      hasInserted = true;
+    } catch (error) {
+      if (error.message !== "Student ID already exists in Firestore") {
+        throw error;
+      }
+    }
+  }
+
+  if (hasInserted) {
+    showStudents();
+    showStudentCheckList();
+    loadSchedules();
+  }
+}
+
+async function resetSpecificStudents() {
+  let hasDeleted = false;
+
+  for (const student of [...students]) {
+    if (!RESET_STUDENT_IDS.includes(student.id)) {
+      continue;
+    }
+
+    await deleteStudentRecord(student.firestoreId);
+    students = students.filter((existingStudent) => existingStudent.firestoreId !== student.firestoreId);
+    hasDeleted = true;
+  }
+
+  if (hasDeleted) {
+    showStudents();
+    showStudentCheckList();
+  }
+}
+
+function resetStudentForm() {
+  editingStudentIndex = null;
+  studentId.value = "";
+  studentName.value = "";
+  feePending.checked = false;
+  studentSubmitBtn.textContent = "Add Student";
+  studentCancelBtn.style.display = "none";
+}
+
+async function saveStudentUpdate(index, updatedStudent) {
+  const currentStudent = students[index];
+  const duplicateStudent = students.find(
+    (student, studentIndex) => student.id === updatedStudent.id && studentIndex !== index
+  );
+
+  if (duplicateStudent) {
+    throw new Error("Student ID already exists");
+  }
+
+  await updateStudentRecord(currentStudent.firestoreId, updatedStudent);
+
+  students[index] = {
+    firestoreId: currentStudent.firestoreId,
+    ...updatedStudent
+  };
+
+  await syncStudentInSchedules(currentStudent.id, updatedStudent);
+}
+
+async function syncStudentInSchedules(previousStudentId, updatedStudent) {
+  for (let index = 0; index < schedules.length; index += 1) {
+    const schedule = schedules[index];
+    let hasChanges = false;
+
+    const updatedScheduleStudents = schedule.students.map((student) => {
+      if (student.id !== previousStudentId) {
+        return student;
+      }
+
+      hasChanges = true;
+      return { ...updatedStudent };
+    });
+
+    if (!hasChanges) {
+      continue;
+    }
+
+    const updatedSchedule = {
+      date: schedule.date,
+      time: schedule.time,
+      day: schedule.day,
+      students: updatedScheduleStudents
+    };
+
+    await updateScheduleRecord(schedule.firestoreId, updatedSchedule);
+    schedules[index] = {
+      firestoreId: schedule.firestoreId,
+      ...updatedSchedule
+    };
+  }
+}
+
+function formatTime12Hour(timeValue) {
+  if (!timeValue || !timeValue.includes(":")) {
+    return timeValue;
+  }
+
+  const [hoursText, minutes] = timeValue.split(":");
+  const hours = Number(hoursText);
+
+  if (Number.isNaN(hours)) {
+    return timeValue;
+  }
+
+  const period = hours >= 12 ? "PM" : "AM";
+  const normalizedHour = hours % 12 || 12;
+  return `${normalizedHour}:${minutes} ${period}`;
+}
+
+function initializeScheduleDefaults() {
+  setScheduleFieldsToDate(new Date());
+  classDate.addEventListener("change", handleClassDateChange);
+}
+
+function handleClassDateChange() {
+  if (!classDate.value) {
+    classDay.value = "";
+    return;
+  }
+
+  setScheduleFieldsToDate(new Date(`${classDate.value}T00:00:00`));
+}
+
+function setScheduleFieldsToDate(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+    return;
+  }
+
+  classDate.value = formatDateInputValue(date);
+  classDay.value = getDayName(date);
+}
+
+function formatDateInputValue(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getDayName(date) {
+  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  return dayNames[date.getDay()];
+}
+
+function initializeTeacherAuth() {
+  watchTeacherAuthState((user) => {
+    if (user) {
+      showPage("teacherPage");
+      return;
+    }
+
+    const activePage = document.querySelector(".page.active");
+    if (activePage && activePage.id === "teacherPage") {
+      showPage("loginPage");
+    }
+  });
 }

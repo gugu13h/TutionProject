@@ -1,5 +1,11 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
+  getAuth,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {
   addDoc,
   collection,
   deleteDoc,
@@ -9,6 +15,7 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  updateDoc,
   where
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
@@ -31,20 +38,38 @@ const isConfigured = Object.values(firebaseConfig).every(
 );
 
 let db = null;
+let auth = null;
 
 if (isConfigured) {
   const app = initializeApp(firebaseConfig);
   db = getFirestore(app);
+  auth = getAuth(app);
 }
 
 function ensureConfigured() {
-  if (!db) {
+  if (!db || !auth) {
     throw new Error("Firebase config missing in firebase-api.js");
   }
 }
 
 export function isFirebaseReady() {
-  return Boolean(db);
+  return Boolean(db && auth);
+}
+
+export function watchTeacherAuthState(callback) {
+  ensureConfigured();
+  return onAuthStateChanged(auth, callback);
+}
+
+export async function signInTeacher(email, password) {
+  ensureConfigured();
+  const userCredential = await signInWithEmailAndPassword(auth, email, password);
+  return userCredential.user;
+}
+
+export async function signOutTeacher() {
+  ensureConfigured();
+  await signOut(auth);
 }
 
 export async function getStudents() {
@@ -78,6 +103,14 @@ export async function deleteStudentRecord(firestoreId) {
   await deleteDoc(doc(db, COLLECTIONS.students, firestoreId));
 }
 
+export async function updateStudentRecord(firestoreId, student) {
+  ensureConfigured();
+  await updateDoc(doc(db, COLLECTIONS.students, firestoreId), {
+    ...student,
+    updatedAt: serverTimestamp()
+  });
+}
+
 export async function getSchedules() {
   ensureConfigured();
   const snapshot = await getDocs(query(collection(db, COLLECTIONS.schedules), orderBy("createdAt", "asc")));
@@ -100,4 +133,12 @@ export async function addScheduleRecord(schedule) {
 export async function deleteScheduleRecord(firestoreId) {
   ensureConfigured();
   await deleteDoc(doc(db, COLLECTIONS.schedules, firestoreId));
+}
+
+export async function updateScheduleRecord(firestoreId, schedule) {
+  ensureConfigured();
+  await updateDoc(doc(db, COLLECTIONS.schedules, firestoreId), {
+    ...schedule,
+    updatedAt: serverTimestamp()
+  });
 }
