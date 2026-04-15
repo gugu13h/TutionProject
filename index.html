@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tuition System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="background-glow glow-left"></div>
+<div class="background-glow glow-right"></div>
+
+<main class="app-shell">
+  <div id="loginPage" class="page active">
+    <div class="hero-card">
+      <span class="eyebrow">Smart Tuition Manager</span>
+      <h1>Manage your classes with a cleaner dashboard</h1>
+      <p>Teachers can register students and plan classes, while students can quickly check their schedule and fee status.</p>
+    </div>
+
+    <div class="panel-card auth-card">
+      <h2>Login Portal</h2>
+      <p class="section-note">Choose how you want to continue.</p>
+
+      <div class="field-group">
+        <label for="username">Teacher Username</label>
+        <input id="username" placeholder="Enter username">
+      </div>
+
+      <div class="field-group">
+        <label for="password">Teacher Password</label>
+        <input id="password" type="password" placeholder="Enter password">
+      </div>
+
+      <button onclick="teacherLogin()">Teacher Login</button>
+
+      <div class="divider"><span>or</span></div>
+
+      <button class="secondary-btn" onclick="showStudentPage()">Student Login</button>
+    </div>
+  </div>
+
+  <div id="teacherPage" class="page dashboard-page">
+    <div class="dashboard-header">
+      <div>
+        <span class="eyebrow">Teacher Workspace</span>
+        <h2>Teacher Dashboard</h2>
+        <p class="section-note">Add students, build schedules, and keep every class organized.</p>
+      </div>
+      <button class="secondary-btn compact-btn" onclick="logout()">Logout</button>
+    </div>
+
+    <div class="dashboard-grid">
+      <section class="panel-card">
+        <h3>Register Student</h3>
+
+        <div class="field-group">
+          <label for="studentId">Student ID</label>
+          <input id="studentId" placeholder="Enter student ID">
+        </div>
+
+        <div class="field-group">
+          <label for="studentName">Student Name</label>
+          <input id="studentName" placeholder="Enter student name">
+        </div>
+
+        <label class="check-row"><input type="checkbox" id="feePending"> Fee Pending</label>
+        <button onclick="addStudent()">Add Student</button>
+      </section>
+
+      <section class="panel-card">
+        <h3>Class Schedule</h3>
+
+        <div class="field-group">
+          <label for="classDate">Class Date</label>
+          <input type="date" id="classDate">
+        </div>
+
+        <div class="field-group">
+          <label for="classTime">Class Time</label>
+          <input type="time" id="classTime">
+        </div>
+
+        <div class="field-group">
+          <label for="classDay">Class Day</label>
+          <select id="classDay">
+            <option value="">Select Day</option>
+            <option>Monday</option>
+            <option>Tuesday</option>
+            <option>Wednesday</option>
+            <option>Thursday</option>
+            <option>Friday</option>
+            <option>Saturday</option>
+          </select>
+        </div>
+
+        <div class="field-group">
+          <label>Select Students for this Class</label>
+          <div id="studentCheckList" class="checklist"></div>
+        </div>
+
+        <button onclick="saveSchedule()">Save Schedule</button>
+      </section>
+
+      <section class="panel-card wide-card">
+        <div class="section-head">
+          <h3>Students List</h3>
+          <span class="badge">Live Records</span>
+        </div>
+        <div id="studentList" class="stack-list"></div>
+      </section>
+
+      <section class="panel-card wide-card">
+        <div class="section-head">
+          <h3>All Classes</h3>
+          <span class="badge">Saved Schedule</span>
+        </div>
+        <div id="scheduleList" class="stack-list"></div>
+      </section>
+    </div>
+  </div>
+
+  <div id="studentPage" class="page dashboard-page">
+    <div class="dashboard-header">
+      <div>
+        <span class="eyebrow">Student Access</span>
+        <h2>Student Dashboard</h2>
+        <p class="section-note">Check your upcoming classes and contact the teacher in one place.</p>
+      </div>
+      <button class="secondary-btn compact-btn" onclick="logout()">Logout</button>
+    </div>
+
+    <div class="dashboard-grid student-grid">
+      <section class="panel-card">
+        <h3>View My Data</h3>
+        <div class="field-group">
+          <label for="loginStudentId">Student ID</label>
+          <input id="loginStudentId" placeholder="Enter your student ID">
+        </div>
+        <button onclick="loadStudentData()">Show My Details</button>
+      </section>
+
+      <section class="panel-card">
+        <h3>Send Message to Teacher</h3>
+        <div class="field-group">
+          <label for="whatsappMsg">Message</label>
+          <textarea id="whatsappMsg" placeholder="Type your message here"></textarea>
+        </div>
+        <button onclick="sendWhatsApp()">Send WhatsApp</button>
+      </section>
+
+      <section class="panel-card wide-card">
+        <div class="section-head">
+          <h3>My Records</h3>
+          <span class="badge">Student View</span>
+        </div>
+        <div id="studentData" class="stack-list"></div>
+      </section>
+    </div>
+  </div>
+</main>
+
+<script type="module" src="script.js"></script>
+</body>
+</html>
