@@ -88,6 +88,8 @@ window.saveSchedule = saveSchedule;
 window.deleteSchedule = deleteSchedule;
 window.loadStudentData = loadStudentData;
 window.closeStudentModal = closeStudentModal;
+window.studentAttendance = studentAttendance;
+window.submitAttendanceReason = submitAttendanceReason;
 window.sendWhatsApp = sendWhatsApp;
 window.uploadTeacherPhoto = uploadTeacherPhoto;
 window.setStudentRating = setStudentRating;
@@ -352,7 +354,11 @@ async function saveSchedule() {
     date,
     time,
     day,
-    students: selectedStudents.map(({ firestoreId, ...student }) => student)
+    students: selectedStudents.map(({ firestoreId, ...student }) => ({
+      ...student,
+      attendanceStatus: "pending",
+      attendanceReason: ""
+    }))
   };
 
   try {
@@ -377,7 +383,7 @@ function loadSchedules() {
         <strong>Time:</strong> ${formatTime12Hour(schedule.time)}<br>
         <strong>Day:</strong> ${schedule.day}<br>
         <strong>Students:</strong><br>
-        ${schedule.students.map((student) => `- ${student.name} (${student.id}) ${student.feePending ? "Pending" : ""}`).join("<br>")}
+        ${schedule.students.map((student) => getScheduleAttendanceHtml(student)).join("<br>")}
         <br><button class="delete" onclick="deleteSchedule(${index})" style="margin-top:10px;">Delete Class</button>
       </div>
     `;
@@ -424,6 +430,9 @@ function loadStudentData() {
         const scienceText = ratings.science === 0 ? "Not Rated" : `${ratings.science} / 10`;
         const overallText = overallRating === 0 ? "Not Rated" : `${overallRating} / 10`;
         
+        const attendanceStatus = student.attendanceStatus || "pending";
+        const attendanceReason = student.attendanceReason || "";
+        const isAbsent = attendanceStatus === "not-coming";
         const studentRecordHtml = `
           <div class="box">
             <img class="profile-avatar record-photo" src="${student.photoUrl || DEFAULT_STUDENT_PHOTO}" alt="${student.name} photo">
@@ -432,11 +441,20 @@ function loadStudentData() {
             <strong>Class Time:</strong> <span style="color: #0f766e; font-weight: bold;">${formatTime12Hour(schedule.time)}</span><br>
             <strong>Day:</strong> ${schedule.day}<br>
             <strong>Fee Status:</strong> ${formatFeeStatusHtml(student)}<br>
+            <strong>Attendance:</strong> ${getAttendanceStatusText(student)}<br>
+            <div class="attendance-actions" style="display:flex; gap:10px; flex-wrap:wrap; margin-top: 10px;">
+              <button class="secondary-btn compact-btn" style="flex:1; min-width: 160px;" onclick="studentAttendance('${schedule.firestoreId}','${student.id}','coming')">I will come</button>
+              <button class="secondary-btn compact-btn" style="flex:1; min-width: 160px; background:#dc2626; color:#fff;" onclick="studentAttendance('${schedule.firestoreId}','${student.id}','not-coming')">I will not come today</button>
+            </div>
+            <div id="attendanceReasonContainer_${schedule.firestoreId}_${student.id}" style="display: ${isAbsent ? "block" : "none"}; margin-top: 12px;">
+              <textarea id="attendanceReason_${schedule.firestoreId}_${student.id}" placeholder="Reason for absence" style="width:100%; min-height:80px; border-radius:12px; padding:12px; border:1px solid #d1d5db;">${attendanceReason}</textarea>
+              <button class="secondary-btn compact-btn" style="margin-top: 10px;" onclick="submitAttendanceReason('${schedule.firestoreId}','${student.id}')">Save Reason</button>
+            </div>
             <button class="secondary-btn compact-btn" onclick="toggleStudentRating(this)" style="margin-top: 10px; width: 100%;">Show More</button>
             <div class="rating-details" style="display: none; margin-top: 10px; padding: 12px; background: rgba(15, 118, 110, 0.1); border-radius: 10px; border-left: 4px solid #0f766e;">
               <strong>📐 Maths Rating:</strong> ${mathsText}<br>
               <strong>🔬 Science Rating:</strong> ${scienceText}<br>
-            <strong style="color: #0f766e; font-size: 1.1rem;">📊 Overall Rating: ${overallText}</strong>
+              <strong style="color: #0f766e; font-size: 1.1rem;">📊 Overall Rating: ${overallText}</strong>
             </div>
           </div>
         `;
@@ -472,6 +490,87 @@ function toggleStudentRating(button) {
   const isVisible = ratingDetails.style.display !== "none";
   ratingDetails.style.display = isVisible ? "none" : "block";
   button.textContent = isVisible ? "Show More" : "Show Less";
+}
+
+function studentAttendance(scheduleId, studentId, status) {
+  const reasonContainer = document.getElementById(`attendanceReasonContainer_${scheduleId}_${studentId}`);
+  if (reasonContainer) {
+    reasonContainer.style.display = status === "not-coming" ? "block" : "none";
+  }
+  updateStudentAttendance(scheduleId, studentId, status, "");
+}
+
+function submitAttendanceReason(scheduleId, studentId) {
+  const textarea = document.getElementById(`attendanceReason_${scheduleId}_${studentId}`);
+  const reason = textarea ? textarea.value.trim() : "";
+  if (!reason) {
+    alert("Please enter the reason for absence");
+    return;
+  }
+  updateStudentAttendance(scheduleId, studentId, "not-coming", reason);
+}
+
+async function updateStudentAttendance(scheduleId, studentId, status, reason) {
+  if (!isFirebaseReady()) {
+    alert(FIREBASE_WARNING);
+    return;
+  }
+
+  const scheduleIndex = schedules.findIndex((schedule) => schedule.firestoreId === scheduleId);
+  if (scheduleIndex === -1) {
+    alert("Schedule not found");
+    return;
+  }
+
+  const schedule = schedules[scheduleIndex];
+  const studentIndex = schedule.students.findIndex((student) => student.id === studentId);
+  if (studentIndex === -1) {
+    alert("Student not found in schedule");
+    return;
+  }
+
+  const updatedStudent = {
+    ...schedule.students[studentIndex],
+    attendanceStatus: status,
+    attendanceReason: status === "not-coming" ? reason || schedule.students[studentIndex].attendanceReason || "" : ""
+  };
+
+  const updatedSchedule = {
+    date: schedule.date,
+    time: schedule.time,
+    day: schedule.day,
+    students: schedule.students.map((student, index) => (index === studentIndex ? updatedStudent : student))
+  };
+
+  try {
+    await updateScheduleRecord(schedule.firestoreId, updatedSchedule);
+    schedules[scheduleIndex] = { firestoreId: schedule.firestoreId, ...updatedSchedule };
+    loadSchedules();
+    const currentStudentId = loginStudentId.value.trim();
+    if (currentStudentId === studentId) {
+      loadStudentData();
+    }
+    alert("Attendance status saved");
+  } catch (error) {
+    console.error(error);
+    alert("Unable to save attendance status");
+  }
+}
+
+function getAttendanceStatusText(student) {
+  const status = student.attendanceStatus || "pending";
+  if (status === "coming") {
+    return `<span style="color:#0f766e;font-weight:700;">Coming</span>`;
+  }
+  if (status === "not-coming") {
+    return `<span style="color:#dc2626;font-weight:700;">Not Coming</span>`;
+  }
+  return `<span style="color:#6b7280;font-weight:700;">Not Confirmed</span>`;
+}
+
+function getScheduleAttendanceHtml(student) {
+  const reasonMarkup = student.attendanceReason ? `<div style="margin-left: 18px; color:#dc2626;">Reason: ${student.attendanceReason}</div>` : "";
+  return `- ${student.name} (${student.id}) ${student.feePending ? "(Pending)" : ""} — ${getAttendanceStatusText(student)} ${reasonMarkup}`;
 }
 
 function sendWhatsApp() {
