@@ -89,7 +89,6 @@ window.deleteSchedule = deleteSchedule;
 window.loadStudentData = loadStudentData;
 window.closeStudentModal = closeStudentModal;
 window.studentAttendance = studentAttendance;
-window.submitAttendanceReason = submitAttendanceReason;
 window.sendWhatsApp = sendWhatsApp;
 window.uploadTeacherPhoto = uploadTeacherPhoto;
 window.setStudentRating = setStudentRating;
@@ -145,6 +144,7 @@ async function teacherLogin() {
   try {
     await signInTeacher(u, p);
     await refreshFirestoreData();
+    loadSchedules();
     showPage("teacherPage");
   } catch (error) {
     console.error(error);
@@ -446,10 +446,6 @@ function loadStudentData() {
               <button class="secondary-btn compact-btn" style="flex:1; min-width: 160px;" onclick="studentAttendance('${schedule.firestoreId}','${student.id}','coming')">I will come</button>
               <button class="secondary-btn compact-btn" style="flex:1; min-width: 160px; background:#dc2626; color:#fff;" onclick="studentAttendance('${schedule.firestoreId}','${student.id}','not-coming')">I will not come today</button>
             </div>
-            <div id="attendanceReasonContainer_${schedule.firestoreId}_${student.id}" style="display: ${isAbsent ? "block" : "none"}; margin-top: 12px;">
-              <textarea id="attendanceReason_${schedule.firestoreId}_${student.id}" placeholder="Reason for absence" style="width:100%; min-height:80px; border-radius:12px; padding:12px; border:1px solid #d1d5db;">${attendanceReason}</textarea>
-              <button class="secondary-btn compact-btn" style="margin-top: 10px;" onclick="submitAttendanceReason('${schedule.firestoreId}','${student.id}')">Save Reason</button>
-            </div>
             <button class="secondary-btn compact-btn" onclick="toggleStudentRating(this)" style="margin-top: 10px; width: 100%;">Show More</button>
             <div class="rating-details" style="display: none; margin-top: 10px; padding: 12px; background: rgba(15, 118, 110, 0.1); border-radius: 10px; border-left: 4px solid #0f766e;">
               <strong>📐 Maths Rating:</strong> ${mathsText}<br>
@@ -467,9 +463,39 @@ function loadStudentData() {
   matchedRecords.sort((a, b) => a.dateTime - b.dateTime);
 
   if (matchedRecords.length === 0) {
+    const studentRecord = students.find((student) => student.id === id);
+    if (studentRecord) {
+      const ratings = studentRecord.subjectRatings || { maths: 0, science: 0 };
+      const overallRating = Math.round((ratings.maths + ratings.science) / 2 * 10) / 10;
+      const mathsText = ratings.maths === 0 ? "Not Rated" : `${ratings.maths} / 10`;
+      const scienceText = ratings.science === 0 ? "Not Rated" : `${ratings.science} / 10`;
+      const overallText = overallRating === 0 ? "Not Rated" : `${overallRating} / 10`;
+
+      const studentInfoHtml = `
+        <div class="box">
+          <img class="profile-avatar record-photo" src="${studentRecord.photoUrl || DEFAULT_STUDENT_PHOTO}" alt="${studentRecord.name} photo">
+          <strong>Name:</strong> ${studentRecord.name}<br>
+          <strong>ID:</strong> ${studentRecord.id}<br>
+          <strong>Fee Status:</strong> ${getFeeStatusText(studentRecord)}<br>
+          <strong>Maths Rating:</strong> ${mathsText}<br>
+          <strong>Science Rating:</strong> ${scienceText}<br>
+          <strong>Overall Rating:</strong> ${overallText}<br>
+          <strong style="display:block; margin-top: 12px;">Class update is not available yet.</strong>
+          <strong>You will be informed soon.</strong><br>
+          <button class="secondary-btn" onclick="window.open('https://wa.me/918864022272?text=Need%20help%20with%20student%20login', '_blank');" style="margin-top: 10px;">Need Help</button>
+        </div>
+      `;
+
+      studentData.innerHTML = studentInfoHtml;
+      studentModalBody.innerHTML = studentInfoHtml;
+      openStudentModal();
+      return;
+    }
+
     const notFoundHtml = `
       <div class="box">
-        <strong>Student not found</strong><br>
+        <strong>Class update is not available yet.</strong><br>
+        <strong>You will be informed soon.</strong><br>
         <button class="secondary-btn" onclick="window.open('https://wa.me/918864022272?text=Need%20help%20with%20student%20login', '_blank');" style="margin-top: 10px;">Need Help</button>
       </div>
     `;
@@ -493,21 +519,20 @@ function toggleStudentRating(button) {
 }
 
 function studentAttendance(scheduleId, studentId, status) {
-  const reasonContainer = document.getElementById(`attendanceReasonContainer_${scheduleId}_${studentId}`);
-  if (reasonContainer) {
-    reasonContainer.style.display = status === "not-coming" ? "block" : "none";
-  }
-  updateStudentAttendance(scheduleId, studentId, status, "");
-}
+  // Find student and schedule for WhatsApp
+  const schedule = schedules.find(s => s.firestoreId === scheduleId);
+  const student = schedule ? schedule.students.find(s => s.id === studentId) : null;
+  const studentName = student ? student.name : "Unknown Student";
 
-function submitAttendanceReason(scheduleId, studentId) {
-  const textarea = document.getElementById(`attendanceReason_${scheduleId}_${studentId}`);
-  const reason = textarea ? textarea.value.trim() : "";
-  if (!reason) {
-    alert("Please enter the reason for absence");
-    return;
+  if (status === "not-coming") {
+    // Send WhatsApp message
+    const message = `Student ${studentName} (ID: ${studentId}) will not come to class on ${schedule.date} at ${formatTime12Hour(schedule.time)}.`;
+    const url = "https://wa.me/918864022272?text=" + encodeURIComponent(message);
+    window.open(url, "_blank");
+    alert("Notification sent to teacher!");
   }
-  updateStudentAttendance(scheduleId, studentId, "not-coming", reason);
+
+  updateStudentAttendance(scheduleId, studentId, status, "");
 }
 
 async function updateStudentAttendance(scheduleId, studentId, status, reason) {
@@ -580,7 +605,7 @@ function sendWhatsApp() {
     return;
   }
 
-  const url = "https://wa.me/8864022272?text=" + encodeURIComponent(msg);
+  const url = "https://wa.me/918864022272?text=" + encodeURIComponent(msg);
   window.open(url, "_blank");
 }
 
