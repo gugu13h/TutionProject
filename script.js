@@ -452,7 +452,7 @@ function loadStudentData() {
     const notFoundHtml = `
       <div class="box">
         <strong>Student not found</strong><br>
-        <button class="secondary-btn" onclick="window.open('https://wa.me/919876543210?text=Need%20help%20with%20student%20login', '_blank');" style="margin-top: 10px;">Need Help</button>
+        <button class="secondary-btn" onclick="window.open('https://wa.me/918864022272?text=Need%20help%20with%20student%20login', '_blank');" style="margin-top: 10px;">Need Help</button>
       </div>
     `;
     studentData.innerHTML = notFoundHtml;
