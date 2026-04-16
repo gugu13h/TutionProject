@@ -45,6 +45,14 @@ const whatsappMsg = document.getElementById("whatsappMsg");
 const feePending = document.getElementById("feePending");
 const studentSubmitBtn = document.getElementById("studentSubmitBtn");
 const studentCancelBtn = document.getElementById("studentCancelBtn");
+const studentRegisterForm = document.getElementById("studentRegisterForm");
+const newRegisterBtn = document.getElementById("newRegisterBtn");
+const newRegisterBtnText = document.getElementById("newRegisterBtnText");
+const studentRegisterCloseBtn = document.getElementById("studentRegisterCloseBtn");
+const scheduleForm = document.getElementById("scheduleForm");
+const newScheduleBtn = document.getElementById("newScheduleBtn");
+const newScheduleBtnText = document.getElementById("newScheduleBtnText");
+const scheduleCloseBtn = document.getElementById("scheduleCloseBtn");
 
 const FIREBASE_WARNING = "Firebase config missing. Open firebase-api.js and paste your Firebase web app config.";
 const DEFAULT_TEACHER_PHOTO = "https://placehold.co/300x300/f2efe6/8b5e34?text=Teacher";
@@ -68,6 +76,7 @@ window.addStudent = addStudent;
 window.deleteStudent = deleteStudent;
 window.editStudent = editStudent;
 window.cancelStudentEdit = cancelStudentEdit;
+window.toggleStudentRegisterForm = toggleStudentRegisterForm;
 window.saveSchedule = saveSchedule;
 window.deleteSchedule = deleteSchedule;
 window.loadStudentData = loadStudentData;
@@ -77,6 +86,8 @@ window.uploadTeacherPhoto = uploadTeacherPhoto;
 
 initializeScheduleDefaults();
 initializeStudentModal();
+initializeStudentRegisterForm();
+initializeScheduleForm();
 initializeAppData();
 
 async function initializeAppData() {
@@ -265,6 +276,7 @@ function showStudentCheckList() {
 function editStudent(index) {
   const student = students[index];
   editingStudentIndex = index;
+  openStudentRegisterForm();
   studentId.value = student.id;
   studentName.value = student.name;
   feePending.checked = student.feePending;
@@ -278,6 +290,15 @@ function editStudent(index) {
 
 function cancelStudentEdit() {
   resetStudentForm();
+}
+
+function toggleStudentRegisterForm() {
+  if (studentRegisterForm.classList.contains("active")) {
+    resetStudentForm();
+    return;
+  }
+
+  openStudentRegisterForm();
 }
 
 async function saveSchedule() {
@@ -474,6 +495,36 @@ function resetStudentForm() {
   feePending.checked = false;
   studentSubmitBtn.textContent = "Add Student";
   studentCancelBtn.style.display = "none";
+  closeStudentRegisterForm();
+}
+
+function openStudentRegisterForm() {
+  studentRegisterForm.classList.add("active");
+  newRegisterBtnText.textContent = editingStudentIndex !== null ? "Close Form" : "Hide Form";
+}
+
+function closeStudentRegisterForm() {
+  studentRegisterForm.classList.remove("active");
+  newRegisterBtnText.textContent = "New Register";
+}
+
+function toggleScheduleForm() {
+  if (scheduleForm.classList.contains("active")) {
+    closeScheduleForm();
+    return;
+  }
+
+  openScheduleForm();
+}
+
+function openScheduleForm() {
+  scheduleForm.classList.add("active");
+  newScheduleBtnText.textContent = "Close Form";
+}
+
+function closeScheduleForm() {
+  scheduleForm.classList.remove("active");
+  newScheduleBtnText.textContent = "New Schedule";
 }
 
 async function saveStudentUpdate(index, updatedStudent) {
@@ -601,6 +652,36 @@ function initializeStudentModal() {
       closeStudentModal();
     }
   });
+}
+
+function initializeStudentRegisterForm() {
+  closeStudentRegisterForm();
+  studentCycleStartDay.value = DEFAULT_FEE_CYCLE_START_DAY;
+  studentCycleEndDay.value = DEFAULT_FEE_CYCLE_END_DAY;
+
+  if (newRegisterBtn) {
+    newRegisterBtn.addEventListener("click", toggleStudentRegisterForm);
+  }
+
+  if (studentRegisterCloseBtn) {
+    studentRegisterCloseBtn.addEventListener("click", () => {
+      resetStudentForm();
+    });
+  }
+}
+
+function initializeScheduleForm() {
+  closeScheduleForm();
+
+  if (newScheduleBtn) {
+    newScheduleBtn.addEventListener("click", toggleScheduleForm);
+  }
+
+  if (scheduleCloseBtn) {
+    scheduleCloseBtn.addEventListener("click", () => {
+      closeScheduleForm();
+    });
+  }
 }
 
 function openStudentModal() {

@@ -241,6 +241,13 @@ body {
   gap: 20px;
 }
 
+.register-schedule-wrapper {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  grid-column: 1 / -1;
+}
+
 .student-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -307,6 +314,10 @@ p {
 }
 
 .field-group {
+  margin-bottom: 18px;
+}
+
+.register-form-panel .field-group {
   margin-bottom: 16px;
 }
 
@@ -377,12 +388,14 @@ button:hover {
 .action-row,
 .box-actions {
   display: flex;
-  gap: 10px;
+  gap: 12px;
+  margin-top: 20px;
 }
 
 .action-row button,
 .box-actions button {
   width: 100%;
+  flex: 1;
 }
 
 .ghost-btn {
@@ -421,13 +434,77 @@ button:hover {
   margin-bottom: 14px;
 }
 
+.register-section-head {
+  align-items: center;
+  margin-bottom: 0;
+  gap: 20px;
+}
+
+.register-note {
+  margin-bottom: 0;
+}
+
+.new-register-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: auto;
+  min-width: 150px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.new-register-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  font-size: 1.25rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.register-form-panel {
+  display: none;
+  margin-top: 16px;
+  padding: 20px 0;
+  border-top: 2px solid rgba(148, 163, 184, 0.15);
+}
+
+.register-form-panel.active {
+  display: block;
+  animation: fadeIn 0.3s ease;
+}
+
+.register-form-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.register-close-btn {
+  width: auto;
+  min-width: 90px;
+}
+
 .badge {
-  padding: 6px 12px;
+  padding: 6px 14px;
   border-radius: 999px;
-  background: rgba(15, 118, 110, 0.1);
+  background: rgba(15, 118, 110, 0.12);
   color: var(--accent);
   font-size: 0.8rem;
   font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
 }
 
 .check-row {
@@ -632,5 +709,31 @@ button:hover {
   .teacher-login-top {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .register-section-head {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .new-register-btn {
+    width: 100%;
+    min-width: unset;
+  }
+
+  .register-form-top {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .register-close-btn {
+    width: 100%;
+  }
+
+  .register-schedule-wrapper {
+    grid-template-columns: 1fr;
+    gap: 16px;
   }
 }
