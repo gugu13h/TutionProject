@@ -44,6 +44,7 @@ const studentModalBody = document.getElementById("studentModalBody");
 const teacherLoginPhoto = document.getElementById("teacherLoginPhoto");
 const teacherDashboardPhoto = document.getElementById("teacherDashboardPhoto");
 const teacherPhotoFile = document.getElementById("teacherPhotoFile");
+const teacherLoginPhotoFile = document.getElementById("teacherLoginPhotoFile");
 const whatsappMsg = document.getElementById("whatsappMsg");
 const feePending = document.getElementById("feePending");
 const studentSubmitBtn = document.getElementById("studentSubmitBtn");
@@ -448,8 +449,14 @@ function loadStudentData() {
   matchedRecords.sort((a, b) => a.dateTime - b.dateTime);
 
   if (matchedRecords.length === 0) {
-    studentData.innerHTML = "<strong>No record found</strong>";
-    studentModalBody.innerHTML = '<div class="box"><strong>No record found</strong></div>';
+    const notFoundHtml = `
+      <div class="box">
+        <strong>Student not found</strong><br>
+        <button class="secondary-btn" onclick="window.open('https://wa.me/919876543210?text=Need%20help%20with%20student%20login', '_blank');" style="margin-top: 10px;">Need Help</button>
+      </div>
+    `;
+    studentData.innerHTML = notFoundHtml;
+    studentModalBody.innerHTML = notFoundHtml;
     openStudentModal();
     return;
   }
@@ -692,6 +699,32 @@ function initializeTeacherAuth() {
       showPage("loginPage");
     }
   });
+
+  // Teacher login photo setting
+  const teacherPhotoContainer = document.querySelector(".teacher-photo-container");
+  if (teacherPhotoContainer) {
+    teacherPhotoContainer.addEventListener("click", () => {
+      teacherLoginPhotoFile.click();
+    });
+  }
+
+  if (teacherLoginPhotoFile) {
+    teacherLoginPhotoFile.addEventListener("change", async (event) => {
+      if (!event.target.files[0]) return;
+      try {
+        const photoUrl = await uploadImageToCloudinary(event.target.files[0], "tuition-project/teachers");
+        teacherLoginPhoto.src = photoUrl;
+        teacherDashboardPhoto.src = photoUrl;
+        // Save to teacher profile
+        await updateTeacherProfile({ photoUrl });
+        alert("Teacher photo updated successfully!");
+      } catch (error) {
+        console.error(error);
+        alert("Failed to upload photo");
+      }
+      event.target.value = "";
+    });
+  }
 }
 
 function initializeStudentModal() {

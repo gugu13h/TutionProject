@@ -173,6 +173,36 @@ body {
   margin: 0;
 }
 
+.teacher-photo-container {
+  position: relative;
+  display: inline-block;
+  cursor: pointer;
+}
+
+.teacher-photo-container img {
+  pointer-events: none;
+}
+
+.photo-setting-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-weight: bold;
+  font-size: 14px;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 4px 8px;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.teacher-photo-container:hover .photo-setting-text {
+  opacity: 1;
+}
+
 .teacher-auth-card {
   display: flex;
   flex-direction: column;
