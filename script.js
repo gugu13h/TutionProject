@@ -20,6 +20,9 @@ let students = [];
 let schedules = [];
 let editingStudentIndex = null;
 let teacherProfile = null;
+let currentRatingStudentIndex = null;
+let selectedMathsRating = 0;
+let selectedScienceRating = 0;
 
 const username = document.getElementById("username");
 const password = document.getElementById("password");
@@ -53,6 +56,9 @@ const scheduleForm = document.getElementById("scheduleForm");
 const newScheduleBtn = document.getElementById("newScheduleBtn");
 const newScheduleBtnText = document.getElementById("newScheduleBtnText");
 const scheduleCloseBtn = document.getElementById("scheduleCloseBtn");
+const ratingModal = document.getElementById("ratingModal");
+const ratingModalTitle = document.getElementById("ratingModalTitle");
+const currentRatingDisplay = document.getElementById("currentRatingDisplay");
 
 const FIREBASE_WARNING = "Firebase config missing. Open firebase-api.js and paste your Firebase web app config.";
 const DEFAULT_TEACHER_PHOTO = "https://placehold.co/300x300/f2efe6/8b5e34?text=Teacher";
@@ -61,12 +67,12 @@ const DEFAULT_FEE_CYCLE_START_DAY = 1;
 const DEFAULT_FEE_CYCLE_END_DAY = 30;
 const RESET_STUDENT_IDS = ["81", "82", "7"];
 const INITIAL_STUDENTS = [
-  { id: "101", name: "Anushak Kumari", feePending: false, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY },
-  { id: "9", name: "Rahul Kumar", feePending: false, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY },
-  { id: "102", name: "Abhishek Francis", feePending: false, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY },
-  { id: "81", name: "Saket Kumar", feePending: false, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY },
-  { id: "82", name: "Ashwin Kumar", feePending: false, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY },
-  { id: "7", name: "Arpit Kumar", feePending: false, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY }
+  { id: "101", name: "Anushak Kumari", feePending: false, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY, subjectRatings: { maths: 0, science: 0 } },
+  { id: "9", name: "Rahul Kumar", feePending: false, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY, subjectRatings: { maths: 0, science: 0 } },
+  { id: "102", name: "Abhishek Francis", feePending: false, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY, subjectRatings: { maths: 0, science: 0 } },
+  { id: "81", name: "Saket Kumar", feePending: false, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY, subjectRatings: { maths: 0, science: 0 } },
+  { id: "82", name: "Ashwin Kumar", feePending: false, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY, subjectRatings: { maths: 0, science: 0 } },
+  { id: "7", name: "Arpit Kumar", feePending: false, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY, subjectRatings: { maths: 0, science: 0 } }
 ];
 
 window.teacherLogin = teacherLogin;
@@ -83,6 +89,11 @@ window.loadStudentData = loadStudentData;
 window.closeStudentModal = closeStudentModal;
 window.sendWhatsApp = sendWhatsApp;
 window.uploadTeacherPhoto = uploadTeacherPhoto;
+window.setStudentRating = setStudentRating;
+window.submitStudentRating = submitStudentRating;
+window.setRating = setRating;
+window.closeRatingModal = closeRatingModal;
+window.toggleStudentRating = toggleStudentRating;
 
 initializeScheduleDefaults();
 initializeStudentModal();
@@ -197,7 +208,8 @@ async function addStudent() {
       feePending: fee,
       photoUrl,
       feeCycleStartDay: cycleStartDay,
-      feeCycleEndDay: cycleEndDay
+      feeCycleEndDay: cycleEndDay,
+      subjectRatings: editingStudentIndex !== null ? students[editingStudentIndex].subjectRatings || { maths: 0, science: 0 } : { maths: 0, science: 0 }
     };
 
     if (editingStudentIndex !== null) {
@@ -224,14 +236,20 @@ async function addStudent() {
 function showStudents() {
   studentList.innerHTML = "";
   students.forEach((student, index) => {
+    const ratings = student.subjectRatings || { maths: 0, science: 0 };
+    const overallRating = Math.round((ratings.maths + ratings.science) / 2 * 10) / 10;
+    const overallStars = "⭐".repeat(Math.round(overallRating)) + (Math.round(overallRating) === 0 ? "Not Rated" : "");
+    
     studentList.innerHTML += `
       <div class="box">
         <img class="profile-avatar record-photo" src="${student.photoUrl || DEFAULT_STUDENT_PHOTO}" alt="${student.name} photo">
         ${student.name} (ID:${student.id})<br>
         Fee Cycle: <strong>${student.feeCycleStartDay || DEFAULT_FEE_CYCLE_START_DAY} to ${student.feeCycleEndDay || DEFAULT_FEE_CYCLE_END_DAY}</strong><br>
-        Fee Status: <strong>${getFeeStatusText(student)}</strong>
+        Fee Status: <strong>${getFeeStatusText(student)}</strong><br>
+        Overall Rating: <strong>${overallStars}</strong>
         <div class="box-actions">
           <button class="ghost-btn" onclick="editStudent(${index})">Edit</button>
+          <button class="ghost-btn" onclick="setStudentRating(${index})">Rating</button>
           <button class="delete" onclick="deleteStudent(${index})">Remove</button>
         </div>
       </div>
@@ -391,6 +409,12 @@ function loadStudentData() {
   schedules.forEach((schedule) => {
     schedule.students.forEach((student) => {
       if (student.id === id) {
+        const ratings = student.subjectRatings || { maths: 0, science: 0 };
+        const overallRating = Math.round((ratings.maths + ratings.science) / 2 * 10) / 10;
+        const mathsStars = "⭐".repeat(ratings.maths || 0) + (ratings.maths === 0 ? "(Not Rated)" : "");
+        const scienceStars = "⭐".repeat(ratings.science || 0) + (ratings.science === 0 ? "(Not Rated)" : "");
+        const overallStars = Math.round(overallRating) > 0 ? "⭐".repeat(Math.round(overallRating)) : "(Not Rated)";
+        
         const studentRecordHtml = `
           <div class="box">
             <img class="profile-avatar record-photo" src="${student.photoUrl || DEFAULT_STUDENT_PHOTO}" alt="${student.name} photo">
@@ -398,7 +422,13 @@ function loadStudentData() {
             <strong>Class Date:</strong> ${schedule.date}<br>
             <strong>Class Time:</strong> ${formatTime12Hour(schedule.time)}<br>
             <strong>Day:</strong> ${schedule.day}<br>
-            <strong>Fee Status:</strong> ${formatFeeStatusHtml(student)}
+            <strong>Fee Status:</strong> ${formatFeeStatusHtml(student)}<br>
+            <button class="secondary-btn compact-btn" onclick="toggleStudentRating(this)" style="margin-top: 10px; width: 100%;">Show More</button>
+            <div class="rating-details" style="display: none; margin-top: 10px; padding: 12px; background: rgba(15, 118, 110, 0.1); border-radius: 10px; border-left: 4px solid #0f766e;">
+              <strong>📐 Maths Rating:</strong> ${mathsStars}<br>
+              <strong>🔬 Science Rating:</strong> ${scienceStars}<br>
+              <strong style="color: #0f766e; font-size: 1.1rem;">📊 Overall Rating: ${overallStars}</strong>
+            </div>
           </div>
         `;
         matchedRecords.push(studentRecordHtml);
@@ -417,6 +447,13 @@ function loadStudentData() {
   studentData.innerHTML = recordsMarkup;
   studentModalBody.innerHTML = recordsMarkup;
   openStudentModal();
+}
+
+function toggleStudentRating(button) {
+  const ratingDetails = button.nextElementSibling;
+  const isVisible = ratingDetails.style.display !== "none";
+  ratingDetails.style.display = isVisible ? "none" : "block";
+  button.textContent = isVisible ? "Show More" : "Show Less";
 }
 
 function sendWhatsApp() {
@@ -694,6 +731,116 @@ function closeStudentModal() {
   studentRecordModal.setAttribute("aria-hidden", "true");
 }
 
+function setStudentRating(index) {
+  currentRatingStudentIndex = index;
+  const ratings = students[index].subjectRatings || { maths: 0, science: 0 };
+  selectedMathsRating = ratings.maths || 0;
+  selectedScienceRating = ratings.science || 0;
+  ratingModalTitle.textContent = `${students[index].name} - Subject Ratings`;
+  updateRatingStars();
+  openRatingModal();
+}
+
+function setRating(subject, rating) {
+  if (subject === "maths") {
+    selectedMathsRating = rating;
+  } else if (subject === "science") {
+    selectedScienceRating = rating;
+  }
+  updateRatingStars();
+}
+
+function updateRatingStars() {
+  // Update Maths stars
+  const mathsStars = document.querySelectorAll(".maths-rating .star");
+  mathsStars.forEach((star, index) => {
+    if (index < selectedMathsRating) {
+      star.style.opacity = "1";
+    } else {
+      star.style.opacity = "0.5";
+    }
+  });
+  
+  // Update Science stars
+  const scienceStars = document.querySelectorAll(".science-rating .star");
+  scienceStars.forEach((star, index) => {
+    if (index < selectedScienceRating) {
+      star.style.opacity = "1";
+    } else {
+      star.style.opacity = "0.5";
+    }
+  });
+  
+  // Update display
+  const mathsDisplay = selectedMathsRating === 0 ? "Not Rated" : `${selectedMathsRating} star${selectedMathsRating > 1 ? "s" : ""}`;
+  const scienceDisplay = selectedScienceRating === 0 ? "Not Rated" : `${selectedScienceRating} star${selectedScienceRating > 1 ? "s" : ""}`;
+  const overallRating = Math.round((selectedMathsRating + selectedScienceRating) / 2 * 10) / 10;
+  const overallDisplay = overallRating === 0 ? "Not Calculated" : `${overallRating}`;
+  
+  const mathsDisplayEl = document.getElementById("mathsRatingDisplay");
+  const scienceDisplayEl = document.getElementById("scienceRatingDisplay");
+  const overallDisplayEl = document.getElementById("overallRatingDisplay");
+  
+  if (mathsDisplayEl) mathsDisplayEl.textContent = mathsDisplay;
+  if (scienceDisplayEl) scienceDisplayEl.textContent = scienceDisplay;
+  if (overallDisplayEl) overallDisplayEl.textContent = overallDisplay;
+}
+
+async function submitStudentRating() {
+  if (currentRatingStudentIndex === null) {
+    alert("No student selected");
+    return;
+  }
+
+  if (!isFirebaseReady()) {
+    alert(FIREBASE_WARNING);
+    return;
+  }
+
+  try {
+    const currentStudent = students[currentRatingStudentIndex];
+    const updatedStudent = {
+      ...currentStudent,
+      subjectRatings: {
+        maths: selectedMathsRating,
+        science: selectedScienceRating
+      }
+    };
+
+    await updateStudentRecord(currentStudent.firestoreId, {
+      id: updatedStudent.id,
+      name: updatedStudent.name,
+      feePending: updatedStudent.feePending,
+      photoUrl: updatedStudent.photoUrl || "",
+      feeCycleStartDay: updatedStudent.feeCycleStartDay,
+      feeCycleEndDay: updatedStudent.feeCycleEndDay,
+      subjectRatings: updatedStudent.subjectRatings
+    });
+
+    students[currentRatingStudentIndex] = updatedStudent;
+    await syncStudentInSchedules(currentStudent.id, updatedStudent);
+    showStudents();
+    closeRatingModal();
+    alert("Ratings saved successfully");
+  } catch (error) {
+    console.error(error);
+    alert("Unable to save ratings");
+  }
+}
+
+function openRatingModal() {
+  ratingModal.classList.add("active");
+  ratingModal.setAttribute("aria-hidden", "false");
+}
+
+function closeRatingModal() {
+  ratingModal.classList.remove("active");
+  ratingModal.setAttribute("aria-hidden", "true");
+  currentRatingStudentIndex = null;
+  selectedMathsRating = 0;
+  selectedScienceRating = 0;
+}
+
 async function uploadTeacherPhoto() {
   if (!teacherPhotoFile.files[0]) {
     alert("Choose a teacher photo first");
@@ -777,7 +924,8 @@ async function normalizeAllStudentFeeCycles() {
       feePending: updatedStudent.feePending,
       photoUrl: updatedStudent.photoUrl || "",
       feeCycleStartDay: updatedStudent.feeCycleStartDay,
-      feeCycleEndDay: updatedStudent.feeCycleEndDay
+      feeCycleEndDay: updatedStudent.feeCycleEndDay,
+      subjectRatings: updatedStudent.subjectRatings || { maths: 0, science: 0 }
     });
 
     students[index] = updatedStudent;

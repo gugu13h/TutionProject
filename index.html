@@ -237,7 +237,10 @@
             <label for="whatsappMsg">Message</label>
             <textarea id="whatsappMsg" placeholder="Type your message here"></textarea>
           </div>
-          <button onclick="sendWhatsApp()">Send WhatsApp</button>
+          <div class="action-row">
+            <button onclick="sendWhatsApp()">Send WhatsApp</button>
+            <a class="secondary-btn compact-btn phone-call-btn" href="tel:8789507019" title="Call Teacher">📞 Call</a>
+          </div>
         </section>
 
         <section class="panel-card wide-card">
@@ -261,6 +264,52 @@
         <button type="button" class="ghost-btn modal-close-btn" onclick="closeStudentModal()">Close</button>
       </div>
       <div id="studentModalBody" class="modal-body"></div>
+    </div>
+  </div>
+
+  <div id="ratingModal" class="modal-overlay" aria-hidden="true">
+    <div class="modal-card">
+      <div class="modal-head">
+        <div>
+          <span class="eyebrow">Set Subject Ratings</span>
+          <h3 id="ratingModalTitle">Student Ratings</h3>
+        </div>
+        <button type="button" class="ghost-btn modal-close-btn" onclick="closeRatingModal()">Close</button>
+      </div>
+      <div class="modal-body">
+        <div class="rating-container">
+          <div class="subject-rating-section">
+            <h4 style="margin-bottom: 15px; color: #1f2937;">📐 Maths Rating</h4>
+            <div class="maths-rating" style="display: flex; justify-content: center; gap: 15px; font-size: 2.5rem; margin-bottom: 12px;">
+              <span class="star" onclick="setRating('maths', 1)" style="cursor: pointer; opacity: 0.5;">⭐</span>
+              <span class="star" onclick="setRating('maths', 2)" style="cursor: pointer; opacity: 0.5;">⭐</span>
+              <span class="star" onclick="setRating('maths', 3)" style="cursor: pointer; opacity: 0.5;">⭐</span>
+              <span class="star" onclick="setRating('maths', 4)" style="cursor: pointer; opacity: 0.5;">⭐</span>
+              <span class="star" onclick="setRating('maths', 5)" style="cursor: pointer; opacity: 0.5;">⭐</span>
+            </div>
+            <p style="text-align: center; font-weight: 600; margin-bottom: 20px;" id="mathsRatingDisplay">Not Rated</p>
+          </div>
+
+          <div style="border-top: 1px solid rgba(15, 118, 110, 0.2); padding-top: 20px; margin-top: 20px;">
+            <h4 style="margin-bottom: 15px; color: #1f2937;">🔬 Science Rating</h4>
+            <div class="science-rating" style="display: flex; justify-content: center; gap: 15px; font-size: 2.5rem; margin-bottom: 12px;">
+              <span class="star" onclick="setRating('science', 1)" style="cursor: pointer; opacity: 0.5;">⭐</span>
+              <span class="star" onclick="setRating('science', 2)" style="cursor: pointer; opacity: 0.5;">⭐</span>
+              <span class="star" onclick="setRating('science', 3)" style="cursor: pointer; opacity: 0.5;">⭐</span>
+              <span class="star" onclick="setRating('science', 4)" style="cursor: pointer; opacity: 0.5;">⭐</span>
+              <span class="star" onclick="setRating('science', 5)" style="cursor: pointer; opacity: 0.5;">⭐</span>
+            </div>
+            <p style="text-align: center; font-weight: 600; margin-bottom: 20px;" id="scienceRatingDisplay">Not Rated</p>
+          </div>
+
+          <div style="border-top: 2px solid #0f766e; padding-top: 20px; margin-top: 20px; background: rgba(15, 118, 110, 0.05); padding: 15px; border-radius: 10px;">
+            <h4 style="margin-bottom: 10px; color: #0f766e; font-size: 1.1rem;">📊 Overall Rating (Average)</h4>
+            <p style="text-align: center; font-weight: 700; font-size: 1.3rem; color: #0f766e;" id="overallRatingDisplay">Not Calculated</p>
+          </div>
+
+          <button onclick="submitStudentRating()" style="width: 100%; margin-top: 20px;">Save Ratings</button>
+        </div>
+      </div>
     </div>
   </div>
 
