@@ -248,7 +248,7 @@ function showStudents() {
         <img class="profile-avatar record-photo" src="${student.photoUrl || DEFAULT_STUDENT_PHOTO}" alt="${student.name} photo">
         ${student.name} (ID:${student.id})<br>
         Fee Cycle: <strong>${student.feeCycleStartDay || DEFAULT_FEE_CYCLE_START_DAY} to ${student.feeCycleEndDay || DEFAULT_FEE_CYCLE_END_DAY}</strong><br>
-        Fee Status: <strong>${getFeeStatusText(student)}</strong><br>
+        Fee Status: ${formatFeeStatusHtml(student)}<br>
         Overall Rating: <strong>${overallText}</strong>
         <div class="box-actions">
           <button class="ghost-btn" onclick="editStudent(${index})">Edit</button>
@@ -476,12 +476,15 @@ function loadStudentData() {
           <img class="profile-avatar record-photo" src="${studentRecord.photoUrl || DEFAULT_STUDENT_PHOTO}" alt="${studentRecord.name} photo">
           <strong>Name:</strong> ${studentRecord.name}<br>
           <strong>ID:</strong> ${studentRecord.id}<br>
-          <strong>Fee Status:</strong> ${getFeeStatusText(studentRecord)}<br>
-          <strong>Maths Rating:</strong> ${mathsText}<br>
-          <strong>Science Rating:</strong> ${scienceText}<br>
-          <strong>Overall Rating:</strong> ${overallText}<br>
-          <strong style="display:block; margin-top: 12px;">Class update is not available yet.</strong>
-          <strong>You will be informed soon.</strong><br>
+          <strong>Fee Status:</strong> ${formatFeeStatusHtml(studentRecord)}<br>
+          <button class="secondary-btn compact-btn" onclick="toggleStudentRating(this)" style="margin-top: 10px; width: 100%;">Show More</button>
+          <div class="rating-details" style="display: none; margin-top: 10px; padding: 12px; background: rgba(15, 118, 110, 0.1); border-radius: 10px; border-left: 4px solid #0f766e;">
+            <strong>📐 Maths Rating:</strong> ${mathsText}<br>
+            <strong>🔬 Science Rating:</strong> ${scienceText}<br>
+            <strong style="color: #0f766e; font-size: 1.1rem;">📊 Overall Rating: ${overallText}</strong>
+          </div>
+          <strong style="display:block; margin-top: 12px; color: #dc2626;">Class update is not available yet.</strong>
+          <strong style="color: #dc2626;">You will be informed soon.</strong><br>
           <button class="secondary-btn" onclick="window.open('https://wa.me/918864022272?text=Need%20help%20with%20student%20login', '_blank');" style="margin-top: 10px;">Need Help</button>
         </div>
       `;
