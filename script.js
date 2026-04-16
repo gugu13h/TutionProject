@@ -428,7 +428,7 @@ function loadStudentData() {
             <img class="profile-avatar record-photo" src="${student.photoUrl || DEFAULT_STUDENT_PHOTO}" alt="${student.name} photo">
             <strong>Name:</strong> ${student.name}<br>
             <strong>Class Date:</strong> ${schedule.date}<br>
-            <strong>Class Time:</strong> ${formatTime12Hour(schedule.time)}<br>
+            <strong>Class Time:</strong> <span style="color: #0f766e; font-weight: bold;">${formatTime12Hour(schedule.time)}</span><br>
             <strong>Day:</strong> ${schedule.day}<br>
             <strong>Fee Status:</strong> ${formatFeeStatusHtml(student)}<br>
             <button class="secondary-btn compact-btn" onclick="toggleStudentRating(this)" style="margin-top: 10px; width: 100%;">Show More</button>
@@ -439,10 +439,13 @@ function loadStudentData() {
             </div>
           </div>
         `;
-        matchedRecords.push(studentRecordHtml);
+        matchedRecords.push({ html: studentRecordHtml, dateTime: classDateTime });
       }
     });
   });
+
+  // Sort matched records by dateTime ascending (earliest first)
+  matchedRecords.sort((a, b) => a.dateTime - b.dateTime);
 
   if (matchedRecords.length === 0) {
     studentData.innerHTML = "<strong>No record found</strong>";
@@ -451,7 +454,7 @@ function loadStudentData() {
     return;
   }
 
-  const recordsMarkup = matchedRecords.join("");
+  const recordsMarkup = matchedRecords.map(r => r.html).join("");
   studentData.innerHTML = recordsMarkup;
   studentModalBody.innerHTML = recordsMarkup;
   openStudentModal();
