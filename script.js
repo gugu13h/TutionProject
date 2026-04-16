@@ -407,6 +407,14 @@ function loadStudentData() {
   const matchedRecords = [];
 
   schedules.forEach((schedule) => {
+    // Check if class time is within the last 6 hours
+    const classDateTime = new Date(`${schedule.date}T${schedule.time}`);
+    const now = new Date();
+    const sixHoursAgo = new Date(now.getTime() - 6 * 60 * 60 * 1000);
+    if (classDateTime < sixHoursAgo) {
+      return; // Skip this schedule as it's more than 6 hours old
+    }
+
     schedule.students.forEach((student) => {
       if (student.id === id) {
         const ratings = student.subjectRatings || { maths: 0, science: 0 };
