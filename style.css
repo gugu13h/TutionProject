@@ -386,6 +386,20 @@ a.secondary-btn {
   justify-content: center;
 }
 
+.whatsapp-btn {
+  background: linear-gradient(135deg, #25d366 0%, #128c7e 100%);
+  box-shadow: 0 14px 24px rgba(18, 140, 126, 0.2);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.whatsapp-icon {
+  font-size: 1.1rem;
+}
+
 .compact-btn {
   width: auto;
   min-width: 120px;
@@ -656,6 +670,7 @@ a.secondary-btn {
 .maths-rating,
 .science-rating {
   margin: 15px 0;
+  flex-wrap: wrap;
 }
 
 .rating-details {

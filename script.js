@@ -238,7 +238,7 @@ function showStudents() {
   students.forEach((student, index) => {
     const ratings = student.subjectRatings || { maths: 0, science: 0 };
     const overallRating = Math.round((ratings.maths + ratings.science) / 2 * 10) / 10;
-    const overallStars = "⭐".repeat(Math.round(overallRating)) + (Math.round(overallRating) === 0 ? "Not Rated" : "");
+    const overallText = overallRating === 0 ? "Not Rated" : `${overallRating} / 10`;
     
     studentList.innerHTML += `
       <div class="box">
@@ -246,7 +246,7 @@ function showStudents() {
         ${student.name} (ID:${student.id})<br>
         Fee Cycle: <strong>${student.feeCycleStartDay || DEFAULT_FEE_CYCLE_START_DAY} to ${student.feeCycleEndDay || DEFAULT_FEE_CYCLE_END_DAY}</strong><br>
         Fee Status: <strong>${getFeeStatusText(student)}</strong><br>
-        Overall Rating: <strong>${overallStars}</strong>
+        Overall Rating: <strong>${overallText}</strong>
         <div class="box-actions">
           <button class="ghost-btn" onclick="editStudent(${index})">Edit</button>
           <button class="ghost-btn" onclick="setStudentRating(${index})">Rating</button>
@@ -411,9 +411,9 @@ function loadStudentData() {
       if (student.id === id) {
         const ratings = student.subjectRatings || { maths: 0, science: 0 };
         const overallRating = Math.round((ratings.maths + ratings.science) / 2 * 10) / 10;
-        const mathsStars = "⭐".repeat(ratings.maths || 0) + (ratings.maths === 0 ? "(Not Rated)" : "");
-        const scienceStars = "⭐".repeat(ratings.science || 0) + (ratings.science === 0 ? "(Not Rated)" : "");
-        const overallStars = Math.round(overallRating) > 0 ? "⭐".repeat(Math.round(overallRating)) : "(Not Rated)";
+        const mathsText = ratings.maths === 0 ? "Not Rated" : `${ratings.maths} / 10`;
+        const scienceText = ratings.science === 0 ? "Not Rated" : `${ratings.science} / 10`;
+        const overallText = overallRating === 0 ? "Not Rated" : `${overallRating} / 10`;
         
         const studentRecordHtml = `
           <div class="box">
@@ -425,9 +425,9 @@ function loadStudentData() {
             <strong>Fee Status:</strong> ${formatFeeStatusHtml(student)}<br>
             <button class="secondary-btn compact-btn" onclick="toggleStudentRating(this)" style="margin-top: 10px; width: 100%;">Show More</button>
             <div class="rating-details" style="display: none; margin-top: 10px; padding: 12px; background: rgba(15, 118, 110, 0.1); border-radius: 10px; border-left: 4px solid #0f766e;">
-              <strong>📐 Maths Rating:</strong> ${mathsStars}<br>
-              <strong>🔬 Science Rating:</strong> ${scienceStars}<br>
-              <strong style="color: #0f766e; font-size: 1.1rem;">📊 Overall Rating: ${overallStars}</strong>
+              <strong>📐 Maths Rating:</strong> ${mathsText}<br>
+              <strong>🔬 Science Rating:</strong> ${scienceText}<br>
+            <strong style="color: #0f766e; font-size: 1.1rem;">📊 Overall Rating: ${overallText}</strong>
             </div>
           </div>
         `;
@@ -772,10 +772,10 @@ function updateRatingStars() {
   });
   
   // Update display
-  const mathsDisplay = selectedMathsRating === 0 ? "Not Rated" : `${selectedMathsRating} star${selectedMathsRating > 1 ? "s" : ""}`;
-  const scienceDisplay = selectedScienceRating === 0 ? "Not Rated" : `${selectedScienceRating} star${selectedScienceRating > 1 ? "s" : ""}`;
+  const mathsDisplay = selectedMathsRating === 0 ? "Not Rated" : `${selectedMathsRating} / 10`;
+  const scienceDisplay = selectedScienceRating === 0 ? "Not Rated" : `${selectedScienceRating} / 10`;
   const overallRating = Math.round((selectedMathsRating + selectedScienceRating) / 2 * 10) / 10;
-  const overallDisplay = overallRating === 0 ? "Not Calculated" : `${overallRating}`;
+  const overallDisplay = overallRating === 0 ? "Not Calculated" : `${overallRating} / 10`;
   
   const mathsDisplayEl = document.getElementById("mathsRatingDisplay");
   const scienceDisplayEl = document.getElementById("scienceRatingDisplay");
