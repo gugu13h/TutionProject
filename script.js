@@ -11,15 +11,13 @@ import {
   signOutTeacher,
   updateTeacherProfile,
   updateScheduleRecord,
-  addHoliday,
-  getHolidays,
-  deleteHoliday
+  updateStudentRecord,
+  watchTeacherAuthState
 } from "./firebase-api.js";
 import { uploadImageToCloudinary } from "./cloudinary-api.js";
 
 let students = [];
 let schedules = [];
-let holidays = [];
 let editingStudentIndex = null;
 let teacherProfile = null;
 let currentRatingStudentIndex = null;
@@ -97,7 +95,6 @@ window.setStudentRating = setStudentRating;
 window.submitStudentRating = submitStudentRating;
 window.setRating = setRating;
 window.closeRatingModal = closeRatingModal;
-window.markTodayAsHoliday = markTodayAsHoliday;
 
 initializeScheduleDefaults();
 initializeStudentModal();
@@ -413,22 +410,6 @@ function loadStudentData() {
   studentData.innerHTML = "";
   studentModalBody.innerHTML = "";
 
-  const today = new Date().toISOString().split('T')[0];
-  const isHoliday = holidays.some(h => h.date === today);
-
-  if (isHoliday) {
-    const holidayHtml = `
-      <div class="box">
-        <strong>Holiday</strong><br>
-        <strong>Enjoy your day off!</strong><br>
-      </div>
-    `;
-    studentData.innerHTML = holidayHtml;
-    studentModalBody.innerHTML = holidayHtml;
-    openStudentModal();
-    return;
-  }
-
   const matchedRecords = [];
 
   schedules.forEach((schedule) => {
@@ -630,22 +611,12 @@ function sendWhatsApp() {
   window.open(url, "_blank");
 }
 
-async function markTodayAsHoliday() {
-  if (!isFirebaseReady()) {
-    alert(FIREBASE_WARNING);
-    return;
-  }
-
-  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-
-  try {
-    await addHoliday(today);
-    holidays = await getHolidays();
-    alert("Today marked as holiday!");
-  } catch (error) {
-    console.error(error);
-    alert("Failed to mark holiday");
-  }
+async function refreshFirestoreData() {
+  students = await getStudents();
+  schedules = await getSchedules();
+  showStudents();
+  showStudentCheckList();
+  loadSchedules();
 }
 
 async function seedInitialStudents() {

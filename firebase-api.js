@@ -31,8 +31,7 @@ const firebaseConfig = {
 const COLLECTIONS = {
   students: "students",
   schedules: "schedules",
-  teacherProfiles: "teacherProfiles",
-  holidays: "holidays"
+  teacherProfiles: "teacherProfiles"
 };
 
 const isConfigured = Object.values(firebaseConfig).every(
@@ -166,30 +165,6 @@ export async function updateTeacherProfile(profile) {
     ...profile,
     updatedAt: serverTimestamp()
   });
-}
-
-export async function addHoliday(date) {
-  ensureConfigured();
-  const holidayRef = doc(db, COLLECTIONS.holidays, date);
-  await updateDocSafe(holidayRef, {
-    date,
-    createdAt: serverTimestamp()
-  });
-}
-
-export async function getHolidays() {
-  ensureConfigured();
-  const q = query(collection(db, COLLECTIONS.holidays), orderBy("date"));
-  const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map((doc) => ({
-    firestoreId: doc.id,
-    ...doc.data()
-  }));
-}
-
-export async function deleteHoliday(date) {
-  ensureConfigured();
-  await deleteDoc(doc(db, COLLECTIONS.holidays, date));
 }
 
 async function getDocSafe(ref) {
