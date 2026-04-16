@@ -760,6 +760,16 @@ a.secondary-btn {
   }
 }
 
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+.blinking-red {
+  color: red;
+  animation: blink 1s infinite;
+}
+
 @media (max-width: 640px) {
   .app-shell {
     width: min(100% - 20px, 100%);
