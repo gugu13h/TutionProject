@@ -66,7 +66,7 @@ const DEFAULT_TEACHER_PHOTO = "https://placehold.co/300x300/f2efe6/8b5e34?text=T
 const DEFAULT_STUDENT_PHOTO = "https://placehold.co/300x300/e8f5f1/1f6f66?text=Student";
 const DEFAULT_FEE_CYCLE_START_DAY = 1;
 const DEFAULT_FEE_CYCLE_END_DAY = 30;
-const RESET_STUDENT_IDS = ["81", "82", "7"];
+const RESET_STUDENT_IDS = [];
 const INITIAL_STUDENTS = [
   { id: "101", name: "Anushak Kumari", feePending: false, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY, subjectRatings: { maths: 0, science: 0 } },
   { id: "102", name: "Abhishek Francis", feePending: false, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY, subjectRatings: { maths: 0, science: 0 } },
@@ -113,7 +113,6 @@ async function initializeAppData() {
     await loadTeacherProfile();
     await refreshFirestoreData();
     await normalizeAllStudentFeeCycles();
-    await resetSpecificStudents();
     await seedInitialStudents();
   } catch (error) {
     console.error(error);
@@ -713,25 +712,6 @@ async function seedInitialStudents() {
   }
 }
 
-async function resetSpecificStudents() {
-  let hasDeleted = false;
-
-  for (const student of [...students]) {
-    if (!RESET_STUDENT_IDS.includes(student.id)) {
-      continue;
-    }
-
-    await deleteStudentRecord(student.firestoreId);
-    students = students.filter((existingStudent) => existingStudent.firestoreId !== student.firestoreId);
-    hasDeleted = true;
-  }
-
-  if (hasDeleted) {
-    showStudents();
-    showStudentCheckList();
-  }
-}
-
 function resetStudentForm() {
   editingStudentIndex = null;
   studentId.value = "";
@@ -983,7 +963,6 @@ function setStudentRating(index) {
 }
 
 function setRating(subject, rating) {
-  console.log(`Setting ${subject} rating to ${rating}`);
   if (subject === "maths") {
     selectedMathsRating = rating;
   } else if (subject === "science") {
@@ -993,10 +972,8 @@ function setRating(subject, rating) {
 }
 
 function updateRatingStars() {
-  console.log(`Updating stars: maths=${selectedMathsRating}, science=${selectedScienceRating}`);
   // Update Maths stars
   const mathsStars = document.querySelectorAll(".maths-rating .star");
-  console.log(`Found ${mathsStars.length} maths stars`);
   mathsStars.forEach((star, index) => {
     if (index < selectedMathsRating) {
       star.style.opacity = "1";
@@ -1007,7 +984,6 @@ function updateRatingStars() {
   
   // Update Science stars
   const scienceStars = document.querySelectorAll(".science-rating .star");
-  console.log(`Found ${scienceStars.length} science stars`);
   scienceStars.forEach((star, index) => {
     if (index < selectedScienceRating) {
       star.style.opacity = "1";
@@ -1026,21 +1002,16 @@ function updateRatingStars() {
   const scienceDisplayEl = document.getElementById("scienceRatingDisplay");
   const overallDisplayEl = document.getElementById("overallRatingDisplay");
   
-  console.log(`Display elements found: maths=${!!mathsDisplayEl}, science=${!!scienceDisplayEl}, overall=${!!overallDisplayEl}`);
-  
   if (mathsDisplayEl) mathsDisplayEl.textContent = mathsDisplay;
   if (scienceDisplayEl) scienceDisplayEl.textContent = scienceDisplay;
   if (overallDisplayEl) overallDisplayEl.textContent = overallDisplay;
 }
 
 async function submitStudentRating() {
-  console.log(`Submitting rating for student index: ${currentRatingStudentIndex}`);
   if (currentRatingStudentIndex === null) {
     alert("No student selected");
     return;
   }
-
-  alert(`Saving ratings: Maths=${selectedMathsRating}, Science=${selectedScienceRating}`);
 
   if (!isFirebaseReady()) {
     alert(FIREBASE_WARNING);
@@ -1049,7 +1020,6 @@ async function submitStudentRating() {
 
   try {
     const currentStudent = students[currentRatingStudentIndex];
-    console.log("Current student:", currentStudent);
     const updatedStudent = {
       ...currentStudent,
       subjectRatings: {
@@ -1058,8 +1028,6 @@ async function submitStudentRating() {
       }
     };
 
-    console.log("Saving ratings for student:", currentStudent.id, updatedStudent.subjectRatings);
-    
     await updateStudentRecord(currentStudent.firestoreId, {
       id: updatedStudent.id,
       name: updatedStudent.name,
@@ -1076,8 +1044,8 @@ async function submitStudentRating() {
     closeRatingModal();
     alert("Ratings saved successfully");
   } catch (error) {
-    console.error("Error saving ratings:", error);
-    alert("Unable to save ratings: " + error.message);
+    console.error(error);
+    alert("Unable to save ratings");
   }
 }
 
