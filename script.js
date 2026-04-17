@@ -819,11 +819,16 @@ async function syncStudentInSchedules(previousStudentId, updatedStudent) {
       students: updatedScheduleStudents
     };
 
-    await updateScheduleRecord(schedule.firestoreId, updatedSchedule);
-    schedules[index] = {
-      firestoreId: schedule.firestoreId,
-      ...updatedSchedule
-    };
+    try {
+      await updateScheduleRecord(schedule.firestoreId, updatedSchedule);
+      schedules[index] = {
+        firestoreId: schedule.firestoreId,
+        ...updatedSchedule
+      };
+    } catch (error) {
+      console.error("Error updating schedule:", error);
+      // Continue with other schedules even if one fails
+    }
   }
 }
 
@@ -978,6 +983,7 @@ function setStudentRating(index) {
 }
 
 function setRating(subject, rating) {
+  console.log(`Setting ${subject} rating to ${rating}`);
   if (subject === "maths") {
     selectedMathsRating = rating;
   } else if (subject === "science") {
@@ -987,8 +993,10 @@ function setRating(subject, rating) {
 }
 
 function updateRatingStars() {
+  console.log(`Updating stars: maths=${selectedMathsRating}, science=${selectedScienceRating}`);
   // Update Maths stars
   const mathsStars = document.querySelectorAll(".maths-rating .star");
+  console.log(`Found ${mathsStars.length} maths stars`);
   mathsStars.forEach((star, index) => {
     if (index < selectedMathsRating) {
       star.style.opacity = "1";
@@ -999,6 +1007,7 @@ function updateRatingStars() {
   
   // Update Science stars
   const scienceStars = document.querySelectorAll(".science-rating .star");
+  console.log(`Found ${scienceStars.length} science stars`);
   scienceStars.forEach((star, index) => {
     if (index < selectedScienceRating) {
       star.style.opacity = "1";
@@ -1017,16 +1026,21 @@ function updateRatingStars() {
   const scienceDisplayEl = document.getElementById("scienceRatingDisplay");
   const overallDisplayEl = document.getElementById("overallRatingDisplay");
   
+  console.log(`Display elements found: maths=${!!mathsDisplayEl}, science=${!!scienceDisplayEl}, overall=${!!overallDisplayEl}`);
+  
   if (mathsDisplayEl) mathsDisplayEl.textContent = mathsDisplay;
   if (scienceDisplayEl) scienceDisplayEl.textContent = scienceDisplay;
   if (overallDisplayEl) overallDisplayEl.textContent = overallDisplay;
 }
 
 async function submitStudentRating() {
+  console.log(`Submitting rating for student index: ${currentRatingStudentIndex}`);
   if (currentRatingStudentIndex === null) {
     alert("No student selected");
     return;
   }
+
+  alert(`Saving ratings: Maths=${selectedMathsRating}, Science=${selectedScienceRating}`);
 
   if (!isFirebaseReady()) {
     alert(FIREBASE_WARNING);
@@ -1035,6 +1049,7 @@ async function submitStudentRating() {
 
   try {
     const currentStudent = students[currentRatingStudentIndex];
+    console.log("Current student:", currentStudent);
     const updatedStudent = {
       ...currentStudent,
       subjectRatings: {
@@ -1043,6 +1058,8 @@ async function submitStudentRating() {
       }
     };
 
+    console.log("Saving ratings for student:", currentStudent.id, updatedStudent.subjectRatings);
+    
     await updateStudentRecord(currentStudent.firestoreId, {
       id: updatedStudent.id,
       name: updatedStudent.name,
@@ -1059,8 +1076,8 @@ async function submitStudentRating() {
     closeRatingModal();
     alert("Ratings saved successfully");
   } catch (error) {
-    console.error(error);
-    alert("Unable to save ratings");
+    console.error("Error saving ratings:", error);
+    alert("Unable to save ratings: " + error.message);
   }
 }
 
