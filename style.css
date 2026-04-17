@@ -770,6 +770,10 @@ a.secondary-btn {
   animation: blink 1s infinite;
 }
 
+.hidden {
+  display: none;
+}
+
 @media (max-width: 640px) {
   .app-shell {
     width: min(100% - 20px, 100%);

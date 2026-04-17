@@ -95,6 +95,7 @@ window.setStudentRating = setStudentRating;
 window.submitStudentRating = submitStudentRating;
 window.setRating = setRating;
 window.closeRatingModal = closeRatingModal;
+window.toggleStudentRating = toggleStudentRating;
 
 initializeScheduleDefaults();
 initializeStudentModal();
@@ -285,10 +286,15 @@ function showStudentCheckList() {
   studentCheckList.innerHTML = "";
   students.forEach((student, index) => {
     studentCheckList.innerHTML += `
-      <label>
-        <input type="checkbox" id="student_${index}" value="${index}">
-        ${student.name} (ID:${student.id}) ${student.feePending ? "(Pending)" : ""}
-      </label>
+      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+        <label style="flex: 1;">
+          <input type="checkbox" id="student_${index}" value="${index}">
+          ${student.name} (ID:${student.id}) ${student.feePending ? "(Pending)" : ""}
+        </label>
+        <label style="font-size: 12px; color: #f59e0b;">
+          <input type="checkbox" id="holiday_${index}" value="${index}"> Holiday
+        </label>
+      </div>
     `;
   });
 }
@@ -326,8 +332,8 @@ async function saveSchedule() {
   const time = classTime.value;
   const day = classDay.value;
 
-  if (!date || !time || !day) {
-    alert("Fill Date, Time, and Day");
+  if (!date || !day) {
+    alert("Fill Date and Day");
     return;
   }
 
@@ -340,7 +346,14 @@ async function saveSchedule() {
   students.forEach((student, index) => {
     const checkbox = document.getElementById(`student_${index}`);
     if (checkbox && checkbox.checked) {
-      selectedStudents.push(student);
+      const holidayCheckbox = document.getElementById(`holiday_${index}`);
+      const isHoliday = holidayCheckbox && holidayCheckbox.checked;
+      
+      selectedStudents.push({
+        ...student,
+        attendanceStatus: isHoliday ? "holiday" : "pending",
+        attendanceReason: isHoliday ? "Holiday marked by teacher during schedule creation" : ""
+      });
     }
   });
 
@@ -349,14 +362,21 @@ async function saveSchedule() {
     return;
   }
 
+  // Check if all selected students are on holiday
+  const allStudentsOnHoliday = selectedStudents.every(student => student.attendanceStatus === "holiday");
+
+  // Time is required only if not all students are on holiday
+  if (!allStudentsOnHoliday && !time) {
+    alert("Fill Class Time (required when students are attending class)");
+    return;
+  }
+
   const schedulePayload = {
     date,
-    time,
+    time: time || "", // Use empty string if no time provided
     day,
     students: selectedStudents.map(({ firestoreId, ...student }) => ({
-      ...student,
-      attendanceStatus: "pending",
-      attendanceReason: ""
+      ...student
     }))
   };
 
@@ -379,10 +399,10 @@ function loadSchedules() {
     scheduleList.innerHTML += `
       <div class="box">
         <strong>Date:</strong> ${schedule.date}<br>
-        <strong>Time:</strong> ${formatTime12Hour(schedule.time)}<br>
+        <strong>Time:</strong> ${schedule.time ? formatTime12Hour(schedule.time) : "Holiday (No Class)"}<br>
         <strong>Day:</strong> ${schedule.day}<br>
         <strong>Students:</strong><br>
-        ${schedule.students.map((student) => getScheduleAttendanceHtml(student)).join("<br>")}
+        ${schedule.students.map((student) => getScheduleAttendanceHtml(student, schedule.firestoreId)).join("<br>")}
         <br><button class="delete" onclick="deleteSchedule(${index})" style="margin-top:10px;">Delete Class</button>
       </div>
     `;
@@ -413,17 +433,38 @@ function loadStudentData() {
   const matchedRecords = [];
 
   schedules.forEach((schedule) => {
-    // Check if class time is within the last 6 hours
-    const classDateTime = new Date(`${schedule.date}T${schedule.time}`);
-    const now = new Date();
-    const sixHoursAgo = new Date(now.getTime() - 6 * 60 * 60 * 1000);
-    if (classDateTime < sixHoursAgo) {
-      return; // Skip this schedule as it's more than 6 hours old
+    // Check if class time is within the last 6 hours (skip for holidays)
+    if (schedule.time) {
+      const classDateTime = new Date(`${schedule.date}T${schedule.time}`);
+      const now = new Date();
+      const sixHoursAgo = new Date(now.getTime() - 6 * 60 * 60 * 1000);
+      if (classDateTime < sixHoursAgo) {
+        return; // Skip this schedule as it's more than 6 hours old
+      }
+    }
+    // For holidays (no time), show all future holidays and recent past holidays
+    else {
+      const scheduleDate = new Date(schedule.date + 'T00:00:00'); // Ensure proper date parsing
+      const now = new Date();
+      const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      const oneMonthFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+      if (scheduleDate < oneMonthAgo || scheduleDate > oneMonthFromNow) {
+        return; // Skip very old or very future holiday schedules
+      }
+    }
+
+    // Calculate dateTime for sorting
+    let classDateTime;
+    if (schedule.time) {
+      classDateTime = new Date(`${schedule.date}T${schedule.time}`);
+    } else {
+      classDateTime = new Date(`${schedule.date}T00:00:00`);
     }
 
     schedule.students.forEach((student) => {
       if (student.id === id) {
-        const ratings = student.subjectRatings || { maths: 0, science: 0 };
+        const fullStudent = students.find(s => s.id === id);
+        const ratings = fullStudent ? (fullStudent.subjectRatings || { maths: 0, science: 0 }) : { maths: 0, science: 0 };
         const overallRating = Math.round((ratings.maths + ratings.science) / 2 * 10) / 10;
         const mathsText = ratings.maths === 0 ? "Not Rated" : `${ratings.maths} / 10`;
         const scienceText = ratings.science === 0 ? "Not Rated" : `${ratings.science} / 10`;
@@ -432,21 +473,27 @@ function loadStudentData() {
         const attendanceStatus = student.attendanceStatus || "pending";
         const attendanceReason = student.attendanceReason || "";
         const isAbsent = attendanceStatus === "not-coming";
+        const isHoliday = attendanceStatus === "holiday";
+        
+        const attendanceButtonsHtml = isHoliday ? 
+          `<div style="margin-top: 10px; padding: 8px; background: #fef3c7; border-radius: 5px; color: #f59e0b; font-weight: bold;">Holiday marked by teacher</div>` :
+          `<div class="attendance-actions" style="display:flex; gap:10px; flex-wrap:wrap; margin-top: 10px;">
+            <button class="secondary-btn compact-btn" style="flex:1; min-width: 160px;" onclick="studentAttendance('${schedule.firestoreId}','${student.id}','coming')">I will come</button>
+            <button class="secondary-btn compact-btn" style="flex:1; min-width: 160px; background:#dc2626; color:#fff;" onclick="studentAttendance('${schedule.firestoreId}','${student.id}','not-coming')">I will not come today</button>
+          </div>`;
+        
         const studentRecordHtml = `
           <div class="box">
             <img class="profile-avatar record-photo" src="${student.photoUrl || DEFAULT_STUDENT_PHOTO}" alt="${student.name} photo">
             <strong>Name:</strong> ${student.name}<br>
             <strong>Class Date:</strong> ${schedule.date}<br>
-            <strong>Class Time:</strong> <span style="color: #0f766e; font-weight: bold;">${formatTime12Hour(schedule.time)}</span><br>
+            <strong>Class Time:</strong> <span style="color: #0f766e; font-weight: bold;">${schedule.time ? formatTime12Hour(schedule.time) : "Holiday (No Class)"}</span><br>
             <strong>Day:</strong> ${schedule.day}<br>
             <strong>Fee Status:</strong> ${formatFeeStatusHtml(student)}<br>
             <strong>Attendance:</strong> ${getAttendanceStatusText(student)}<br>
-            <div class="attendance-actions" style="display:flex; gap:10px; flex-wrap:wrap; margin-top: 10px;">
-              <button class="secondary-btn compact-btn" style="flex:1; min-width: 160px;" onclick="studentAttendance('${schedule.firestoreId}','${student.id}','coming')">I will come</button>
-              <button class="secondary-btn compact-btn" style="flex:1; min-width: 160px; background:#dc2626; color:#fff;" onclick="studentAttendance('${schedule.firestoreId}','${student.id}','not-coming')">I will not come today</button>
-            </div>
+            ${attendanceButtonsHtml}
             <button class="secondary-btn compact-btn" onclick="toggleStudentRating(this)" style="margin-top: 10px; width: 100%;">Show More</button>
-            <div class="rating-details" style="display: none; margin-top: 10px; padding: 12px; background: rgba(15, 118, 110, 0.1); border-radius: 10px; border-left: 4px solid #0f766e;">
+            <div class="rating-details hidden" style="margin-top: 10px; padding: 12px; background: rgba(15, 118, 110, 0.1); border-radius: 10px; border-left: 4px solid #0f766e;">
               <strong>📐 Maths Rating:</strong> ${mathsText}<br>
               <strong>🔬 Science Rating:</strong> ${scienceText}<br>
               <strong style="color: #0f766e; font-size: 1.1rem;">📊 Overall Rating: ${overallText}</strong>
@@ -477,7 +524,7 @@ function loadStudentData() {
           <strong>ID:</strong> ${studentRecord.id}<br>
           <strong>Fee Status:</strong> ${formatFeeStatusHtml(studentRecord)}<br>
           <button class="secondary-btn compact-btn" onclick="toggleStudentRating(this)" style="margin-top: 10px; width: 100%;">Show More</button>
-          <div class="rating-details" style="display: none; margin-top: 10px; padding: 12px; background: rgba(15, 118, 110, 0.1); border-radius: 10px; border-left: 4px solid #0f766e;">
+          <div class="rating-details hidden" style="margin-top: 10px; padding: 12px; background: rgba(15, 118, 110, 0.1); border-radius: 10px; border-left: 4px solid #0f766e;">
             <strong>📐 Maths Rating:</strong> ${mathsText}<br>
             <strong>🔬 Science Rating:</strong> ${scienceText}<br>
             <strong style="color: #0f766e; font-size: 1.1rem;">📊 Overall Rating: ${overallText}</strong>
@@ -514,10 +561,14 @@ function loadStudentData() {
 }
 
 function toggleStudentRating(button) {
-  const ratingDetails = button.nextElementSibling;
-  const isVisible = ratingDetails.style.display !== "none";
-  ratingDetails.style.display = isVisible ? "none" : "block";
-  button.textContent = isVisible ? "Show More" : "Show Less";
+  let ratingDetails = button.nextElementSibling;
+  while (ratingDetails && !ratingDetails.classList.contains('rating-details')) {
+    ratingDetails = ratingDetails.nextElementSibling;
+  }
+  if (ratingDetails) {
+    ratingDetails.classList.toggle('hidden');
+    button.textContent = ratingDetails.classList.contains('hidden') ? "Show More" : "Show Less";
+  }
 }
 
 function studentAttendance(scheduleId, studentId, status) {
@@ -528,13 +579,19 @@ function studentAttendance(scheduleId, studentId, status) {
 
   if (status === "not-coming") {
     // Send WhatsApp message
-    const message = `Student ${studentName} (ID: ${studentId}) will not come to class on ${schedule.date} at ${formatTime12Hour(schedule.time)}.`;
+    const message = `Student ${studentName} (ID: ${studentId}) will not come to class on ${schedule.date}${schedule.time ? ` at ${formatTime12Hour(schedule.time)}` : " (Holiday - No Class)"}.`;
     const url = "https://wa.me/918864022272?text=" + encodeURIComponent(message);
     window.open(url, "_blank");
     alert("Notification sent to teacher!");
   }
 
-  updateStudentAttendance(scheduleId, studentId, status, "");
+  let reason = "";
+  if (status === "holiday") {
+    reason = "Holiday marked by teacher";
+  } else if (status === "not-coming") {
+    reason = "Marked absent by teacher";
+  }
+  updateStudentAttendance(scheduleId, studentId, status, reason);
 }
 
 async function updateStudentAttendance(scheduleId, studentId, status, reason) {
@@ -559,7 +616,7 @@ async function updateStudentAttendance(scheduleId, studentId, status, reason) {
   const updatedStudent = {
     ...schedule.students[studentIndex],
     attendanceStatus: status,
-    attendanceReason: status === "not-coming" ? reason || schedule.students[studentIndex].attendanceReason || "" : ""
+    attendanceReason: reason || schedule.students[studentIndex].attendanceReason || ""
   };
 
   const updatedSchedule = {
@@ -592,12 +649,22 @@ function getAttendanceStatusText(student) {
   if (status === "not-coming") {
     return `<span style="color:#dc2626;font-weight:700;">Not Coming</span>`;
   }
+  if (status === "holiday") {
+    return `<span style="color:#f59e0b;font-weight:700;">Holiday</span>`;
+  }
   return `<span style="color:#6b7280;font-weight:700;">Not Confirmed</span>`;
 }
 
-function getScheduleAttendanceHtml(student) {
+function getScheduleAttendanceHtml(student, scheduleId) {
   const reasonMarkup = student.attendanceReason ? `<div style="margin-left: 18px; color:#dc2626;">Reason: ${student.attendanceReason}</div>` : "";
-  return `- ${student.name} (${student.id}) ${student.feePending ? "(Pending)" : ""} — ${getAttendanceStatusText(student)} ${reasonMarkup}`;
+  const attendanceButtons = `
+    <div style="margin-left: 18px; margin-top: 5px; display: flex; gap: 5px; flex-wrap: wrap;">
+      <button class="secondary-btn compact-btn" style="font-size: 11px; padding: 3px 8px;" onclick="studentAttendance('${scheduleId}', '${student.id}', 'holiday')">Mark Holiday</button>
+      <button class="secondary-btn compact-btn" style="font-size: 11px; padding: 3px 8px; background:#dc2626; color:#fff;" onclick="studentAttendance('${scheduleId}', '${student.id}', 'not-coming')">Mark Absent</button>
+      <button class="secondary-btn compact-btn" style="font-size: 11px; padding: 3px 8px; background:#0f766e; color:#fff;" onclick="studentAttendance('${scheduleId}', '${student.id}', 'coming')">Mark Present</button>
+    </div>
+  `;
+  return `- ${student.name} (${student.id}) ${student.feePending ? "(Pending)" : ""} — ${getAttendanceStatusText(student)} ${reasonMarkup}${attendanceButtons}`;
 }
 
 function sendWhatsApp() {
