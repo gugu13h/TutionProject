@@ -1262,7 +1262,7 @@ function showFeeReminderIfNeeded(student) {
   }
 
   const feeStatus = getFeeStatusText(student);
-  feeReminderText.textContent = `${student.name}, your fee is pending (${feeStatus}). Please pay now on PhonePe to ${FEE_PAYMENT_UPI_ID}.`;
+  feeReminderText.textContent = `${student.name}, your fee is pending (${feeStatus}). Scan the PhonePe QR below and complete the payment.`;
   feeReminderModal.dataset.studentId = student.id || "";
   feeReminderModal.classList.add("active");
   feeReminderModal.setAttribute("aria-hidden", "false");
