@@ -108,6 +108,9 @@ body {
   width: min(1180px, calc(100% - 32px));
   margin: 0 auto;
   padding: 36px 0 48px;
+  display: flex;
+  align-items: center;
+  min-height: calc(100vh - 72px);
 }
 
 .page {
@@ -255,6 +258,102 @@ body {
 
 .dashboard-page {
   width: 100%;
+  position: relative;
+  padding: 28px;
+  border-radius: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  overflow: hidden;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 26px 50px rgba(15, 23, 42, 0.14);
+}
+
+.dashboard-page::before,
+.dashboard-page::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.dashboard-page::before {
+  top: -110px;
+  right: -70px;
+  width: 260px;
+  height: 260px;
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.dashboard-page::after {
+  left: -80px;
+  bottom: -120px;
+  width: 220px;
+  height: 220px;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.dashboard-page > * {
+  position: relative;
+  z-index: 1;
+}
+
+#teacherPage {
+  --primary: #2563eb;
+  --primary-dark: #1d4ed8;
+  --accent: #0f766e;
+  --bg-card: rgba(247, 250, 255, 0.86);
+  --bg-soft: rgba(231, 243, 255, 0.78);
+  --line: rgba(37, 99, 235, 0.18);
+  --shadow: 0 18px 38px rgba(37, 99, 235, 0.14);
+  background: linear-gradient(145deg, rgba(231, 243, 255, 0.9) 0%, rgba(236, 253, 245, 0.82) 100%);
+}
+
+#studentPage {
+  --primary: #0f766e;
+  --primary-dark: #115e59;
+  --accent: #0284c7;
+  --bg-card: rgba(244, 255, 252, 0.86);
+  --bg-soft: rgba(221, 247, 243, 0.82);
+  --line: rgba(15, 118, 110, 0.18);
+  --shadow: 0 18px 38px rgba(15, 118, 110, 0.14);
+  background: linear-gradient(145deg, rgba(229, 251, 247, 0.9) 0%, rgba(233, 246, 255, 0.84) 100%);
+}
+
+.dashboard-page .dashboard-header {
+  padding: 20px 22px;
+  border-radius: 24px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.72) 0%, rgba(255, 255, 255, 0.44) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.36);
+}
+
+.dashboard-page .panel-card {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0.78) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+}
+
+.dashboard-page .profile-avatar {
+  border-color: rgba(255, 255, 255, 0.92);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.96) 0%, var(--bg-soft) 100%);
+}
+
+.dashboard-page .register-form-panel {
+  border-top-color: rgba(255, 255, 255, 0.58);
+}
+
+.dashboard-page .badge {
+  background: rgba(255, 255, 255, 0.74);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+.dashboard-page .ghost-btn {
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.dashboard-page .box {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, var(--bg-soft) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.68);
+  box-shadow: 0 16px 28px rgba(15, 23, 42, 0.08);
 }
 
 .dashboard-header {
@@ -631,6 +730,34 @@ a.secondary-btn {
   box-shadow: 0 16px 28px rgba(92, 64, 17, 0.08);
 }
 
+.class-countdown-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 10px 0 6px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(37, 99, 235, 0.08);
+  border: 1px solid rgba(37, 99, 235, 0.14);
+}
+
+.class-countdown-title {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: #1d4ed8;
+}
+
+.class-countdown {
+  font-weight: 700;
+  color: #1d4ed8;
+}
+
+.class-countdown.is-live {
+  color: #dc2626;
+}
+
 .delete {
   background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
   box-shadow: 0 12px 20px rgba(220, 38, 38, 0.18);
@@ -751,6 +878,10 @@ a.secondary-btn {
     grid-template-columns: 1fr;
   }
 
+  .dashboard-page {
+    padding: 22px;
+  }
+
   .dashboard-header {
     flex-direction: column;
   }
@@ -778,6 +909,11 @@ a.secondary-btn {
   .app-shell {
     width: min(100% - 20px, 100%);
     padding: 20px 0 28px;
+  }
+
+  .dashboard-page {
+    padding: 18px;
+    border-radius: 24px;
   }
 
   .hero-card,

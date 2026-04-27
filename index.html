@@ -93,7 +93,7 @@
             <div class="section-head register-section-head">
               <div>
                 <h3>Register Student</h3>
-                <p class="section-note register-note">Click New Register to open the student entry form.</p>
+                <p class="section-note register-note">Click New Register to register new student entry form.</p>
               </div>
               <button id="newRegisterBtn" type="button" class="secondary-btn compact-btn new-register-btn">
                 <span class="new-register-icon" aria-hidden="true">+</span>
@@ -133,7 +133,7 @@
                 </div>
               </div>
 
-              <label class="check-row"><input type="checkbox" id="feePending"> Fee Pending For Current Cycle</label>
+              <label class="check-row"><input type="checkbox" id="feePending"> Fee Pending </label>
               <div class="action-row">
                 <button id="studentSubmitBtn" onclick="addStudent()">Add Student</button>
                 <button id="studentCancelBtn" type="button" class="ghost-btn" onclick="cancelStudentEdit()"
@@ -146,7 +146,7 @@
             <div class="section-head register-section-head">
               <div>
                 <h3>Class Schedule</h3>
-                <p class="section-note register-note">Click New Schedule to add a new class.</p>
+                <p class="section-note register-note">Schedule new class.</p>
               </div>
               <button id="newScheduleBtn" type="button" class="secondary-btn compact-btn new-register-btn">
                 <span class="new-register-icon" aria-hidden="true">+</span>
@@ -227,7 +227,7 @@
 
       <div class="dashboard-grid student-grid">
         <section class="panel-card">
-          <h3>View My Data</h3>
+          <h3>View Class</h3>
           <div class="field-group">
             <label for="loginStudentId">Student ID</label>
             <input id="loginStudentId" placeholder="Enter your student ID">
@@ -237,9 +237,10 @@
 
         <section class="panel-card">
           <h3>Send Message to Teacher</h3>
+          <p class="section-note">"I will not come today" will redirect to WhatsApp on 8864022272. You can type an extra message here.</p>
           <div class="field-group">
             <label for="whatsappMsg">Message</label>
-            <textarea id="whatsappMsg" placeholder="Type your message here"></textarea>
+            <textarea id="whatsappMsg" placeholder="Type your message here, or leave it blank for the default not coming message."></textarea>
           </div>
           <div class="action-row">
             <button class="whatsapp-btn" onclick="sendWhatsApp()">

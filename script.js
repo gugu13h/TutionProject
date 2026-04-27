@@ -23,6 +23,9 @@ let teacherProfile = null;
 let currentRatingStudentIndex = null;
 let selectedMathsRating = 0;
 let selectedScienceRating = 0;
+let scheduleCleanupTimerId = null;
+let isCleaningExpiredSchedules = false;
+let studentCountdownTimerId = null;
 
 const username = document.getElementById("username");
 const password = document.getElementById("password");
@@ -66,6 +69,10 @@ const DEFAULT_TEACHER_PHOTO = "https://placehold.co/300x300/f2efe6/8b5e34?text=T
 const DEFAULT_STUDENT_PHOTO = "https://placehold.co/300x300/e8f5f1/1f6f66?text=Student";
 const DEFAULT_FEE_CYCLE_START_DAY = 1;
 const DEFAULT_FEE_CYCLE_END_DAY = 30;
+const TEACHER_WHATSAPP_NUMBER = "8864022272";
+const TEACHER_WHATSAPP_COUNTRY_CODE = "91";
+const SCHEDULE_AUTO_DELETE_AFTER_HOURS = 3;
+const SCHEDULE_CLEANUP_INTERVAL_MS = 60 * 1000;
 const RESET_STUDENT_IDS = [];
 const INITIAL_STUDENTS = [
   { id: "101", name: "Anushak Kumari", feePending: false, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY, subjectRatings: { maths: 0, science: 0 } },
@@ -89,6 +96,7 @@ window.loadStudentData = loadStudentData;
 window.closeStudentModal = closeStudentModal;
 window.studentAttendance = studentAttendance;
 window.sendWhatsApp = sendWhatsApp;
+window.openTeacherWhatsApp = openTeacherWhatsApp;
 window.uploadTeacherPhoto = uploadTeacherPhoto;
 window.setStudentRating = setStudentRating;
 window.submitStudentRating = submitStudentRating;
@@ -100,6 +108,8 @@ initializeScheduleDefaults();
 initializeStudentModal();
 initializeStudentRegisterForm();
 initializeScheduleForm();
+startScheduleCleanupLoop();
+startStudentCountdownLoop();
 initializeAppData();
 
 async function initializeAppData() {
@@ -391,9 +401,152 @@ async function saveSchedule() {
   }
 }
 
+function getScheduleDateTime(schedule) {
+  if (!schedule?.date || !schedule?.time) {
+    return null;
+  }
+
+  const scheduleDateTime = new Date(`${schedule.date}T${schedule.time}`);
+  return Number.isNaN(scheduleDateTime.getTime()) ? null : scheduleDateTime;
+}
+
+function isScheduleExpired(schedule, now = new Date()) {
+  const scheduleDateTime = getScheduleDateTime(schedule);
+  if (!scheduleDateTime) {
+    return false;
+  }
+
+  const expiresAt = scheduleDateTime.getTime() + SCHEDULE_AUTO_DELETE_AFTER_HOURS * 60 * 60 * 1000;
+  return now.getTime() >= expiresAt;
+}
+
+function getVisibleSchedules(now = new Date()) {
+  return schedules.filter((schedule) => !isScheduleExpired(schedule, now));
+}
+
+function refreshStudentDataViewIfNeeded() {
+  const currentStudentId = loginStudentId.value.trim();
+  const hasStudentViewContent = Boolean(studentData.innerHTML.trim());
+
+  if (!currentStudentId || !hasStudentViewContent) {
+    return;
+  }
+
+  loadStudentData(studentRecordModal.classList.contains("active"));
+}
+
+async function removeExpiredSchedules(options = {}) {
+  const { refreshViews = true, now = new Date() } = options;
+
+  if (!isFirebaseReady() || isCleaningExpiredSchedules || schedules.length === 0) {
+    return 0;
+  }
+
+  const expiredSchedules = schedules.filter((schedule) => isScheduleExpired(schedule, now));
+  if (expiredSchedules.length === 0) {
+    return 0;
+  }
+
+  isCleaningExpiredSchedules = true;
+  const deletedScheduleIds = [];
+
+  try {
+    for (const schedule of expiredSchedules) {
+      try {
+        await deleteScheduleRecord(schedule.firestoreId);
+        deletedScheduleIds.push(schedule.firestoreId);
+      } catch (error) {
+        console.error("Unable to auto-delete expired schedule:", error);
+      }
+    }
+
+    if (deletedScheduleIds.length === 0) {
+      return 0;
+    }
+
+    schedules = schedules.filter((schedule) => !deletedScheduleIds.includes(schedule.firestoreId));
+
+    if (refreshViews) {
+      loadSchedules();
+      refreshStudentDataViewIfNeeded();
+    }
+
+    return deletedScheduleIds.length;
+  } finally {
+    isCleaningExpiredSchedules = false;
+  }
+}
+
+function startScheduleCleanupLoop() {
+  if (scheduleCleanupTimerId !== null) {
+    return;
+  }
+
+  scheduleCleanupTimerId = window.setInterval(() => {
+    void removeExpiredSchedules();
+  }, SCHEDULE_CLEANUP_INTERVAL_MS);
+}
+
+function startStudentCountdownLoop() {
+  if (studentCountdownTimerId !== null) {
+    return;
+  }
+
+  studentCountdownTimerId = window.setInterval(() => {
+    updateStudentCountdowns();
+  }, 1000);
+}
+
+function formatCountdownDuration(totalSeconds) {
+  const safeSeconds = Math.max(0, totalSeconds);
+  const totalMinutes = Math.floor(safeSeconds / 60);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${hours} hr ${String(minutes).padStart(2, "0")} min`;
+}
+
+function getCountdownMarkup(schedule, classDateTime, isHoliday) {
+  if (isHoliday || !schedule.time || !(classDateTime instanceof Date) || Number.isNaN(classDateTime.getTime())) {
+    return "";
+  }
+
+  return `
+    <div class="class-countdown-panel">
+      <span class="class-countdown-title">Live Countdown</span>
+      <span class="class-countdown is-upcoming" data-class-start="${classDateTime.getTime()}" aria-live="polite">
+        Your class in 0 hr 00 min
+      </span>
+    </div>
+  `;
+}
+
+function updateStudentCountdowns() {
+  const now = Date.now();
+
+  document.querySelectorAll(".class-countdown").forEach((countdownElement) => {
+    const classStart = Number(countdownElement.dataset.classStart);
+    if (!Number.isFinite(classStart)) {
+      countdownElement.textContent = "Countdown unavailable";
+      countdownElement.classList.remove("is-live", "is-upcoming");
+      return;
+    }
+
+    const diffSeconds = Math.floor(Math.abs(classStart - now) / 1000);
+    const isUpcoming = classStart > now;
+
+    countdownElement.textContent = isUpcoming
+      ? `Your class in ${formatCountdownDuration(diffSeconds)}`
+      : `Class is going: ${formatCountdownDuration(diffSeconds)}`;
+
+    countdownElement.classList.toggle("is-upcoming", isUpcoming);
+    countdownElement.classList.toggle("is-live", !isUpcoming);
+  });
+}
+
 function loadSchedules() {
+  const visibleSchedules = getVisibleSchedules();
   scheduleList.innerHTML = "";
-  schedules.forEach((schedule, index) => {
+  visibleSchedules.forEach((schedule) => {
     scheduleList.innerHTML += `
       <div class="box">
         <strong>Date:</strong> ${schedule.date}<br>
@@ -401,49 +554,50 @@ function loadSchedules() {
         <strong>Day:</strong> ${schedule.day}<br>
         <strong>Students:</strong><br>
         ${schedule.students.map((student) => getScheduleAttendanceHtml(student, schedule.firestoreId)).join("<br>")}
-        <br><button class="delete" onclick="deleteSchedule(${index})" style="margin-top:10px;">Delete Class</button>
+        <br><button class="delete" onclick="deleteSchedule('${schedule.firestoreId}')" style="margin-top:10px;">Delete Class</button>
       </div>
     `;
   });
 }
 
-async function deleteSchedule(index) {
+async function deleteSchedule(scheduleIdentifier) {
   if (!isFirebaseReady()) {
     alert(FIREBASE_WARNING);
     return;
   }
 
+  const scheduleIndex = schedules.findIndex((schedule) => schedule.firestoreId === scheduleIdentifier);
+  if (scheduleIndex === -1) {
+    alert("Schedule not found");
+    return;
+  }
+
   try {
-    await deleteScheduleRecord(schedules[index].firestoreId);
-    schedules.splice(index, 1);
+    await deleteScheduleRecord(schedules[scheduleIndex].firestoreId);
+    schedules.splice(scheduleIndex, 1);
     loadSchedules();
+    refreshStudentDataViewIfNeeded();
   } catch (error) {
     console.error(error);
     alert("Unable to delete schedule from Firestore");
   }
 }
 
-function loadStudentData() {
+function loadStudentData(openModalAfterLoad = true) {
   const id = loginStudentId.value.trim();
   studentData.innerHTML = "";
   studentModalBody.innerHTML = "";
+  const now = new Date();
 
   const matchedRecords = [];
 
   schedules.forEach((schedule) => {
-    // Check if class time is within the last 6 hours (skip for holidays)
-    if (schedule.time) {
-      const classDateTime = new Date(`${schedule.date}T${schedule.time}`);
-      const now = new Date();
-      const sixHoursAgo = new Date(now.getTime() - 6 * 60 * 60 * 1000);
-      if (classDateTime < sixHoursAgo) {
-        return; // Skip this schedule as it's more than 6 hours old
-      }
+    if (isScheduleExpired(schedule, now)) {
+      return;
     }
-    // For holidays (no time), show all future holidays and recent past holidays
-    else {
+
+    if (!schedule.time) {
       const scheduleDate = new Date(schedule.date + 'T00:00:00'); // Ensure proper date parsing
-      const now = new Date();
       const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       const oneMonthFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
       if (scheduleDate < oneMonthAgo || scheduleDate > oneMonthFromNow) {
@@ -453,11 +607,7 @@ function loadStudentData() {
 
     // Calculate dateTime for sorting
     let classDateTime;
-    if (schedule.time) {
-      classDateTime = new Date(`${schedule.date}T${schedule.time}`);
-    } else {
-      classDateTime = new Date(`${schedule.date}T00:00:00`);
-    }
+    classDateTime = getScheduleDateTime(schedule) || new Date(`${schedule.date}T00:00:00`);
 
     schedule.students.forEach((student) => {
       if (student.id === id) {
@@ -476,9 +626,10 @@ function loadStudentData() {
         const attendanceButtonsHtml = isHoliday ? 
           `<div style="margin-top: 10px; padding: 8px; background: #fef3c7; border-radius: 5px; color: #f59e0b; font-weight: bold;">Holiday marked by teacher</div>` :
           `<div class="attendance-actions" style="display:flex; gap:10px; flex-wrap:wrap; margin-top: 10px;">
-            <button class="secondary-btn compact-btn" style="flex:1; min-width: 160px;" onclick="studentAttendance('${schedule.firestoreId}','${student.id}','coming')">I will come</button>
-            <button class="secondary-btn compact-btn" style="flex:1; min-width: 160px; background:#dc2626; color:#fff;" onclick="studentAttendance('${schedule.firestoreId}','${student.id}','not-coming')">I will not come today</button>
+            <button class="secondary-btn compact-btn" style="flex:1; min-width: 160px;" onclick="studentAttendance('${schedule.firestoreId}','${student.id}','coming','student')">I will come</button>
+            <button class="secondary-btn compact-btn" style="flex:1; min-width: 160px; background:#dc2626; color:#fff;" onclick="studentAttendance('${schedule.firestoreId}','${student.id}','not-coming','student')">I will not come today</button>
           </div>`;
+        const countdownMarkup = getCountdownMarkup(schedule, classDateTime, isHoliday);
         
         const studentRecordHtml = `
           <div class="box">
@@ -486,6 +637,7 @@ function loadStudentData() {
             <strong>Name:</strong> ${student.name}<br>
             <strong>Class Date:</strong> ${schedule.date}<br>
             <strong>Class Time:</strong> <span style="color: #0f766e; font-weight: bold;">${schedule.time ? formatTime12Hour(schedule.time) : "Holiday (No Class)"}</span><br>
+            ${countdownMarkup}
             <strong>Day:</strong> ${schedule.day}<br>
             <strong>Fee Status:</strong> ${formatFeeStatusHtml(student)}<br>
             <strong>Attendance:</strong> ${getAttendanceStatusText(student)}<br>
@@ -529,13 +681,15 @@ function loadStudentData() {
           </div>
           <strong style="display:block; margin-top: 12px; color: #dc2626;">Class update is not available yet.</strong>
           <strong style="color: #dc2626;">You will be informed soon.</strong><br>
-          <button class="secondary-btn" onclick="window.open('https://wa.me/918864022272?text=Need%20help%20with%20student%20login', '_blank');" style="margin-top: 10px;">Need Help</button>
+          <button class="secondary-btn" onclick="openTeacherWhatsApp('Need help with student login')" style="margin-top: 10px;">Need Help</button>
         </div>
       `;
 
       studentData.innerHTML = studentInfoHtml;
       studentModalBody.innerHTML = studentInfoHtml;
-      openStudentModal();
+      if (openModalAfterLoad) {
+        openStudentModal();
+      }
       return;
     }
 
@@ -543,19 +697,24 @@ function loadStudentData() {
       <div class="box">
         <strong>Class update is not available yet.</strong><br>
         <strong>You will be informed soon.</strong><br>
-        <button class="secondary-btn" onclick="window.open('https://wa.me/918864022272?text=Need%20help%20with%20student%20login', '_blank');" style="margin-top: 10px;">Need Help</button>
+        <button class="secondary-btn" onclick="openTeacherWhatsApp('Need help with student login')" style="margin-top: 10px;">Need Help</button>
       </div>
     `;
     studentData.innerHTML = notFoundHtml;
     studentModalBody.innerHTML = notFoundHtml;
-    openStudentModal();
+    if (openModalAfterLoad) {
+      openStudentModal();
+    }
     return;
   }
 
   const recordsMarkup = matchedRecords.map(r => r.html).join("");
   studentData.innerHTML = recordsMarkup;
   studentModalBody.innerHTML = recordsMarkup;
-  openStudentModal();
+  updateStudentCountdowns();
+  if (openModalAfterLoad) {
+    openStudentModal();
+  }
 }
 
 function toggleStudentRating(button) {
@@ -569,18 +728,51 @@ function toggleStudentRating(button) {
   }
 }
 
-function studentAttendance(scheduleId, studentId, status) {
-  // Find student and schedule for WhatsApp
-  const schedule = schedules.find(s => s.firestoreId === scheduleId);
-  const student = schedule ? schedule.students.find(s => s.id === studentId) : null;
-  const studentName = student ? student.name : "Unknown Student";
+function buildStudentAbsenceMessage(schedule, student, customMessage) {
+  const classTiming = schedule.time ? ` at ${formatTime12Hour(schedule.time)}` : " (Holiday - No Class)";
+  return `Student ${student.name} (ID: ${student.id}) will not come to class on ${schedule.date}${classTiming}. Message: ${customMessage}`;
+}
 
-  if (status === "not-coming") {
-    // Send WhatsApp message
-    const message = `Student ${studentName} (ID: ${studentId}) will not come to class on ${schedule.date}${schedule.time ? ` at ${formatTime12Hour(schedule.time)}` : " (Holiday - No Class)"}.`;
-    const url = "https://wa.me/918864022272?text=" + encodeURIComponent(message);
-    window.open(url, "_blank");
-    alert("Notification sent to teacher!");
+function getTeacherWhatsAppUrl(message = "") {
+  const phone = `${TEACHER_WHATSAPP_COUNTRY_CODE}${TEACHER_WHATSAPP_NUMBER}`;
+  const encodedMessage = message ? `&text=${encodeURIComponent(message)}` : "";
+  return `https://api.whatsapp.com/send?phone=${phone}${encodedMessage}`;
+}
+
+function openTeacherWhatsApp(message = "") {
+  window.location.assign(getTeacherWhatsAppUrl(message));
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+async function studentAttendance(scheduleId, studentId, status, source = "teacher") {
+  const schedule = schedules.find(s => s.firestoreId === scheduleId);
+  if (!schedule) {
+    alert("Schedule not found");
+    return;
+  }
+
+  const student = schedule.students.find(s => s.id === studentId);
+  if (!student) {
+    alert("Student not found in schedule");
+    return;
+  }
+
+  if (source === "student" && status === "not-coming") {
+    const customMessage = whatsappMsg.value.trim() || "I will not come today.";
+    whatsappMsg.value = customMessage;
+
+    const message = buildStudentAbsenceMessage(schedule, student, customMessage);
+    await updateStudentAttendance(scheduleId, studentId, status, customMessage);
+    openTeacherWhatsApp(message);
+    return;
   }
 
   let reason = "";
@@ -589,7 +781,7 @@ function studentAttendance(scheduleId, studentId, status) {
   } else if (status === "not-coming") {
     reason = "Marked absent by teacher";
   }
-  updateStudentAttendance(scheduleId, studentId, status, reason);
+  await updateStudentAttendance(scheduleId, studentId, status, reason);
 }
 
 async function updateStudentAttendance(scheduleId, studentId, status, reason) {
@@ -614,7 +806,7 @@ async function updateStudentAttendance(scheduleId, studentId, status, reason) {
   const updatedStudent = {
     ...schedule.students[studentIndex],
     attendanceStatus: status,
-    attendanceReason: reason || schedule.students[studentIndex].attendanceReason || ""
+    attendanceReason: reason || ""
   };
 
   const updatedSchedule = {
@@ -654,31 +846,27 @@ function getAttendanceStatusText(student) {
 }
 
 function getScheduleAttendanceHtml(student, scheduleId) {
-  const reasonMarkup = student.attendanceReason ? `<div style="margin-left: 18px; color:#dc2626;">Reason: ${student.attendanceReason}</div>` : "";
+  const reasonMarkup = student.attendanceReason ? `<div style="margin-left: 18px; color:#dc2626;">Reason: ${escapeHtml(student.attendanceReason)}</div>` : "";
   const attendanceButtons = `
     <div style="margin-left: 18px; margin-top: 5px; display: flex; gap: 5px; flex-wrap: wrap;">
-      <button class="secondary-btn compact-btn" style="font-size: 11px; padding: 3px 8px;" onclick="studentAttendance('${scheduleId}', '${student.id}', 'holiday')">Mark Holiday</button>
-      <button class="secondary-btn compact-btn" style="font-size: 11px; padding: 3px 8px; background:#dc2626; color:#fff;" onclick="studentAttendance('${scheduleId}', '${student.id}', 'not-coming')">Mark Absent</button>
-      <button class="secondary-btn compact-btn" style="font-size: 11px; padding: 3px 8px; background:#0f766e; color:#fff;" onclick="studentAttendance('${scheduleId}', '${student.id}', 'coming')">Mark Present</button>
+      <button class="secondary-btn compact-btn" style="font-size: 11px; padding: 3px 8px;" onclick="studentAttendance('${scheduleId}', '${student.id}', 'holiday', 'teacher')">Mark Holiday</button>
+      <button class="secondary-btn compact-btn" style="font-size: 11px; padding: 3px 8px; background:#dc2626; color:#fff;" onclick="studentAttendance('${scheduleId}', '${student.id}', 'not-coming', 'teacher')">Mark Absent</button>
+      <button class="secondary-btn compact-btn" style="font-size: 11px; padding: 3px 8px; background:#0f766e; color:#fff;" onclick="studentAttendance('${scheduleId}', '${student.id}', 'coming', 'teacher')">Mark Present</button>
     </div>
   `;
   return `- ${student.name} (${student.id}) ${student.feePending ? "(Pending)" : ""} — ${getAttendanceStatusText(student)} ${reasonMarkup}${attendanceButtons}`;
 }
 
 function sendWhatsApp() {
-  const msg = whatsappMsg.value.trim();
-  if (!msg) {
-    alert("Write message");
-    return;
-  }
-
-  const url = "https://wa.me/918864022272?text=" + encodeURIComponent(msg);
-  window.open(url, "_blank");
+  const msg = whatsappMsg.value.trim() || "Hello teacher";
+  whatsappMsg.value = msg;
+  openTeacherWhatsApp(msg);
 }
 
 async function refreshFirestoreData() {
   students = await getStudents();
   schedules = await getSchedules();
+  await removeExpiredSchedules({ refreshViews: false });
   showStudents();
   showStudentCheckList();
   loadSchedules();
