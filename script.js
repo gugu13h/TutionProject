@@ -75,8 +75,9 @@ const TEACHER_WHATSAPP_NUMBER = "8864022272";
 const TEACHER_WHATSAPP_COUNTRY_CODE = "91";
 const SCHEDULE_AUTO_DELETE_AFTER_HOURS = 3;
 const SCHEDULE_CLEANUP_INTERVAL_MS = 60 * 1000;
-const FEE_PAYMENT_PHONE_NUMBER = "8789507019";
+const FEE_PAYMENT_UPI_ID = "8789507019-2@ybl";
 const FEE_PAYMENT_FALLBACK_DELAY_MS = 1200;
+const PHONEPE_APP_PACKAGE = "com.phonepe.app";
 const RESET_STUDENT_IDS = [];
 const INITIAL_STUDENTS = [
   { id: "101", name: "Anushak Kumari", feePending: false, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY, subjectRatings: { maths: 0, science: 0 } },
@@ -773,44 +774,74 @@ function getFeePaymentNote(student) {
   return student?.name ? `Tuition fee payment for ${student.name}` : "Tuition fee payment";
 }
 
-function getPhonePePaymentUrl(student) {
-  const params = new URLSearchParams({
-    pa: FEE_PAYMENT_PHONE_NUMBER,
+function buildUpiPaymentQuery(student) {
+  const params = {
+    pa: FEE_PAYMENT_UPI_ID,
     pn: "Tuition Fees",
     tn: getFeePaymentNote(student),
     cu: "INR"
-  });
-  return `phonepe://pay?${params.toString()}`;
+  };
+
+  return Object.entries(params)
+    .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
+    .join("&");
+}
+
+function getPhonePePaymentUrl(student) {
+  return `phonepe://pay?${buildUpiPaymentQuery(student)}`;
+}
+
+function getPhonePeIntentUrl(student) {
+  return `intent://pay?${buildUpiPaymentQuery(student)}#Intent;scheme=upi;package=${PHONEPE_APP_PACKAGE};end`;
 }
 
 function getUpiPaymentUrl(student) {
-  const params = new URLSearchParams({
-    pa: FEE_PAYMENT_PHONE_NUMBER,
-    pn: "Tuition Fees",
-    tn: getFeePaymentNote(student),
-    cu: "INR"
-  });
-  return `upi://pay?${params.toString()}`;
+  return `upi://pay?${buildUpiPaymentQuery(student)}`;
+}
+
+function isAndroidDevice() {
+  return /Android/i.test(window.navigator.userAgent || "");
 }
 
 function openPhonePePayment(student) {
-  const phonePeUrl = getPhonePePaymentUrl(student);
+  const fallbackUrls = [];
+  const primaryUrl = isAndroidDevice() ? getPhonePeIntentUrl(student) : getPhonePePaymentUrl(student);
+  const phonePeSchemeUrl = getPhonePePaymentUrl(student);
   const upiFallbackUrl = getUpiPaymentUrl(student);
+
+  if (phonePeSchemeUrl !== primaryUrl) {
+    fallbackUrls.push(phonePeSchemeUrl);
+  }
+
+  if (!fallbackUrls.includes(upiFallbackUrl)) {
+    fallbackUrls.push(upiFallbackUrl);
+  }
+
+  const fallbackTimerIds = [];
+  const clearFallbacks = () => {
+    fallbackTimerIds.forEach((timerId) => window.clearTimeout(timerId));
+    document.removeEventListener("visibilitychange", handleVisibilityChange);
+  };
+
   const handleVisibilityChange = () => {
     if (document.visibilityState === "hidden") {
-      window.clearTimeout(fallbackTimerId);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      clearFallbacks();
     }
   };
-  const fallbackTimerId = window.setTimeout(() => {
-    document.removeEventListener("visibilitychange", handleVisibilityChange);
-    if (document.visibilityState === "visible") {
-      window.location.assign(upiFallbackUrl);
-    }
-  }, FEE_PAYMENT_FALLBACK_DELAY_MS);
 
   document.addEventListener("visibilitychange", handleVisibilityChange);
-  window.location.assign(phonePeUrl);
+
+  fallbackUrls.forEach((url, index) => {
+    const timerId = window.setTimeout(() => {
+      if (document.visibilityState === "visible") {
+        window.location.assign(url);
+      }
+    }, FEE_PAYMENT_FALLBACK_DELAY_MS * (index + 1));
+
+    fallbackTimerIds.push(timerId);
+  });
+
+  window.location.assign(primaryUrl);
 }
 
 function getTeacherWhatsAppUrl(message = "") {
@@ -1240,7 +1271,7 @@ function showFeeReminderIfNeeded(student) {
   }
 
   const feeStatus = getFeeStatusText(student);
-  feeReminderText.textContent = `${student.name}, your fee is pending (${feeStatus}). Please pay now on PhonePe to ${FEE_PAYMENT_PHONE_NUMBER}.`;
+  feeReminderText.textContent = `${student.name}, your fee is pending (${feeStatus}). Please pay now on PhonePe to ${FEE_PAYMENT_UPI_ID}.`;
   feeReminderModal.dataset.studentId = student.id || "";
   feeReminderModal.classList.add("active");
   feeReminderModal.setAttribute("aria-hidden", "false");
