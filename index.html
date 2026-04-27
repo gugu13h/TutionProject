@@ -282,13 +282,12 @@
           <span class="eyebrow">Fee Reminder</span>
           <h3>Fee Pending</h3>
         </div>
-        <button type="button" class="ghost-btn modal-close-btn" onclick="closeFeeReminderModal()">Cut</button>
+        <button type="button" class="ghost-btn modal-close-btn" onclick="closeFeeReminderModal()" aria-label="Close fee reminder">&times;</button>
       </div>
       <div class="fee-reminder-body">
         <div class="fee-reminder-emoji" aria-hidden="true">&#128577;</div>
         <p id="feeReminderText" class="fee-reminder-text">Your fee is pending. Scan this PhonePe QR and pay.</p>
         <img class="fee-reminder-qr" src="phonepe-qr.jpeg" alt="PhonePe payment QR code">
-        <button type="button" class="phonepe-pay-btn" onclick="payPendingFee()">Open Payment App</button>
       </div>
     </div>
   </div>

@@ -75,10 +75,6 @@ const TEACHER_WHATSAPP_NUMBER = "8864022272";
 const TEACHER_WHATSAPP_COUNTRY_CODE = "91";
 const SCHEDULE_AUTO_DELETE_AFTER_HOURS = 3;
 const SCHEDULE_CLEANUP_INTERVAL_MS = 60 * 1000;
-const FEE_PAYMENT_UPI_ID = "8789507019-2@ybl";
-const FEE_PAYMENT_PAYEE_NAME = "8789507019-2@ybl";
-const FEE_PAYMENT_FALLBACK_DELAY_MS = 1200;
-const PHONEPE_APP_PACKAGE = "com.phonepe.app";
 const RESET_STUDENT_IDS = [];
 const INITIAL_STUDENTS = [
   { id: "101", name: "Anushak Kumari", feePending: false, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY, subjectRatings: { maths: 0, science: 0 } },
@@ -104,7 +100,6 @@ window.closeFeeReminderModal = closeFeeReminderModal;
 window.studentAttendance = studentAttendance;
 window.sendWhatsApp = sendWhatsApp;
 window.openTeacherWhatsApp = openTeacherWhatsApp;
-window.payPendingFee = payPendingFee;
 window.uploadTeacherPhoto = uploadTeacherPhoto;
 window.setStudentRating = setStudentRating;
 window.submitStudentRating = submitStudentRating;
@@ -729,9 +724,8 @@ function loadStudentData(options = {}) {
 
     const notFoundHtml = `
       <div class="box">
-        <strong>Class update is not available yet.</strong><br>
-        <strong>You will be informed soon.</strong><br>
-        <button class="secondary-btn" onclick="openTeacherWhatsApp('Need help with student login')" style="margin-top: 10px;">Need Help</button>
+        <strong style="display:block; margin-top: 12px; color: #dc2626;">Student not found.</strong>
+        <strong style="color: #dc2626;">Enter correct ID.</strong>
       </div>
     `;
     studentData.innerHTML = notFoundHtml;
@@ -769,70 +763,6 @@ function toggleStudentRating(button) {
 function buildStudentAbsenceMessage(schedule, student, customMessage) {
   const classTiming = schedule.time ? ` at ${formatTime12Hour(schedule.time)}` : " (Holiday - No Class)";
   return `Student ${student.name} (ID: ${student.id}) will not come to class on ${schedule.date}${classTiming}. Message: ${customMessage}`;
-}
-
-function getFeePaymentNote(student) {
-  return student?.name ? `Tuition fee payment for ${student.name}` : "Tuition fee payment";
-}
-
-function buildUpiPaymentQuery(student) {
-  const params = {
-    pa: FEE_PAYMENT_UPI_ID,
-    pn: FEE_PAYMENT_PAYEE_NAME,
-    tn: getFeePaymentNote(student)
-  };
-
-  return Object.entries(params)
-    .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
-    .join("&");
-}
-
-function getPhonePeIntentUrl(student) {
-  return `intent://pay?${buildUpiPaymentQuery(student)}#Intent;scheme=upi;package=${PHONEPE_APP_PACKAGE};end`;
-}
-
-function getUpiPaymentUrl(student) {
-  return `upi://pay?${buildUpiPaymentQuery(student)}`;
-}
-
-function isAndroidDevice() {
-  return /Android/i.test(window.navigator.userAgent || "");
-}
-
-function openPhonePePayment(student) {
-  const fallbackUrls = [];
-  const primaryUrl = isAndroidDevice() ? getPhonePeIntentUrl(student) : getUpiPaymentUrl(student);
-  const upiFallbackUrl = getUpiPaymentUrl(student);
-
-  if (!fallbackUrls.includes(upiFallbackUrl)) {
-    fallbackUrls.push(upiFallbackUrl);
-  }
-
-  const fallbackTimerIds = [];
-  const clearFallbacks = () => {
-    fallbackTimerIds.forEach((timerId) => window.clearTimeout(timerId));
-    document.removeEventListener("visibilitychange", handleVisibilityChange);
-  };
-
-  const handleVisibilityChange = () => {
-    if (document.visibilityState === "hidden") {
-      clearFallbacks();
-    }
-  };
-
-  document.addEventListener("visibilitychange", handleVisibilityChange);
-
-  fallbackUrls.forEach((url, index) => {
-    const timerId = window.setTimeout(() => {
-      if (document.visibilityState === "visible") {
-        window.location.assign(url);
-      }
-    }, FEE_PAYMENT_FALLBACK_DELAY_MS * (index + 1));
-
-    fallbackTimerIds.push(timerId);
-  });
-
-  window.location.assign(primaryUrl);
 }
 
 function getTeacherWhatsAppUrl(message = "") {
@@ -1276,13 +1206,6 @@ function closeFeeReminderModal() {
   feeReminderModal.classList.remove("active");
   feeReminderModal.setAttribute("aria-hidden", "true");
   feeReminderModal.dataset.studentId = "";
-}
-
-function payPendingFee() {
-  const studentIdToPay = feeReminderModal?.dataset.studentId || "";
-  const student = students.find((item) => item.id === studentIdToPay) || null;
-  closeFeeReminderModal();
-  openPhonePePayment(student);
 }
 
 function setStudentRating(index) {
