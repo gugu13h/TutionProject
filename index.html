@@ -237,10 +237,10 @@
 
         <section class="panel-card">
           <h3>Send Message to Teacher</h3>
-          <p class="section-note">"I will not come today" will redirect to WhatsApp on 8864022272. You can type an extra message here.</p>
+          <p class="section-note">" You can type message here.</p>
           <div class="field-group">
             <label for="whatsappMsg">Message</label>
-            <textarea id="whatsappMsg" placeholder="Type your message here, or leave it blank for the default not coming message."></textarea>
+            <textarea id="whatsappMsg" placeholder="."></textarea>
           </div>
           <div class="action-row">
             <button class="whatsapp-btn" onclick="sendWhatsApp()">
@@ -272,6 +272,23 @@
         <button type="button" class="ghost-btn modal-close-btn" onclick="closeStudentModal()">Close</button>
       </div>
       <div id="studentModalBody" class="modal-body"></div>
+    </div>
+  </div>
+
+  <div id="feeReminderModal" class="modal-overlay fee-reminder-overlay" aria-hidden="true">
+    <div class="modal-card fee-reminder-card">
+      <div class="modal-head">
+        <div>
+          <span class="eyebrow">Fee Reminder</span>
+          <h3>Fee Pending</h3>
+        </div>
+        <button type="button" class="ghost-btn modal-close-btn" onclick="closeFeeReminderModal()">Cut</button>
+      </div>
+      <div class="fee-reminder-body">
+        <div class="fee-reminder-emoji" aria-hidden="true">&#128577;</div>
+        <p id="feeReminderText" class="fee-reminder-text">Your fee is pending. Please pay now.</p>
+        <button type="button" class="phonepe-pay-btn" onclick="payPendingFee()">Pay Now</button>
+      </div>
     </div>
   </div>
 

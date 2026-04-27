@@ -44,6 +44,8 @@ const loginStudentId = document.getElementById("loginStudentId");
 const studentData = document.getElementById("studentData");
 const studentRecordModal = document.getElementById("studentRecordModal");
 const studentModalBody = document.getElementById("studentModalBody");
+const feeReminderModal = document.getElementById("feeReminderModal");
+const feeReminderText = document.getElementById("feeReminderText");
 const teacherLoginPhoto = document.getElementById("teacherLoginPhoto");
 const teacherDashboardPhoto = document.getElementById("teacherDashboardPhoto");
 const teacherPhotoFile = document.getElementById("teacherPhotoFile");
@@ -73,6 +75,8 @@ const TEACHER_WHATSAPP_NUMBER = "8864022272";
 const TEACHER_WHATSAPP_COUNTRY_CODE = "91";
 const SCHEDULE_AUTO_DELETE_AFTER_HOURS = 3;
 const SCHEDULE_CLEANUP_INTERVAL_MS = 60 * 1000;
+const FEE_PAYMENT_PHONE_NUMBER = "8789507019";
+const FEE_PAYMENT_FALLBACK_DELAY_MS = 1200;
 const RESET_STUDENT_IDS = [];
 const INITIAL_STUDENTS = [
   { id: "101", name: "Anushak Kumari", feePending: false, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY, subjectRatings: { maths: 0, science: 0 } },
@@ -94,9 +98,11 @@ window.saveSchedule = saveSchedule;
 window.deleteSchedule = deleteSchedule;
 window.loadStudentData = loadStudentData;
 window.closeStudentModal = closeStudentModal;
+window.closeFeeReminderModal = closeFeeReminderModal;
 window.studentAttendance = studentAttendance;
 window.sendWhatsApp = sendWhatsApp;
 window.openTeacherWhatsApp = openTeacherWhatsApp;
+window.payPendingFee = payPendingFee;
 window.uploadTeacherPhoto = uploadTeacherPhoto;
 window.setStudentRating = setStudentRating;
 window.submitStudentRating = submitStudentRating;
@@ -106,6 +112,7 @@ window.toggleStudentRating = toggleStudentRating;
 
 initializeScheduleDefaults();
 initializeStudentModal();
+initializeFeeReminderModal();
 initializeStudentRegisterForm();
 initializeScheduleForm();
 startScheduleCleanupLoop();
@@ -432,7 +439,10 @@ function refreshStudentDataViewIfNeeded() {
     return;
   }
 
-  loadStudentData(studentRecordModal.classList.contains("active"));
+  loadStudentData({
+    openModalAfterLoad: studentRecordModal.classList.contains("active"),
+    showFeeReminder: false
+  });
 }
 
 async function removeExpiredSchedules(options = {}) {
@@ -543,6 +553,21 @@ function updateStudentCountdowns() {
   });
 }
 
+function normalizeLoadStudentDataOptions(options) {
+  if (typeof options === "boolean") {
+    return {
+      openModalAfterLoad: options,
+      showFeeReminder: false
+    };
+  }
+
+  return {
+    openModalAfterLoad: true,
+    showFeeReminder: true,
+    ...(options || {})
+  };
+}
+
 function loadSchedules() {
   const visibleSchedules = getVisibleSchedules();
   scheduleList.innerHTML = "";
@@ -583,11 +608,13 @@ async function deleteSchedule(scheduleIdentifier) {
   }
 }
 
-function loadStudentData(openModalAfterLoad = true) {
+function loadStudentData(options = {}) {
+  const { openModalAfterLoad, showFeeReminder } = normalizeLoadStudentDataOptions(options);
   const id = loginStudentId.value.trim();
   studentData.innerHTML = "";
   studentModalBody.innerHTML = "";
   const now = new Date();
+  let feeReminderStudent = null;
 
   const matchedRecords = [];
 
@@ -612,6 +639,7 @@ function loadStudentData(openModalAfterLoad = true) {
     schedule.students.forEach((student) => {
       if (student.id === id) {
         const fullStudent = students.find(s => s.id === id);
+        feeReminderStudent = feeReminderStudent || fullStudent || student;
         const ratings = fullStudent ? (fullStudent.subjectRatings || { maths: 0, science: 0 }) : { maths: 0, science: 0 };
         const overallRating = Math.round((ratings.maths + ratings.science) / 2 * 10) / 10;
         const mathsText = ratings.maths === 0 ? "Not Rated" : `${ratings.maths} / 10`;
@@ -661,6 +689,7 @@ function loadStudentData(openModalAfterLoad = true) {
   if (matchedRecords.length === 0) {
     const studentRecord = students.find((student) => student.id === id);
     if (studentRecord) {
+      feeReminderStudent = studentRecord;
       const ratings = studentRecord.subjectRatings || { maths: 0, science: 0 };
       const overallRating = Math.round((ratings.maths + ratings.science) / 2 * 10) / 10;
       const mathsText = ratings.maths === 0 ? "Not Rated" : `${ratings.maths} / 10`;
@@ -690,6 +719,9 @@ function loadStudentData(openModalAfterLoad = true) {
       if (openModalAfterLoad) {
         openStudentModal();
       }
+      if (showFeeReminder) {
+        showFeeReminderIfNeeded(feeReminderStudent);
+      }
       return;
     }
 
@@ -705,6 +737,7 @@ function loadStudentData(openModalAfterLoad = true) {
     if (openModalAfterLoad) {
       openStudentModal();
     }
+    closeFeeReminderModal();
     return;
   }
 
@@ -714,6 +747,9 @@ function loadStudentData(openModalAfterLoad = true) {
   updateStudentCountdowns();
   if (openModalAfterLoad) {
     openStudentModal();
+  }
+  if (showFeeReminder) {
+    showFeeReminderIfNeeded(feeReminderStudent);
   }
 }
 
@@ -731,6 +767,50 @@ function toggleStudentRating(button) {
 function buildStudentAbsenceMessage(schedule, student, customMessage) {
   const classTiming = schedule.time ? ` at ${formatTime12Hour(schedule.time)}` : " (Holiday - No Class)";
   return `Student ${student.name} (ID: ${student.id}) will not come to class on ${schedule.date}${classTiming}. Message: ${customMessage}`;
+}
+
+function getFeePaymentNote(student) {
+  return student?.name ? `Tuition fee payment for ${student.name}` : "Tuition fee payment";
+}
+
+function getPhonePePaymentUrl(student) {
+  const params = new URLSearchParams({
+    pa: FEE_PAYMENT_PHONE_NUMBER,
+    pn: "Tuition Fees",
+    tn: getFeePaymentNote(student),
+    cu: "INR"
+  });
+  return `phonepe://pay?${params.toString()}`;
+}
+
+function getUpiPaymentUrl(student) {
+  const params = new URLSearchParams({
+    pa: FEE_PAYMENT_PHONE_NUMBER,
+    pn: "Tuition Fees",
+    tn: getFeePaymentNote(student),
+    cu: "INR"
+  });
+  return `upi://pay?${params.toString()}`;
+}
+
+function openPhonePePayment(student) {
+  const phonePeUrl = getPhonePePaymentUrl(student);
+  const upiFallbackUrl = getUpiPaymentUrl(student);
+  const handleVisibilityChange = () => {
+    if (document.visibilityState === "hidden") {
+      window.clearTimeout(fallbackTimerId);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    }
+  };
+  const fallbackTimerId = window.setTimeout(() => {
+    document.removeEventListener("visibilitychange", handleVisibilityChange);
+    if (document.visibilityState === "visible") {
+      window.location.assign(upiFallbackUrl);
+    }
+  }, FEE_PAYMENT_FALLBACK_DELAY_MS);
+
+  document.addEventListener("visibilitychange", handleVisibilityChange);
+  window.location.assign(phonePeUrl);
 }
 
 function getTeacherWhatsAppUrl(message = "") {
@@ -822,7 +902,7 @@ async function updateStudentAttendance(scheduleId, studentId, status, reason) {
     loadSchedules();
     const currentStudentId = loginStudentId.value.trim();
     if (currentStudentId === studentId) {
-      loadStudentData();
+      loadStudentData({ openModalAfterLoad: true, showFeeReminder: false });
     }
     alert("Attendance status saved");
   } catch (error) {
@@ -1100,6 +1180,18 @@ function initializeStudentModal() {
   });
 }
 
+function initializeFeeReminderModal() {
+  if (!feeReminderModal) {
+    return;
+  }
+
+  feeReminderModal.addEventListener("click", (event) => {
+    if (event.target === feeReminderModal) {
+      closeFeeReminderModal();
+    }
+  });
+}
+
 function initializeStudentRegisterForm() {
   closeStudentRegisterForm();
   studentCycleStartDay.value = DEFAULT_FEE_CYCLE_START_DAY;
@@ -1136,8 +1228,39 @@ function openStudentModal() {
 }
 
 function closeStudentModal() {
+  closeFeeReminderModal();
   studentRecordModal.classList.remove("active");
   studentRecordModal.setAttribute("aria-hidden", "true");
+}
+
+function showFeeReminderIfNeeded(student) {
+  if (!student?.feePending || !feeReminderModal || !feeReminderText) {
+    closeFeeReminderModal();
+    return;
+  }
+
+  const feeStatus = getFeeStatusText(student);
+  feeReminderText.textContent = `${student.name}, your fee is pending (${feeStatus}). Please pay now on PhonePe to ${FEE_PAYMENT_PHONE_NUMBER}.`;
+  feeReminderModal.dataset.studentId = student.id || "";
+  feeReminderModal.classList.add("active");
+  feeReminderModal.setAttribute("aria-hidden", "false");
+}
+
+function closeFeeReminderModal() {
+  if (!feeReminderModal) {
+    return;
+  }
+
+  feeReminderModal.classList.remove("active");
+  feeReminderModal.setAttribute("aria-hidden", "true");
+  feeReminderModal.dataset.studentId = "";
+}
+
+function payPendingFee() {
+  const studentIdToPay = feeReminderModal?.dataset.studentId || "";
+  const student = students.find((item) => item.id === studentIdToPay) || null;
+  closeFeeReminderModal();
+  openPhonePePayment(student);
 }
 
 function setStudentRating(index) {
