@@ -76,6 +76,7 @@ const TEACHER_WHATSAPP_COUNTRY_CODE = "91";
 const SCHEDULE_AUTO_DELETE_AFTER_HOURS = 3;
 const SCHEDULE_CLEANUP_INTERVAL_MS = 60 * 1000;
 const FEE_PAYMENT_UPI_ID = "8789507019-2@ybl";
+const FEE_PAYMENT_PAYEE_NAME = "8789507019-2@ybl";
 const FEE_PAYMENT_FALLBACK_DELAY_MS = 1200;
 const PHONEPE_APP_PACKAGE = "com.phonepe.app";
 const RESET_STUDENT_IDS = [];
@@ -777,18 +778,13 @@ function getFeePaymentNote(student) {
 function buildUpiPaymentQuery(student) {
   const params = {
     pa: FEE_PAYMENT_UPI_ID,
-    pn: "Tuition Fees",
-    tn: getFeePaymentNote(student),
-    cu: "INR"
+    pn: FEE_PAYMENT_PAYEE_NAME,
+    tn: getFeePaymentNote(student)
   };
 
   return Object.entries(params)
     .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
     .join("&");
-}
-
-function getPhonePePaymentUrl(student) {
-  return `phonepe://pay?${buildUpiPaymentQuery(student)}`;
 }
 
 function getPhonePeIntentUrl(student) {
@@ -805,13 +801,8 @@ function isAndroidDevice() {
 
 function openPhonePePayment(student) {
   const fallbackUrls = [];
-  const primaryUrl = isAndroidDevice() ? getPhonePeIntentUrl(student) : getPhonePePaymentUrl(student);
-  const phonePeSchemeUrl = getPhonePePaymentUrl(student);
+  const primaryUrl = isAndroidDevice() ? getPhonePeIntentUrl(student) : getUpiPaymentUrl(student);
   const upiFallbackUrl = getUpiPaymentUrl(student);
-
-  if (phonePeSchemeUrl !== primaryUrl) {
-    fallbackUrls.push(phonePeSchemeUrl);
-  }
 
   if (!fallbackUrls.includes(upiFallbackUrl)) {
     fallbackUrls.push(upiFallbackUrl);
