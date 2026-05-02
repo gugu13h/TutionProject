@@ -26,6 +26,7 @@ let selectedScienceRating = 0;
 let scheduleCleanupTimerId = null;
 let isCleaningExpiredSchedules = false;
 let studentCountdownTimerId = null;
+let teacherScheduleTimerId = null;
 
 const username = document.getElementById("username");
 const password = document.getElementById("password");
@@ -98,6 +99,7 @@ window.loadStudentData = loadStudentData;
 window.closeStudentModal = closeStudentModal;
 window.closeFeeReminderModal = closeFeeReminderModal;
 window.studentAttendance = studentAttendance;
+window.stopClassTimer = stopClassTimer;
 window.sendWhatsApp = sendWhatsApp;
 window.openTeacherWhatsApp = openTeacherWhatsApp;
 window.uploadTeacherPhoto = uploadTeacherPhoto;
@@ -114,6 +116,7 @@ initializeStudentRegisterForm();
 initializeScheduleForm();
 startScheduleCleanupLoop();
 startStudentCountdownLoop();
+startTeacherScheduleLoop();
 initializeAppData();
 
 async function initializeAppData() {
@@ -387,6 +390,7 @@ async function saveSchedule() {
     date,
     time: time || "", // Use empty string if no time provided
     day,
+    classStoppedAt: null,
     students: selectedStudents.map(({ firestoreId, ...student }) => ({
       ...student
     }))
@@ -504,6 +508,19 @@ function startStudentCountdownLoop() {
   }, 1000);
 }
 
+function startTeacherScheduleLoop() {
+  if (teacherScheduleTimerId !== null) {
+    return;
+  }
+
+  teacherScheduleTimerId = window.setInterval(() => {
+    const activePage = document.querySelector(".page.active");
+    if (activePage && activePage.id === "teacherPage") {
+      loadSchedules();
+    }
+  }, 30 * 1000);
+}
+
 function formatCountdownDuration(totalSeconds) {
   const safeSeconds = Math.max(0, totalSeconds);
   const totalMinutes = Math.floor(safeSeconds / 60);
@@ -512,9 +529,31 @@ function formatCountdownDuration(totalSeconds) {
   return `${hours} hr ${String(minutes).padStart(2, "0")} min`;
 }
 
+function getStoppedClassSeconds(schedule, classDateTime) {
+  const classStoppedAt = Number(schedule?.classStoppedAt);
+
+  if (!Number.isFinite(classStoppedAt) || !(classDateTime instanceof Date) || Number.isNaN(classDateTime.getTime())) {
+    return null;
+  }
+
+  return Math.max(0, Math.floor((classStoppedAt - classDateTime.getTime()) / 1000));
+}
+
 function getCountdownMarkup(schedule, classDateTime, isHoliday) {
   if (isHoliday || !schedule.time || !(classDateTime instanceof Date) || Number.isNaN(classDateTime.getTime())) {
     return "";
+  }
+
+  const stoppedSeconds = getStoppedClassSeconds(schedule, classDateTime);
+  if (stoppedSeconds !== null) {
+    return `
+      <div class="class-countdown-panel class-countdown-stopped">
+        <span class="class-countdown-title">Class Timer</span>
+        <span class="class-countdown is-stopped" aria-live="polite">
+          Class stopped: ${formatCountdownDuration(stoppedSeconds)}
+        </span>
+      </div>
+    `;
   }
 
   return `
@@ -569,6 +608,7 @@ function loadSchedules() {
   const visibleSchedules = getVisibleSchedules();
   scheduleList.innerHTML = "";
   visibleSchedules.forEach((schedule) => {
+    const scheduleActions = getScheduleActionsHtml(schedule);
     scheduleList.innerHTML += `
       <div class="box">
         <strong>Date:</strong> ${schedule.date}<br>
@@ -576,10 +616,82 @@ function loadSchedules() {
         <strong>Day:</strong> ${schedule.day}<br>
         <strong>Students:</strong><br>
         ${schedule.students.map((student) => getScheduleAttendanceHtml(student, schedule.firestoreId)).join("<br>")}
-        <br><button class="delete" onclick="deleteSchedule('${schedule.firestoreId}')" style="margin-top:10px;">Delete Class</button>
+        ${scheduleActions}
       </div>
     `;
   });
+}
+
+function isClassRunning(schedule, now = new Date()) {
+  const scheduleDateTime = getScheduleDateTime(schedule);
+  if (!scheduleDateTime || schedule.classStoppedAt) {
+    return false;
+  }
+
+  const classStartTime = scheduleDateTime.getTime();
+  const classEndTime = classStartTime + SCHEDULE_AUTO_DELETE_AFTER_HOURS * 60 * 60 * 1000;
+  const nowTime = now.getTime();
+  return nowTime >= classStartTime && nowTime < classEndTime;
+}
+
+function getScheduleActionsHtml(schedule) {
+  const stopTimerButton = isClassRunning(schedule)
+    ? `<button class="secondary-btn compact-btn stop-timer-btn" onclick="stopClassTimer('${schedule.firestoreId}')">Stop Timer</button>`
+    : "";
+  const stoppedText = schedule.classStoppedAt
+    ? `<span class="class-stopped-label">Timer stopped</span>`
+    : "";
+
+  return `
+    <div class="schedule-actions">
+      ${stopTimerButton}
+      ${stoppedText}
+      <button class="delete compact-btn" onclick="deleteSchedule('${schedule.firestoreId}')">Delete Class</button>
+    </div>
+  `;
+}
+
+async function stopClassTimer(scheduleIdentifier) {
+  if (!isFirebaseReady()) {
+    alert(FIREBASE_WARNING);
+    return;
+  }
+
+  const scheduleIndex = schedules.findIndex((schedule) => schedule.firestoreId === scheduleIdentifier);
+  if (scheduleIndex === -1) {
+    alert("Schedule not found");
+    return;
+  }
+
+  const schedule = schedules[scheduleIndex];
+  if (!getScheduleDateTime(schedule)) {
+    alert("Timer is not available for this class");
+    return;
+  }
+
+  if (schedule.classStoppedAt) {
+    alert("Class timer already stopped");
+    return;
+  }
+
+  const updatedSchedule = {
+    date: schedule.date,
+    time: schedule.time,
+    day: schedule.day,
+    classStoppedAt: Date.now(),
+    students: schedule.students
+  };
+
+  try {
+    await updateScheduleRecord(schedule.firestoreId, updatedSchedule);
+    schedules[scheduleIndex] = { firestoreId: schedule.firestoreId, ...updatedSchedule };
+    loadSchedules();
+    refreshStudentDataViewIfNeeded();
+    alert("Class timer stopped");
+  } catch (error) {
+    console.error(error);
+    alert("Unable to stop class timer");
+  }
 }
 
 async function deleteSchedule(scheduleIdentifier) {
@@ -845,6 +957,7 @@ async function updateStudentAttendance(scheduleId, studentId, status, reason) {
     date: schedule.date,
     time: schedule.time,
     day: schedule.day,
+    classStoppedAt: schedule.classStoppedAt || null,
     students: schedule.students.map((student, index) => (index === studentIndex ? updatedStudent : student))
   };
 
@@ -1016,6 +1129,7 @@ async function syncStudentInSchedules(previousStudentId, updatedStudent) {
       date: schedule.date,
       time: schedule.time,
       day: schedule.day,
+      classStoppedAt: schedule.classStoppedAt || null,
       students: updatedScheduleStudents
     };
 

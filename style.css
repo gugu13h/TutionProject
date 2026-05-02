@@ -879,6 +879,31 @@ a.secondary-btn {
   color: #dc2626;
 }
 
+.class-countdown.is-stopped,
+.class-stopped-label {
+  color: #6b7280;
+  font-weight: 700;
+}
+
+.class-countdown-stopped {
+  background: rgba(107, 114, 128, 0.08);
+  border-color: rgba(107, 114, 128, 0.16);
+}
+
+.schedule-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.stop-timer-btn {
+  background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
+  color: #fff;
+  box-shadow: 0 12px 20px rgba(249, 115, 22, 0.18);
+}
+
 .delete {
   background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
   box-shadow: 0 12px 20px rgba(220, 38, 38, 0.18);
