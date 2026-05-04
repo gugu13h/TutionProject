@@ -364,19 +364,28 @@ async function saveSchedule() {
   }
 
   const selectedStudents = [];
-  students.forEach((student, index) => {
+  for (let index = 0; index < students.length; index += 1) {
+    const student = students[index];
     const checkbox = document.getElementById(`student_${index}`);
     if (checkbox && checkbox.checked) {
       const holidayCheckbox = document.getElementById(`holiday_${index}`);
       const isHoliday = holidayCheckbox && holidayCheckbox.checked;
+      let attendanceReason = "";
+
+      if (isHoliday) {
+        attendanceReason = askHolidayReason();
+        if (attendanceReason === null) {
+          return;
+        }
+      }
       
       selectedStudents.push({
         ...student,
         attendanceStatus: isHoliday ? "holiday" : "pending",
-        attendanceReason: isHoliday ? "Holiday marked by teacher during schedule creation" : ""
+        attendanceReason
       });
     }
-  });
+  }
 
   if (selectedStudents.length === 0) {
     alert("Select at least one student for the class");
@@ -819,6 +828,9 @@ function loadStudentData(options = {}) {
         const attendanceReason = student.attendanceReason || "";
         const isAbsent = attendanceStatus === "not-coming";
         const isHoliday = attendanceStatus === "holiday";
+        const attendanceReasonHtml = attendanceReason
+          ? `<strong>Reason:</strong> <span style="color:#dc2626; font-weight:700;">${escapeHtml(attendanceReason)}</span><br>`
+          : "";
         
         const attendanceButtonsHtml = isHoliday ? 
           `<div style="margin-top: 10px; padding: 8px; background: #fef3c7; border-radius: 5px; color: #f59e0b; font-weight: bold;">Holiday marked by teacher</div>` :
@@ -838,6 +850,7 @@ function loadStudentData(options = {}) {
             <strong>Day:</strong> ${schedule.day}<br>
             <strong>Fee Status:</strong> ${formatFeeStatusHtml(student)}<br>
             <strong>Attendance:</strong> ${getAttendanceStatusText(student)}<br>
+            ${attendanceReasonHtml}
             ${attendanceButtonsHtml}
             <button class="secondary-btn compact-btn" onclick="toggleStudentRating(this)" style="margin-top: 10px; width: 100%;">Show More</button>
             <div class="rating-details hidden" style="margin-top: 10px; padding: 12px; background: rgba(15, 118, 110, 0.1); border-radius: 10px; border-left: 4px solid #0f766e;">
@@ -956,6 +969,15 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
+function askHolidayReason() {
+  const holidayReason = prompt("Enter holiday reason");
+  if (holidayReason === null) {
+    return null;
+  }
+
+  return holidayReason.trim() || "Holiday marked by teacher";
+}
+
 async function studentAttendance(scheduleId, studentId, status, source = "teacher") {
   const schedule = schedules.find(s => s.firestoreId === scheduleId);
   if (!schedule) {
@@ -981,7 +1003,14 @@ async function studentAttendance(scheduleId, studentId, status, source = "teache
 
   let reason = "";
   if (status === "holiday") {
-    reason = "Holiday marked by teacher";
+    if (source === "teacher") {
+      reason = askHolidayReason();
+      if (reason === null) {
+        return;
+      }
+    } else {
+      reason = "Holiday marked by teacher";
+    }
   } else if (status === "not-coming") {
     reason = "Marked absent by teacher";
   }
