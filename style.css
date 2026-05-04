@@ -132,14 +132,18 @@ body.theme-night .background-overlay {
   top: 18px;
   right: 18px;
   z-index: 20;
-  width: auto;
-  min-width: 126px;
-  padding: 10px 15px;
-  border-radius: 999px;
+  width: 48px;
+  height: 48px;
+  min-width: 0;
+  padding: 0;
+  border-radius: 50%;
   background: rgba(255, 255, 255, 0.9);
   color: #172033;
   border: 1px solid rgba(148, 163, 184, 0.28);
   box-shadow: 0 12px 24px rgba(15, 23, 42, 0.14);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .theme-toggle-btn:hover {
@@ -150,6 +154,33 @@ body.theme-night .theme-toggle-btn {
   background: rgba(15, 23, 42, 0.9);
   color: #edf2ff;
   border-color: rgba(148, 163, 184, 0.32);
+}
+
+.theme-toggle-icon {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #0f172a;
+  box-shadow: inset -7px 0 0 #ffffff;
+  display: block;
+}
+
+body.theme-night .theme-toggle-icon {
+  background: #facc15;
+  box-shadow: 0 0 0 4px rgba(250, 204, 21, 0.18);
+}
+
+body.theme-night .theme-toggle-icon::before {
+  content: "";
+  position: absolute;
+  inset: -7px;
+  border-radius: 50%;
+  background:
+    linear-gradient(#facc15, #facc15) center top / 3px 6px no-repeat,
+    linear-gradient(#facc15, #facc15) center bottom / 3px 6px no-repeat,
+    linear-gradient(#facc15, #facc15) left center / 6px 3px no-repeat,
+    linear-gradient(#facc15, #facc15) right center / 6px 3px no-repeat;
 }
 
 .app-shell {
@@ -1316,9 +1347,8 @@ a.secondary-btn {
   .theme-toggle-btn {
     top: 10px;
     right: 10px;
-    min-width: 108px;
-    padding: 9px 12px;
-    font-size: 0.86rem;
+    width: 42px;
+    height: 42px;
   }
 
   .app-shell {

@@ -161,7 +161,6 @@ function applyThemeMode(mode) {
   localStorage.setItem("tuitionThemeMode", isNight ? "night" : "day");
 
   if (themeToggleBtn) {
-    themeToggleBtn.textContent = isNight ? "Day Mode" : "Night Mode";
     themeToggleBtn.setAttribute("aria-label", isNight ? "Switch to day mode" : "Switch to night mode");
   }
 }
