@@ -1,16 +1,16 @@
 :root {
-  --bg-main: #f4efe6;
-  --bg-card: rgba(255, 255, 255, 0.82);
-  --bg-soft: #fff8f0;
-  --text-main: #1f2937;
+  --bg-main: #eef5ff;
+  --bg-card: rgba(255, 255, 255, 0.88);
+  --bg-soft: #edf7ff;
+  --text-main: #172033;
   --text-muted: #6b7280;
-  --primary: #d97706;
-  --primary-dark: #b45309;
+  --primary: #2563eb;
+  --primary-dark: #1d4ed8;
   --accent: #0f766e;
-  --line: rgba(148, 163, 184, 0.25);
-  --shadow: 0 18px 45px rgba(72, 48, 18, 0.12);
-  --radius-lg: 28px;
-  --radius-md: 18px;
+  --line: rgba(99, 102, 241, 0.18);
+  --shadow: 0 18px 42px rgba(37, 99, 235, 0.12);
+  --radius-lg: 24px;
+  --radius-md: 16px;
 }
 
 * {
@@ -20,9 +20,9 @@
 body {
   font-family: 'Poppins', sans-serif;
   background:
-    radial-gradient(circle at top left, rgba(217, 119, 6, 0.18), transparent 30%),
-    radial-gradient(circle at bottom right, rgba(15, 118, 110, 0.14), transparent 28%),
-    linear-gradient(135deg, #f8f2e9 0%, #eef7f5 100%);
+    radial-gradient(circle at top left, rgba(37, 99, 235, 0.14), transparent 30%),
+    radial-gradient(circle at bottom right, rgba(15, 118, 110, 0.12), transparent 28%),
+    linear-gradient(135deg, #eef5ff 0%, #f7fbff 46%, #edfdf8 100%);
   color: var(--text-main);
   margin: 0;
   min-height: 100vh;
@@ -74,9 +74,9 @@ body {
 
 .background-overlay {
   background:
-    linear-gradient(135deg, rgba(248, 242, 233, 0.84) 0%, rgba(238, 247, 245, 0.72) 100%),
-    radial-gradient(circle at top left, rgba(217, 119, 6, 0.22), transparent 30%),
-    radial-gradient(circle at bottom right, rgba(15, 118, 110, 0.2), transparent 28%);
+    linear-gradient(135deg, rgba(238, 245, 255, 0.86) 0%, rgba(247, 251, 255, 0.76) 48%, rgba(237, 253, 248, 0.78) 100%),
+    radial-gradient(circle at top left, rgba(37, 99, 235, 0.18), transparent 30%),
+    radial-gradient(circle at bottom right, rgba(15, 118, 110, 0.18), transparent 28%);
   z-index: 1;
 }
 
@@ -93,7 +93,7 @@ body {
 .glow-left {
   top: 40px;
   left: -60px;
-  background: rgba(217, 119, 6, 0.18);
+  background: rgba(37, 99, 235, 0.16);
 }
 
 .glow-right {
@@ -125,8 +125,8 @@ body {
 .hero-card,
 .panel-card {
   background: var(--bg-card);
-  border: 1px solid rgba(255, 255, 255, 0.55);
-  backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(20px);
   box-shadow: var(--shadow);
 }
 
@@ -221,9 +221,9 @@ body {
 }
 
 #loginPage {
-  --primary: #4daf19;
-  --primary-dark: #489029;
-  --accent: #0891b2;
+  --primary: #2563eb;
+  --primary-dark: #1d4ed8;
+  --accent: #0f766e;
   width: 100%;
   position: relative;
 }
@@ -270,10 +270,10 @@ body {
 
 #loginPage .student-auth-card {
   background:
-    radial-gradient(circle at top right, rgba(56, 189, 248, 0.24), transparent 32%),
-    linear-gradient(155deg, #0f172a 0%, #172554 48%, #115e59 100%);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 30px 50px rgba(15, 23, 42, 0.34);
+    radial-gradient(circle at top right, rgba(56, 189, 248, 0.28), transparent 32%),
+    linear-gradient(155deg, #0f172a 0%, #1d4ed8 52%, #0f766e 100%);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 30px 50px rgba(37, 99, 235, 0.24);
   color: #f8fafc;
 }
 
@@ -293,9 +293,9 @@ body {
 }
 
 #loginPage .teacher-auth-card {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(243, 249, 255, 0.9) 100%);
-  border: 1px solid rgba(125, 211, 252, 0.28);
-  box-shadow: 0 28px 48px rgba(14, 116, 144, 0.16);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(240, 248, 255, 0.9) 100%);
+  border: 1px solid rgba(125, 211, 252, 0.34);
+  box-shadow: 0 28px 48px rgba(37, 99, 235, 0.14);
 }
 
 #loginPage .teacher-login-copy h2 {
@@ -324,8 +324,8 @@ body {
 }
 
 #loginPage .large-login-btn {
-  background: linear-gradient(135deg, #22c55e 0%, #06b6d4 100%);
-  box-shadow: 0 18px 30px rgba(8, 145, 178, 0.28);
+  background: linear-gradient(135deg, #2563eb 0%, #06b6d4 100%);
+  box-shadow: 0 18px 30px rgba(37, 99, 235, 0.26);
 }
 
 #loginPage .large-login-btn:hover {
@@ -333,8 +333,8 @@ body {
 }
 
 #loginPage .teacher-auth-card > button:last-child {
-  background: linear-gradient(135deg, #f97316 0%, #ef4444 100%);
-  box-shadow: 0 18px 30px rgba(249, 115, 22, 0.24);
+  background: linear-gradient(135deg, #0f766e 0%, #2563eb 100%);
+  box-shadow: 0 18px 30px rgba(15, 118, 110, 0.2);
 }
 
 #loginPage .teacher-auth-card > button:last-child:hover {
@@ -419,38 +419,90 @@ body {
 }
 
 #teacherPage {
-  --primary: #2563eb;
-  --primary-dark: #1d4ed8;
+  --primary: #1d4ed8;
+  --primary-dark: #1e40af;
   --accent: #0f766e;
-  --bg-card: rgba(247, 250, 255, 0.86);
-  --bg-soft: rgba(231, 243, 255, 0.78);
-  --line: rgba(37, 99, 235, 0.18);
-  --shadow: 0 18px 38px rgba(37, 99, 235, 0.14);
-  background: linear-gradient(145deg, rgba(231, 243, 255, 0.9) 0%, rgba(236, 253, 245, 0.82) 100%);
+  --bg-card: rgba(247, 250, 255, 0.9);
+  --bg-soft: rgba(232, 244, 255, 0.82);
+  --line: rgba(37, 99, 235, 0.16);
+  --shadow: 0 18px 38px rgba(37, 99, 235, 0.12);
+  background: linear-gradient(145deg, rgba(232, 244, 255, 0.92) 0%, rgba(236, 253, 245, 0.84) 100%);
 }
 
 #studentPage {
   --primary: #0f766e;
   --primary-dark: #115e59;
-  --accent: #0284c7;
-  --bg-card: rgba(244, 255, 252, 0.86);
-  --bg-soft: rgba(221, 247, 243, 0.82);
+  --accent: #2563eb;
+  --bg-card: rgba(240, 253, 250, 0.92);
+  --bg-soft: rgba(204, 251, 241, 0.78);
   --line: rgba(15, 118, 110, 0.18);
   --shadow: 0 18px 38px rgba(15, 118, 110, 0.14);
-  background: linear-gradient(145deg, rgba(229, 251, 247, 0.9) 0%, rgba(233, 246, 255, 0.84) 100%);
+  background:
+    radial-gradient(circle at 12% 8%, rgba(45, 212, 191, 0.22), transparent 30%),
+    radial-gradient(circle at 88% 20%, rgba(96, 165, 250, 0.2), transparent 28%),
+    linear-gradient(145deg, rgba(204, 251, 241, 0.9) 0%, rgba(219, 234, 254, 0.86) 48%, rgba(252, 231, 243, 0.72) 100%);
+}
+
+#studentPage .dashboard-header {
+  background: linear-gradient(135deg, rgba(15, 118, 110, 0.92) 0%, rgba(37, 99, 235, 0.86) 100%);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+}
+
+#studentPage .dashboard-header h1,
+#studentPage .dashboard-header .section-note,
+#studentPage .dashboard-header .eyebrow {
+  color: #ffffff;
+}
+
+#studentPage .dashboard-header .section-note {
+  opacity: 0.88;
+}
+
+#studentPage .dashboard-header .secondary-btn {
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  box-shadow: none;
+}
+
+#studentPage .panel-card {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.74) 0%, rgba(236, 253, 245, 0.76) 100%),
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.13), transparent 38%);
+  border-color: rgba(20, 184, 166, 0.22);
+  box-shadow: 0 18px 34px rgba(15, 118, 110, 0.12);
+}
+
+#studentPage .panel-card:nth-child(2) {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.76) 0%, rgba(219, 234, 254, 0.72) 100%),
+    radial-gradient(circle at top left, rgba(45, 212, 191, 0.16), transparent 36%);
+}
+
+#studentPage .wide-card {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.78) 0%, rgba(240, 249, 255, 0.76) 100%),
+    radial-gradient(circle at top right, rgba(236, 72, 153, 0.12), transparent 34%);
+}
+
+#studentPage .box {
+  background: linear-gradient(135deg, rgba(236, 253, 245, 0.96) 0%, rgba(219, 234, 254, 0.92) 100%);
+  border-color: rgba(14, 165, 233, 0.18);
+  border-left-color: #14b8a6;
+  box-shadow: 0 14px 26px rgba(15, 118, 110, 0.1);
 }
 
 .dashboard-page .dashboard-header {
   padding: 20px 22px;
   border-radius: 24px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.72) 0%, rgba(255, 255, 255, 0.44) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.36);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.82) 0%, rgba(255, 255, 255, 0.56) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.66);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42), 0 14px 30px rgba(37, 99, 235, 0.08);
 }
 
 .dashboard-page .panel-card {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0.78) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.7);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 252, 255, 0.82) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.78);
 }
 
 .dashboard-page .profile-avatar {
@@ -586,7 +638,7 @@ textarea {
   padding: 14px 16px;
   border-radius: 14px;
   border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.88);
+  background: rgba(255, 255, 255, 0.92);
   color: var(--text-main);
   font: inherit;
   transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
@@ -600,9 +652,9 @@ textarea {
 input:focus,
 select:focus,
 textarea:focus {
-  border-color: rgba(217, 119, 6, 0.45);
+  border-color: rgba(37, 99, 235, 0.45);
   outline: none;
-  box-shadow: 0 0 0 4px rgba(217, 119, 6, 0.12);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
   transform: translateY(-1px);
 }
 
@@ -611,24 +663,24 @@ button {
   padding: 14px 18px;
   border: none;
   border-radius: 14px;
-  background: linear-gradient(135deg, var(--primary) 0%, #f59e0b 100%);
+  background: linear-gradient(135deg, var(--primary) 0%, #38bdf8 100%);
   color: #fff;
   cursor: pointer;
   font: inherit;
   font-weight: 600;
-  box-shadow: 0 14px 24px rgba(217, 119, 6, 0.22);
+  box-shadow: 0 14px 24px rgba(37, 99, 235, 0.2);
   transition: transform 0.25s ease, box-shadow 0.25s ease, opacity 0.25s ease;
 }
 
 button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 18px 28px rgba(217, 119, 6, 0.26);
+  box-shadow: 0 18px 28px rgba(37, 99, 235, 0.26);
 }
 
 .secondary-btn,
 a.secondary-btn {
-  background: linear-gradient(135deg, var(--accent) 0%, #14b8a6 100%);
-  box-shadow: 0 14px 24px rgba(15, 118, 110, 0.2);
+  background: linear-gradient(135deg, var(--accent) 0%, #22c55e 100%);
+  box-shadow: 0 14px 24px rgba(15, 118, 110, 0.18);
   color: #fff;
   text-decoration: none;
   display: inline-flex;
@@ -806,8 +858,8 @@ a.secondary-btn {
   gap: 10px;
   padding: 14px;
   border-radius: 16px;
-  background: var(--bg-soft);
-  border: 1px dashed rgba(217, 119, 6, 0.24);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.58), var(--bg-soft));
+  border: 1px dashed rgba(37, 99, 235, 0.22);
   min-height: 62px;
 }
 
@@ -836,19 +888,20 @@ a.secondary-btn {
 }
 
 .box {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 248, 240, 0.94) 100%);
-  border: 1px solid rgba(217, 119, 6, 0.14);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(240, 248, 255, 0.94) 100%);
+  border: 1px solid rgba(37, 99, 235, 0.12);
   border-left: 5px solid var(--primary);
   padding: 16px 18px;
   margin: 12px 0;
   border-radius: 16px;
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
   line-height: 1.7;
 }
 
 .box:hover {
   transform: translateY(-3px);
-  box-shadow: 0 16px 28px rgba(92, 64, 17, 0.08);
+  border-color: rgba(37, 99, 235, 0.2);
+  box-shadow: 0 16px 28px rgba(37, 99, 235, 0.1);
 }
 
 .class-countdown-panel {
@@ -860,8 +913,8 @@ a.secondary-btn {
   margin: 10px 0 6px;
   padding: 12px 14px;
   border-radius: 14px;
-  background: rgba(37, 99, 235, 0.08);
-  border: 1px solid rgba(37, 99, 235, 0.14);
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.1), rgba(14, 165, 233, 0.08));
+  border: 1px solid rgba(37, 99, 235, 0.18);
 }
 
 .class-countdown-title {
@@ -878,6 +931,7 @@ a.secondary-btn {
 
 .class-countdown.is-live {
   color: #dc2626;
+  text-shadow: 0 0 14px rgba(220, 38, 38, 0.18);
 }
 
 .class-countdown.is-completed,
@@ -902,14 +956,14 @@ a.secondary-btn {
 }
 
 .stop-timer-btn {
-  background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
+  background: linear-gradient(135deg, #f97316 0%, #ef4444 100%);
   color: #fff;
-  box-shadow: 0 12px 20px rgba(249, 115, 22, 0.18);
+  box-shadow: 0 12px 20px rgba(249, 115, 22, 0.2);
 }
 
 .delete {
-  background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
-  box-shadow: 0 12px 20px rgba(220, 38, 38, 0.18);
+  background: linear-gradient(135deg, #b91c1c 0%, #ef4444 100%);
+  box-shadow: 0 12px 20px rgba(220, 38, 38, 0.2);
 }
 
 .modal-overlay {
