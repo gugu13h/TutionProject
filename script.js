@@ -66,6 +66,7 @@ const scheduleCloseBtn = document.getElementById("scheduleCloseBtn");
 const ratingModal = document.getElementById("ratingModal");
 const ratingModalTitle = document.getElementById("ratingModalTitle");
 const currentRatingDisplay = document.getElementById("currentRatingDisplay");
+const themeToggleBtn = document.getElementById("themeToggleBtn");
 
 const FIREBASE_WARNING = "Firebase config missing. Open firebase-api.js and paste your Firebase web app config.";
 const DEFAULT_TEACHER_PHOTO = "https://placehold.co/300x300/f2efe6/8b5e34?text=Teacher";
@@ -109,7 +110,9 @@ window.submitStudentRating = submitStudentRating;
 window.setRating = setRating;
 window.closeRatingModal = closeRatingModal;
 window.toggleStudentRating = toggleStudentRating;
+window.toggleThemeMode = toggleThemeMode;
 
+initializeThemeMode();
 initializeScheduleDefaults();
 initializeStudentModal();
 initializeFeeReminderModal();
@@ -135,6 +138,31 @@ async function initializeAppData() {
   } catch (error) {
     console.error(error);
     alert("Unable to load Firestore data. Check your Firebase config and Firestore rules.");
+  }
+}
+
+function initializeThemeMode() {
+  const savedMode = localStorage.getItem("tuitionThemeMode") || "day";
+  applyThemeMode(savedMode === "night" ? "night" : "day");
+
+  if (themeToggleBtn) {
+    themeToggleBtn.addEventListener("click", toggleThemeMode);
+  }
+}
+
+function toggleThemeMode() {
+  const nextMode = document.body.classList.contains("theme-night") ? "day" : "night";
+  applyThemeMode(nextMode);
+}
+
+function applyThemeMode(mode) {
+  const isNight = mode === "night";
+  document.body.classList.toggle("theme-night", isNight);
+  localStorage.setItem("tuitionThemeMode", isNight ? "night" : "day");
+
+  if (themeToggleBtn) {
+    themeToggleBtn.textContent = isNight ? "Day Mode" : "Night Mode";
+    themeToggleBtn.setAttribute("aria-label", isNight ? "Switch to day mode" : "Switch to night mode");
   }
 }
 
