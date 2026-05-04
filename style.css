@@ -870,7 +870,8 @@ a.secondary-btn {
   color: #1d4ed8;
 }
 
-.class-countdown {
+.class-countdown,
+.class-countdown-static {
   font-weight: 700;
   color: #1d4ed8;
 }
@@ -879,7 +880,9 @@ a.secondary-btn {
   color: #dc2626;
 }
 
+.class-countdown.is-completed,
 .class-countdown.is-stopped,
+.class-countdown-static.is-stopped,
 .class-stopped-label {
   color: #6b7280;
   font-weight: 700;

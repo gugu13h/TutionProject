@@ -76,6 +76,7 @@ const TEACHER_WHATSAPP_NUMBER = "8864022272";
 const TEACHER_WHATSAPP_COUNTRY_CODE = "91";
 const SCHEDULE_AUTO_DELETE_AFTER_HOURS = 3;
 const SCHEDULE_CLEANUP_INTERVAL_MS = 60 * 1000;
+const CLASS_TIMER_DURATION_MS = 60 * 60 * 1000;
 const RESET_STUDENT_IDS = [];
 const INITIAL_STUDENTS = [
   { id: "101", name: "Anushak Kumari", feePending: false, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY, subjectRatings: { maths: 0, science: 0 } },
@@ -245,6 +246,7 @@ async function addStudent() {
     showStudents();
     showStudentCheckList();
     resetStudentForm();
+    alert("Saved");
   } catch (error) {
     console.error(error);
     alert(error.message || "Unable to save student to Firestore");
@@ -278,6 +280,10 @@ function showStudents() {
 async function deleteStudent(index) {
   if (!isFirebaseReady()) {
     alert(FIREBASE_WARNING);
+    return;
+  }
+
+  if (!confirm("Are you sure to delete ??")) {
     return;
   }
 
@@ -403,6 +409,7 @@ async function saveSchedule() {
     setScheduleFieldsToDate(new Date());
     classTime.value = "";
     showStudentCheckList();
+    alert("Saved");
   } catch (error) {
     console.error(error);
     alert("Unable to save schedule to Firestore");
@@ -414,7 +421,19 @@ function getScheduleDateTime(schedule) {
     return null;
   }
 
-  const scheduleDateTime = new Date(`${schedule.date}T${schedule.time}`);
+  const timeParts = String(schedule.time).match(/^(\d{1,2}):(\d{2})/);
+  if (!timeParts) {
+    return null;
+  }
+
+  const dateParts = String(schedule.date).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!dateParts) {
+    return null;
+  }
+
+  const [, year, month, day] = dateParts;
+  const [, hours, minutes] = timeParts;
+  const scheduleDateTime = new Date(Number(year), Number(month) - 1, Number(day), Number(hours), Number(minutes), 0, 0);
   return Number.isNaN(scheduleDateTime.getTime()) ? null : scheduleDateTime;
 }
 
@@ -504,7 +523,7 @@ function startStudentCountdownLoop() {
   }
 
   studentCountdownTimerId = window.setInterval(() => {
-    updateStudentCountdowns();
+    updateClassTimers();
   }, 1000);
 }
 
@@ -518,18 +537,29 @@ function startTeacherScheduleLoop() {
     if (activePage && activePage.id === "teacherPage") {
       loadSchedules();
     }
-  }, 30 * 1000);
+  }, 5000);
 }
 
-function formatCountdownDuration(totalSeconds) {
+function formatUpcomingCountdownDuration(totalSeconds) {
   const safeSeconds = Math.max(0, totalSeconds);
-  const totalMinutes = Math.floor(safeSeconds / 60);
+  const totalMinutes = Math.ceil(safeSeconds / 60);
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
   return `${hours} hr ${String(minutes).padStart(2, "0")} min`;
 }
 
+function formatLiveClassDuration(totalSeconds) {
+  const safeSeconds = Math.max(0, totalSeconds);
+  const minutes = Math.floor(safeSeconds / 60);
+  const seconds = safeSeconds % 60;
+  return `${minutes} min ${String(seconds).padStart(2, "0")} sec`;
+}
+
 function getStoppedClassSeconds(schedule, classDateTime) {
+  if (schedule?.classStoppedAt === null || schedule?.classStoppedAt === undefined || schedule?.classStoppedAt === "") {
+    return null;
+  }
+
   const classStoppedAt = Number(schedule?.classStoppedAt);
 
   if (!Number.isFinite(classStoppedAt) || !(classDateTime instanceof Date) || Number.isNaN(classDateTime.getTime())) {
@@ -549,8 +579,8 @@ function getCountdownMarkup(schedule, classDateTime, isHoliday) {
     return `
       <div class="class-countdown-panel class-countdown-stopped">
         <span class="class-countdown-title">Class Timer</span>
-        <span class="class-countdown is-stopped" aria-live="polite">
-          Class stopped: ${formatCountdownDuration(stoppedSeconds)}
+        <span class="class-countdown-static is-stopped" aria-live="polite">
+          Class stopped: ${formatLiveClassDuration(stoppedSeconds)}
         </span>
       </div>
     `;
@@ -559,60 +589,70 @@ function getCountdownMarkup(schedule, classDateTime, isHoliday) {
   return `
     <div class="class-countdown-panel">
       <span class="class-countdown-title">Live Countdown</span>
-      <span class="class-countdown is-upcoming" data-class-start="${classDateTime.getTime()}" aria-live="polite">
-        Your class in 0 hr 00 min
+      <span class="class-countdown is-upcoming" data-class-date="${schedule.date}" data-class-time="${schedule.time}" data-class-start="${classDateTime.getTime()}" data-class-end="${classDateTime.getTime() + CLASS_TIMER_DURATION_MS}" aria-live="polite">
+        Your class is in 0 hr 00 min
       </span>
     </div>
   `;
 }
 
-function updateStudentCountdowns() {
+function updateClassTimers() {
   const now = Date.now();
 
   document.querySelectorAll(".class-countdown").forEach((countdownElement) => {
-    const classStart = Number(countdownElement.dataset.classStart);
+    const classStart = getClassStartTimeFromElement(countdownElement);
     if (!Number.isFinite(classStart)) {
-      countdownElement.textContent = "Countdown unavailable";
-      countdownElement.classList.remove("is-live", "is-upcoming");
+      countdownElement.closest(".class-countdown-panel")?.remove();
+      countdownElement.classList.remove("is-live", "is-upcoming", "is-completed");
       return;
     }
 
-    const diffSeconds = Math.floor(Math.abs(classStart - now) / 1000);
-    const isUpcoming = classStart > now;
+    const classEndValue = Number(countdownElement.dataset.classEnd);
+    const classEnd = Number.isFinite(classEndValue) ? classEndValue : classStart + CLASS_TIMER_DURATION_MS;
+    const isUpcoming = now < classStart;
+    const isLive = now >= classStart && now < classEnd;
 
-    countdownElement.textContent = isUpcoming
-      ? `Your class in ${formatCountdownDuration(diffSeconds)}`
-      : `Class is going: ${formatCountdownDuration(diffSeconds)}`;
+    if (isUpcoming) {
+      const upcomingSeconds = Math.floor((classStart - now) / 1000);
+      countdownElement.textContent = `Your class is in ${formatUpcomingCountdownDuration(upcomingSeconds)}`;
+    } else if (isLive) {
+      const liveSeconds = Math.floor((now - classStart) / 1000);
+      countdownElement.textContent = `Your class is going: ${formatLiveClassDuration(liveSeconds)}`;
+    } else {
+      countdownElement.textContent = "Class completed";
+    }
 
     countdownElement.classList.toggle("is-upcoming", isUpcoming);
-    countdownElement.classList.toggle("is-live", !isUpcoming);
+    countdownElement.classList.toggle("is-live", isLive);
+    countdownElement.classList.toggle("is-completed", !isUpcoming && !isLive);
   });
 }
 
-function normalizeLoadStudentDataOptions(options) {
-  if (typeof options === "boolean") {
-    return {
-      openModalAfterLoad: options,
-      showFeeReminder: false
-    };
+function getClassStartTimeFromElement(countdownElement) {
+  const classStart = Number(countdownElement.getAttribute("data-class-start"));
+  if (Number.isFinite(classStart)) {
+    return classStart;
   }
 
-  return {
-    openModalAfterLoad: true,
-    showFeeReminder: true,
-    ...(options || {})
-  };
+  const classDate = countdownElement.getAttribute("data-class-date");
+  const classTime = countdownElement.getAttribute("data-class-time");
+  const scheduleDateTime = getScheduleDateTime({ date: classDate, time: classTime });
+  return scheduleDateTime ? scheduleDateTime.getTime() : NaN;
 }
 
 function loadSchedules() {
   const visibleSchedules = getVisibleSchedules();
   scheduleList.innerHTML = "";
   visibleSchedules.forEach((schedule) => {
+    const scheduleDateTime = getScheduleDateTime(schedule);
+    const countdownMarkup = getCountdownMarkup(schedule, scheduleDateTime, !schedule.time);
     const scheduleActions = getScheduleActionsHtml(schedule);
+
     scheduleList.innerHTML += `
       <div class="box">
         <strong>Date:</strong> ${schedule.date}<br>
         <strong>Time:</strong> ${schedule.time ? formatTime12Hour(schedule.time) : "Holiday (No Class)"}<br>
+        ${countdownMarkup}
         <strong>Day:</strong> ${schedule.day}<br>
         <strong>Students:</strong><br>
         ${schedule.students.map((student) => getScheduleAttendanceHtml(student, schedule.firestoreId)).join("<br>")}
@@ -620,6 +660,7 @@ function loadSchedules() {
       </div>
     `;
   });
+  updateClassTimers();
 }
 
 function isClassRunning(schedule, now = new Date()) {
@@ -629,7 +670,7 @@ function isClassRunning(schedule, now = new Date()) {
   }
 
   const classStartTime = scheduleDateTime.getTime();
-  const classEndTime = classStartTime + SCHEDULE_AUTO_DELETE_AFTER_HOURS * 60 * 60 * 1000;
+  const classEndTime = classStartTime + CLASS_TIMER_DURATION_MS;
   const nowTime = now.getTime();
   return nowTime >= classStartTime && nowTime < classEndTime;
 }
@@ -706,6 +747,10 @@ async function deleteSchedule(scheduleIdentifier) {
     return;
   }
 
+  if (!confirm("Are you sure to delete ??")) {
+    return;
+  }
+
   try {
     await deleteScheduleRecord(schedules[scheduleIndex].firestoreId);
     schedules.splice(scheduleIndex, 1);
@@ -715,6 +760,21 @@ async function deleteSchedule(scheduleIdentifier) {
     console.error(error);
     alert("Unable to delete schedule from Firestore");
   }
+}
+
+function normalizeLoadStudentDataOptions(options) {
+  if (typeof options === "boolean") {
+    return {
+      openModalAfterLoad: options,
+      showFeeReminder: false
+    };
+  }
+
+  return {
+    openModalAfterLoad: true,
+    showFeeReminder: true,
+    ...(options || {})
+  };
 }
 
 function loadStudentData(options = {}) {
@@ -852,7 +912,7 @@ function loadStudentData(options = {}) {
   const recordsMarkup = matchedRecords.map(r => r.html).join("");
   studentData.innerHTML = recordsMarkup;
   studentModalBody.innerHTML = recordsMarkup;
-  updateStudentCountdowns();
+  updateClassTimers();
   if (openModalAfterLoad) {
     openStudentModal();
   }
