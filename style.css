@@ -304,6 +304,8 @@ body.theme-night .panel-card {
   justify-content: center;
   margin-bottom: 0;
   min-height: 440px;
+  overflow: hidden;
+  position: relative;
 }
 
 #loginPage {
@@ -382,6 +384,189 @@ body.theme-night #loginPage .login-layout {
   background: rgba(255, 255, 255, 0.12);
   color: #e0f2fe;
   border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.student-auth-card > :not(.science-scene) {
+  position: relative;
+  z-index: 1;
+}
+
+.science-scene {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.home-science-scene {
+  z-index: 0;
+}
+
+.dashboard-page > .student-science-scene {
+  z-index: 0;
+}
+
+.atom-animation {
+  position: absolute;
+  width: 190px;
+  height: 190px;
+  border-radius: 50%;
+  opacity: 0.72;
+  animation: scienceFloat 7s ease-in-out infinite;
+}
+
+.home-science-scene .atom-animation {
+  right: -28px;
+  top: 34px;
+}
+
+.student-science-scene .atom-animation {
+  right: 42px;
+  top: 24px;
+  opacity: 0.36;
+}
+
+.atom-core {
+  position: absolute;
+  inset: 82px;
+  border-radius: 50%;
+  background: #facc15;
+  box-shadow: 0 0 24px rgba(250, 204, 21, 0.72);
+}
+
+.atom-ring {
+  position: absolute;
+  inset: 42px 18px;
+  border: 2px solid rgba(255, 255, 255, 0.68);
+  border-radius: 50%;
+}
+
+.atom-ring-1 {
+  animation: atomSpin 7s linear infinite;
+}
+
+.atom-ring-2 {
+  transform: rotate(60deg);
+  animation: atomSpinTiltA 8.5s linear infinite;
+}
+
+.atom-ring-3 {
+  transform: rotate(-60deg);
+  animation: atomSpinTiltB 9.5s linear infinite;
+}
+
+.formula-chip {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 58px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1;
+  animation: formulaDrift 8s ease-in-out infinite;
+}
+
+.home-science-scene .formula-chip-1 {
+  right: 152px;
+  top: 42px;
+}
+
+.home-science-scene .formula-chip-2 {
+  right: 54px;
+  bottom: 82px;
+  animation-delay: -2s;
+}
+
+.home-science-scene .formula-chip-3 {
+  left: 38px;
+  bottom: 44px;
+  animation-delay: -4s;
+}
+
+.student-science-scene .formula-chip {
+  background: rgba(15, 118, 110, 0.12);
+  border-color: rgba(15, 118, 110, 0.16);
+  color: rgba(15, 23, 42, 0.62);
+}
+
+.student-science-scene .formula-chip-1 {
+  right: 230px;
+  top: 72px;
+}
+
+.student-science-scene .formula-chip-2 {
+  left: 34px;
+  top: 42px;
+  animation-delay: -2.4s;
+}
+
+.student-science-scene .formula-chip-3 {
+  right: 72px;
+  bottom: 98px;
+  animation-delay: -4.8s;
+}
+
+.molecule {
+  position: absolute;
+  width: 82px;
+  height: 42px;
+  opacity: 0.62;
+  animation: moleculeRise 9s ease-in-out infinite;
+}
+
+.molecule::before,
+.molecule::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.62);
+  box-shadow: 32px 14px 0 rgba(56, 189, 248, 0.54);
+}
+
+.molecule::before {
+  width: 22px;
+  height: 22px;
+  left: 8px;
+  top: 10px;
+}
+
+.molecule::after {
+  width: 15px;
+  height: 15px;
+  right: 8px;
+  top: 0;
+}
+
+.home-science-scene .molecule-1 {
+  left: 28px;
+  top: 44px;
+}
+
+.home-science-scene .molecule-2 {
+  right: 88px;
+  bottom: 26px;
+  animation-delay: -3s;
+}
+
+.student-science-scene .molecule {
+  opacity: 0.24;
+}
+
+.student-science-scene .molecule-1 {
+  left: 24px;
+  bottom: 72px;
+}
+
+.student-science-scene .molecule-2 {
+  right: 28%;
+  top: 154px;
+  animation-delay: -3.6s;
 }
 
 #loginPage .teacher-auth-card {
@@ -580,6 +765,12 @@ body.theme-night #studentPage {
     radial-gradient(circle at 88% 20%, rgba(96, 165, 250, 0.12), transparent 28%),
     linear-gradient(145deg, rgba(15, 23, 42, 0.94) 0%, rgba(17, 35, 39, 0.88) 48%, rgba(30, 41, 59, 0.86) 100%);
   border-color: rgba(148, 163, 184, 0.24);
+}
+
+body.theme-night .student-science-scene .formula-chip {
+  background: rgba(96, 165, 250, 0.12);
+  border-color: rgba(148, 163, 184, 0.18);
+  color: rgba(226, 232, 240, 0.58);
 }
 
 #studentPage .dashboard-header {
@@ -1389,6 +1580,57 @@ body.theme-night .modal-card .ghost-btn {
   }
 }
 
+@keyframes atomSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes atomSpinTiltA {
+  from {
+    transform: rotate(60deg);
+  }
+  to {
+    transform: rotate(420deg);
+  }
+}
+
+@keyframes atomSpinTiltB {
+  from {
+    transform: rotate(-60deg);
+  }
+  to {
+    transform: rotate(300deg);
+  }
+}
+
+@keyframes scienceFloat {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-10px, 14px, 0) scale(1.04);
+  }
+}
+
+@keyframes formulaDrift {
+  0%, 100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(8px, -12px, 0);
+  }
+}
+
+@keyframes moleculeRise {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) rotate(-6deg);
+  }
+  50% {
+    transform: translate3d(12px, -16px, 0) rotate(5deg);
+  }
+}
+
 @keyframes backgroundSlideshow {
   0% {
     opacity: 0;
@@ -1486,6 +1728,33 @@ body.theme-night .modal-card .ghost-btn {
     min-height: auto;
   }
 
+  .home-science-scene .atom-animation {
+    right: -72px;
+    top: 20px;
+    opacity: 0.42;
+  }
+
+  .home-science-scene .formula-chip-1,
+  .home-science-scene .formula-chip-2 {
+    right: 18px;
+  }
+
+  .home-science-scene .formula-chip-3,
+  .home-science-scene .molecule-1 {
+    display: none;
+  }
+
+  .student-science-scene .atom-animation {
+    right: -88px;
+    top: 18px;
+    opacity: 0.2;
+  }
+
+  .student-science-scene .formula-chip-1,
+  .student-science-scene .molecule-2 {
+    display: none;
+  }
+
   .large-login-btn {
     max-width: none;
   }
@@ -1551,5 +1820,14 @@ body.theme-night .modal-card .ghost-btn {
 
   .teacher-student-details .record-photo {
     justify-self: start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atom-animation,
+  .atom-ring,
+  .formula-chip,
+  .molecule {
+    animation: none;
   }
 }
