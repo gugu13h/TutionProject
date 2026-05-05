@@ -110,6 +110,7 @@ window.submitStudentRating = submitStudentRating;
 window.setRating = setRating;
 window.closeRatingModal = closeRatingModal;
 window.toggleStudentRating = toggleStudentRating;
+window.toggleTeacherStudentDetails = toggleTeacherStudentDetails;
 window.toggleThemeMode = toggleThemeMode;
 
 initializeThemeMode();
@@ -286,22 +287,53 @@ function showStudents() {
     const ratings = student.subjectRatings || { maths: 0, science: 0 };
     const overallRating = Math.round((ratings.maths + ratings.science) / 2 * 10) / 10;
     const overallText = overallRating === 0 ? "Not Rated" : `${overallRating} / 10`;
+    const studentDetailsId = `teacherStudentDetails_${index}`;
     
     studentList.innerHTML += `
-      <div class="box">
-        <img class="profile-avatar record-photo" src="${student.photoUrl || DEFAULT_STUDENT_PHOTO}" alt="${student.name} photo">
-        ${student.name} (ID:${student.id})<br>
-        Fee Cycle: <strong>${student.feeCycleStartDay || DEFAULT_FEE_CYCLE_START_DAY} to ${student.feeCycleEndDay || DEFAULT_FEE_CYCLE_END_DAY}</strong><br>
-        Fee Status: ${formatFeeStatusHtml(student)}<br>
-        Overall Rating: <strong>${overallText}</strong>
-        <div class="box-actions">
-          <button class="ghost-btn" onclick="editStudent(${index})">Edit</button>
-          <button class="ghost-btn" onclick="setStudentRating(${index})">Rating</button>
-          <button class="delete" onclick="deleteStudent(${index})">Remove</button>
+      <div class="box teacher-student-card">
+        <div class="teacher-student-summary">
+          <button
+            class="teacher-student-name"
+            type="button"
+            aria-expanded="false"
+            aria-controls="${studentDetailsId}"
+            onclick="toggleTeacherStudentDetails(${index})"
+          >
+            ${escapeHtml(student.name)}
+          </button>
+          <span class="teacher-student-id">ID: ${escapeHtml(student.id)}</span>
+        </div>
+        <div id="${studentDetailsId}" class="teacher-student-details" hidden>
+          <img class="profile-avatar record-photo" src="${student.photoUrl || DEFAULT_STUDENT_PHOTO}" alt="${escapeHtml(student.name)} photo">
+          <div>
+            <strong>Name:</strong> ${escapeHtml(student.name)}<br>
+            <strong>ID:</strong> ${escapeHtml(student.id)}<br>
+            <strong>Fee Cycle:</strong> ${student.feeCycleStartDay || DEFAULT_FEE_CYCLE_START_DAY} to ${student.feeCycleEndDay || DEFAULT_FEE_CYCLE_END_DAY}<br>
+            <strong>Fee Status:</strong> ${formatFeeStatusHtml(student)}<br>
+            <strong>Overall Rating:</strong> ${overallText}
+          </div>
+          <div class="box-actions">
+            <button class="ghost-btn" onclick="editStudent(${index})">Edit</button>
+            <button class="ghost-btn" onclick="setStudentRating(${index})">Rating</button>
+            <button class="delete" onclick="deleteStudent(${index})">Remove</button>
+          </div>
         </div>
       </div>
     `;
   });
+}
+
+function toggleTeacherStudentDetails(index) {
+  const details = document.getElementById(`teacherStudentDetails_${index}`);
+  const nameButton = details?.closest(".teacher-student-card")?.querySelector(".teacher-student-name");
+
+  if (!details || !nameButton) {
+    return;
+  }
+
+  const shouldOpen = details.hidden;
+  details.hidden = !shouldOpen;
+  nameButton.setAttribute("aria-expanded", String(shouldOpen));
 }
 
 async function deleteStudent(index) {
