@@ -296,6 +296,8 @@ body.theme-night .panel-card {
   display: flex;
   flex-direction: column;
   justify-content: center;
+  overflow: hidden;
+  position: relative;
 }
 
 .student-auth-card {
@@ -391,6 +393,11 @@ body.theme-night #loginPage .login-layout {
   z-index: 1;
 }
 
+.teacher-auth-card > :not(.science-scene) {
+  position: relative;
+  z-index: 1;
+}
+
 .science-scene {
   position: absolute;
   inset: 0;
@@ -400,6 +407,11 @@ body.theme-night #loginPage .login-layout {
 
 .home-science-scene {
   z-index: 0;
+}
+
+.teacher-science-scene {
+  z-index: 0;
+  opacity: 0.54;
 }
 
 .dashboard-page > .student-science-scene {
@@ -424,6 +436,12 @@ body.theme-night #loginPage .login-layout {
   right: 42px;
   top: 24px;
   opacity: 0.36;
+}
+
+.teacher-science-scene .atom-animation {
+  right: -52px;
+  top: -22px;
+  opacity: 0.3;
 }
 
 .atom-core {
@@ -472,6 +490,12 @@ body.theme-night #loginPage .login-layout {
   animation: formulaDrift 8s ease-in-out infinite;
 }
 
+.formula-chip sub,
+.formula-chip sup {
+  font-size: 0.68em;
+  line-height: 0;
+}
+
 .home-science-scene .formula-chip-1 {
   right: 152px;
   top: 42px;
@@ -487,6 +511,19 @@ body.theme-night #loginPage .login-layout {
   left: 38px;
   bottom: 44px;
   animation-delay: -4s;
+}
+
+.home-science-scene .formula-chip-4 {
+  left: 82px;
+  top: 130px;
+  animation-delay: -1.2s;
+}
+
+.home-science-scene .formula-chip-5 {
+  right: 184px;
+  bottom: 34px;
+  min-width: 42px;
+  animation-delay: -5.2s;
 }
 
 .student-science-scene .formula-chip {
@@ -510,6 +547,53 @@ body.theme-night #loginPage .login-layout {
   right: 72px;
   bottom: 98px;
   animation-delay: -4.8s;
+}
+
+.student-science-scene .formula-chip-4 {
+  left: 22%;
+  bottom: 84px;
+  animation-delay: -1.6s;
+}
+
+.student-science-scene .formula-chip-5 {
+  right: 36%;
+  top: 86px;
+  animation-delay: -5.8s;
+}
+
+.teacher-science-scene .formula-chip {
+  background: rgba(37, 99, 235, 0.1);
+  border-color: rgba(14, 165, 233, 0.2);
+  color: rgba(15, 23, 42, 0.58);
+}
+
+.teacher-science-scene .formula-chip-1 {
+  right: 38px;
+  top: 32px;
+}
+
+.teacher-science-scene .formula-chip-2 {
+  left: 24px;
+  top: 122px;
+  animation-delay: -2s;
+}
+
+.teacher-science-scene .formula-chip-3 {
+  right: 96px;
+  bottom: 104px;
+  animation-delay: -4s;
+}
+
+.teacher-science-scene .formula-chip-4 {
+  left: 48px;
+  bottom: 54px;
+  animation-delay: -1.3s;
+}
+
+.teacher-science-scene .formula-chip-5 {
+  right: 34px;
+  bottom: 32px;
+  animation-delay: -5.4s;
 }
 
 .molecule {
@@ -569,29 +653,326 @@ body.theme-night #loginPage .login-layout {
   animation-delay: -3.6s;
 }
 
+.subject-orbit {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 82px;
+  height: 82px;
+  border-radius: 50%;
+  color: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  font-size: 0.86rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 18px 30px rgba(15, 23, 42, 0.12);
+  animation: subjectFloat 8s ease-in-out infinite;
+}
+
+.subject-physics {
+  left: -22px;
+  top: 92px;
+  background: rgba(37, 99, 235, 0.24);
+}
+
+.subject-chemistry {
+  right: -18px;
+  top: 210px;
+  background: rgba(20, 184, 166, 0.26);
+  animation-delay: -2s;
+}
+
+.subject-biology {
+  left: 28px;
+  bottom: 164px;
+  background: rgba(34, 197, 94, 0.24);
+  animation-delay: -4s;
+}
+
+.subject-maths {
+  right: 32px;
+  bottom: 190px;
+  background: rgba(168, 85, 247, 0.24);
+  animation-delay: -6s;
+}
+
+.dna-helix {
+  position: absolute;
+  left: 10px;
+  top: 250px;
+  width: 42px;
+  height: 128px;
+  opacity: 0.32;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, 0.95) 0 4px, transparent 5px) left 0 top 0 / 42px 24px repeat-y,
+    radial-gradient(circle, rgba(250, 204, 21, 0.95) 0 4px, transparent 5px) right 0 top 12px / 42px 24px repeat-y,
+    repeating-linear-gradient(115deg, transparent 0 13px, rgba(255, 255, 255, 0.52) 14px 16px, transparent 17px 24px);
+  animation: dnaWave 7s ease-in-out infinite;
+}
+
+.leaf-bio {
+  position: absolute;
+  right: 18px;
+  top: 360px;
+  width: 70px;
+  height: 46px;
+  opacity: 0.36;
+  border-radius: 70% 8px 70% 8px;
+  background:
+    linear-gradient(135deg, rgba(187, 247, 208, 0.88) 0%, rgba(34, 197, 94, 0.72) 100%);
+  transform: rotate(-24deg);
+  animation: leafSway 6.5s ease-in-out infinite;
+}
+
+.leaf-bio::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: 22px;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.58);
+  transform: rotate(24deg);
+}
+
+.subject-visual {
+  position: absolute;
+  pointer-events: none;
+  opacity: 0.72;
+}
+
+.physics-visual {
+  left: 90px;
+  top: 134px;
+  width: 118px;
+  height: 74px;
+  animation: visualFloat 7s ease-in-out infinite;
+}
+
+.physics-wave {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 36px;
+  height: 28px;
+  background:
+    radial-gradient(ellipse at center, transparent 48%, rgba(255, 255, 255, 0.68) 50%, transparent 54%) 0 0 / 34px 26px repeat-x;
+  animation: waveSlide 2.8s linear infinite;
+}
+
+.physics-ball {
+  position: absolute;
+  top: 8px;
+  left: 48px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #facc15;
+  box-shadow: 0 0 24px rgba(250, 204, 21, 0.62);
+  animation: physicsBounce 1.8s ease-in-out infinite;
+}
+
+.chemistry-visual {
+  right: 86px;
+  top: 318px;
+  width: 104px;
+  height: 118px;
+  animation: visualFloat 8s ease-in-out infinite -2s;
+}
+
+.flask-neck {
+  position: absolute;
+  left: 42px;
+  top: 0;
+  width: 22px;
+  height: 48px;
+  border: 3px solid rgba(255, 255, 255, 0.7);
+  border-bottom: 0;
+  border-radius: 10px 10px 0 0;
+}
+
+.flask-bowl {
+  position: absolute;
+  left: 18px;
+  bottom: 0;
+  width: 70px;
+  height: 72px;
+  border-radius: 10px 10px 30px 30px;
+  border: 3px solid rgba(255, 255, 255, 0.72);
+  background:
+    linear-gradient(180deg, transparent 0 36%, rgba(45, 212, 191, 0.72) 37% 100%);
+  animation: flaskLiquid 3.2s ease-in-out infinite;
+}
+
+.chem-bubble {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(187, 247, 208, 0.88);
+  box-shadow: 0 0 14px rgba(187, 247, 208, 0.4);
+  animation: bubbleRise 3.4s ease-in-out infinite;
+}
+
+.chem-bubble-1 {
+  width: 12px;
+  height: 12px;
+  left: 22px;
+  top: 38px;
+}
+
+.chem-bubble-2 {
+  width: 9px;
+  height: 9px;
+  left: 68px;
+  top: 28px;
+  animation-delay: -1.2s;
+}
+
+.chem-bubble-3 {
+  width: 15px;
+  height: 15px;
+  left: 48px;
+  top: 18px;
+  animation-delay: -2.1s;
+}
+
+.maths-visual {
+  left: 82px;
+  bottom: 72px;
+  display: grid;
+  grid-template-columns: repeat(2, 42px);
+  gap: 10px;
+  animation: visualFloat 6.5s ease-in-out infinite -3s;
+}
+
+.maths-visual span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  color: #ffffff;
+  background: rgba(124, 58, 237, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  font-size: 1.35rem;
+  font-weight: 800;
+  box-shadow: 0 14px 24px rgba(15, 23, 42, 0.12);
+  animation: mathPulse 2.6s ease-in-out infinite;
+}
+
+.maths-visual span:nth-child(2) {
+  animation-delay: -0.6s;
+}
+
+.maths-visual span:nth-child(3) {
+  animation-delay: -1.2s;
+}
+
+.maths-visual span:nth-child(4) {
+  animation-delay: -1.8s;
+}
+
+.teacher-science-scene .molecule {
+  opacity: 0.24;
+}
+
+.teacher-science-scene .molecule-1 {
+  left: 62px;
+  top: 26px;
+}
+
+.saturn-logo {
+  position: absolute;
+  width: 96px;
+  height: 58px;
+  opacity: 0.76;
+  animation: saturnFloat 8s ease-in-out infinite;
+}
+
+.saturn-logo::before {
+  content: "";
+  position: absolute;
+  left: 26px;
+  top: 10px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.88) 0 7px, transparent 8px),
+    linear-gradient(135deg, #facc15 0%, #fb923c 48%, #e879f9 100%);
+  box-shadow: 0 0 22px rgba(250, 204, 21, 0.3);
+}
+
+.saturn-logo::after {
+  content: "";
+  position: absolute;
+  left: 8px;
+  top: 18px;
+  width: 80px;
+  height: 24px;
+  border: 3px solid rgba(255, 255, 255, 0.72);
+  border-left-color: rgba(125, 211, 252, 0.62);
+  border-right-color: rgba(251, 146, 60, 0.72);
+  border-radius: 50%;
+  transform: rotate(-15deg);
+}
+
+.saturn-logo-home {
+  left: 38px;
+  top: 212px;
+  animation-delay: -2.2s;
+}
+
+.saturn-logo-student {
+  right: 146px;
+  bottom: 36px;
+  opacity: 0.34;
+  animation-delay: -3.4s;
+}
+
+.saturn-logo-teacher {
+  left: 170px;
+  bottom: 28px;
+  opacity: 0.28;
+  animation-delay: -2.8s;
+}
+
 #loginPage .teacher-auth-card {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(240, 248, 255, 0.9) 100%);
-  border: 1px solid rgba(125, 211, 252, 0.34);
-  box-shadow: 0 28px 48px rgba(37, 99, 235, 0.14);
+  background:
+    radial-gradient(circle at top left, rgba(250, 204, 21, 0.28), transparent 34%),
+    radial-gradient(circle at bottom right, rgba(45, 212, 191, 0.32), transparent 36%),
+    linear-gradient(145deg, #7c3aed 0%, #2563eb 48%, #0f766e 100%);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: 0 30px 50px rgba(37, 99, 235, 0.24);
+  color: #f8fafc;
 }
 
 #loginPage .teacher-login-copy h2 {
-  color: #0f172a;
+  color: #ffffff;
 }
 
 #loginPage .teacher-login-copy .section-note,
 #loginPage .teacher-auth-card label {
-  color: #475569;
+  color: rgba(248, 250, 252, 0.86);
 }
 
 #loginPage .teacher-auth-card input {
-  background: rgba(255, 255, 255, 0.94);
-  border-color: rgba(148, 163, 184, 0.28);
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(255, 255, 255, 0.32);
+  color: #0f172a;
 }
 
 #loginPage .teacher-auth-card input:focus {
-  border-color: rgba(14, 165, 233, 0.42);
-  box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.14);
+  border-color: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.18);
+}
+
+#loginPage .teacher-science-scene .formula-chip {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.78);
 }
 
 body.theme-night #loginPage .teacher-auth-card {
@@ -612,6 +993,12 @@ body.theme-night #loginPage .teacher-auth-card label {
 body.theme-night #loginPage .teacher-auth-card input {
   background: rgba(15, 23, 42, 0.9);
   border-color: rgba(148, 163, 184, 0.3);
+}
+
+body.theme-night .teacher-science-scene .formula-chip {
+  background: rgba(96, 165, 250, 0.12);
+  border-color: rgba(148, 163, 184, 0.18);
+  color: rgba(226, 232, 240, 0.56);
 }
 
 #loginPage .teacher-photo-container .profile-avatar {
@@ -742,14 +1129,16 @@ body.theme-night #teacherPage {
   --primary: #0f766e;
   --primary-dark: #115e59;
   --accent: #2563eb;
-  --bg-card: rgba(240, 253, 250, 0.92);
-  --bg-soft: rgba(204, 251, 241, 0.78);
+  --bg-card: rgba(255, 255, 255, 0.76);
+  --bg-soft: rgba(224, 242, 254, 0.72);
   --line: rgba(15, 118, 110, 0.18);
   --shadow: 0 18px 38px rgba(15, 118, 110, 0.14);
   background:
-    radial-gradient(circle at 12% 8%, rgba(45, 212, 191, 0.22), transparent 30%),
-    radial-gradient(circle at 88% 20%, rgba(96, 165, 250, 0.2), transparent 28%),
-    linear-gradient(145deg, rgba(204, 251, 241, 0.9) 0%, rgba(219, 234, 254, 0.86) 48%, rgba(252, 231, 243, 0.72) 100%);
+    radial-gradient(circle at 10% 8%, rgba(250, 204, 21, 0.34), transparent 28%),
+    radial-gradient(circle at 88% 16%, rgba(56, 189, 248, 0.32), transparent 30%),
+    radial-gradient(circle at 18% 86%, rgba(34, 197, 94, 0.3), transparent 30%),
+    radial-gradient(circle at 86% 88%, rgba(232, 121, 249, 0.28), transparent 32%),
+    linear-gradient(160deg, rgba(20, 184, 166, 0.88) 0%, rgba(37, 99, 235, 0.82) 42%, rgba(124, 58, 237, 0.8) 100%);
 }
 
 body.theme-night #studentPage {
@@ -797,21 +1186,21 @@ body.theme-night .student-science-scene .formula-chip {
 
 #studentPage .panel-card {
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.74) 0%, rgba(236, 253, 245, 0.76) 100%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.82) 0%, rgba(236, 253, 245, 0.66) 100%),
     radial-gradient(circle at top right, rgba(59, 130, 246, 0.13), transparent 38%);
-  border-color: rgba(20, 184, 166, 0.22);
-  box-shadow: 0 18px 34px rgba(15, 118, 110, 0.12);
+  border-color: rgba(255, 255, 255, 0.42);
+  box-shadow: 0 20px 38px rgba(15, 23, 42, 0.16);
 }
 
 #studentPage .panel-card:nth-child(2) {
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.76) 0%, rgba(219, 234, 254, 0.72) 100%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.82) 0%, rgba(219, 234, 254, 0.66) 100%),
     radial-gradient(circle at top left, rgba(45, 212, 191, 0.16), transparent 36%);
 }
 
 #studentPage .wide-card {
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.78) 0%, rgba(240, 249, 255, 0.76) 100%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.84) 0%, rgba(240, 249, 255, 0.7) 100%),
     radial-gradient(circle at top right, rgba(236, 72, 153, 0.12), transparent 34%);
 }
 
@@ -1631,6 +2020,100 @@ body.theme-night .modal-card .ghost-btn {
   }
 }
 
+@keyframes saturnFloat {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) rotate(-4deg);
+  }
+  50% {
+    transform: translate3d(-8px, -14px, 0) rotate(5deg);
+  }
+}
+
+@keyframes subjectFloat {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(0, -18px, 0) scale(1.05);
+  }
+}
+
+@keyframes dnaWave {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) rotate(-8deg);
+  }
+  50% {
+    transform: translate3d(8px, -12px, 0) rotate(8deg);
+  }
+}
+
+@keyframes leafSway {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) rotate(-24deg);
+  }
+  50% {
+    transform: translate3d(-8px, -10px, 0) rotate(-10deg);
+  }
+}
+
+@keyframes visualFloat {
+  0%, 100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(10px, -16px, 0);
+  }
+}
+
+@keyframes waveSlide {
+  to {
+    background-position: 34px 0;
+  }
+}
+
+@keyframes physicsBounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(30px);
+  }
+}
+
+@keyframes flaskLiquid {
+  0%, 100% {
+    background-position: 0 0;
+    transform: rotate(-2deg);
+  }
+  50% {
+    background-position: 10px 4px;
+    transform: rotate(3deg);
+  }
+}
+
+@keyframes bubbleRise {
+  0% {
+    transform: translateY(18px) scale(0.7);
+    opacity: 0;
+  }
+  45% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-28px) scale(1.05);
+    opacity: 0;
+  }
+}
+
+@keyframes mathPulse {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+  }
+  50% {
+    transform: scale(1.12) rotate(5deg);
+  }
+}
+
 @keyframes backgroundSlideshow {
   0% {
     opacity: 0;
@@ -1744,6 +2227,23 @@ body.theme-night .modal-card .ghost-btn {
     display: none;
   }
 
+  .home-science-scene .formula-chip-4 {
+    left: 24px;
+    top: 96px;
+  }
+
+  .home-science-scene .formula-chip-5 {
+    right: 26px;
+    bottom: 36px;
+  }
+
+  .saturn-logo-home {
+    left: 20px;
+    bottom: 72px;
+    top: auto;
+    opacity: 0.46;
+  }
+
   .student-science-scene .atom-animation {
     right: -88px;
     top: 18px;
@@ -1753,6 +2253,120 @@ body.theme-night .modal-card .ghost-btn {
   .student-science-scene .formula-chip-1,
   .student-science-scene .molecule-2 {
     display: none;
+  }
+
+  .teacher-science-scene .atom-animation {
+    right: -88px;
+    top: -42px;
+    opacity: 0.18;
+  }
+
+  .teacher-science-scene .formula-chip-1 {
+    right: 18px;
+    top: 18px;
+  }
+
+  .teacher-science-scene .formula-chip-2,
+  .teacher-science-scene .molecule-1 {
+    display: none;
+  }
+
+  .teacher-science-scene .formula-chip-3 {
+    right: 22px;
+    bottom: 116px;
+  }
+
+  .teacher-science-scene .formula-chip-4 {
+    left: 18px;
+    bottom: 68px;
+  }
+
+  .teacher-science-scene .formula-chip-5 {
+    right: 18px;
+    bottom: 26px;
+  }
+
+  .saturn-logo-teacher {
+    left: 18px;
+    bottom: 128px;
+  }
+
+  .student-science-scene .formula-chip-4 {
+    left: 18px;
+    bottom: 68px;
+  }
+
+  .student-science-scene .formula-chip-5 {
+    right: 22px;
+    top: 128px;
+  }
+
+  .saturn-logo-student {
+    right: 18px;
+    bottom: 30px;
+  }
+
+  .subject-orbit {
+    width: 58px;
+    height: 58px;
+    font-size: 0.68rem;
+    opacity: 0.44;
+  }
+
+  .subject-physics {
+    left: -18px;
+    top: 172px;
+  }
+
+  .subject-chemistry {
+    right: -18px;
+    top: 260px;
+  }
+
+  .subject-biology {
+    left: -10px;
+    bottom: 180px;
+  }
+
+  .subject-maths {
+    right: -8px;
+    bottom: 154px;
+  }
+
+  .dna-helix {
+    left: 6px;
+    top: 342px;
+    opacity: 0.2;
+  }
+
+  .leaf-bio {
+    right: 8px;
+    top: 410px;
+    opacity: 0.2;
+  }
+
+  .physics-visual {
+    left: 32px;
+    top: 210px;
+    transform: scale(0.72);
+    transform-origin: top left;
+    opacity: 0.42;
+  }
+
+  .chemistry-visual {
+    right: 16px;
+    top: 330px;
+    transform: scale(0.72);
+    transform-origin: top right;
+    opacity: 0.42;
+  }
+
+  .maths-visual {
+    left: 18px;
+    bottom: 88px;
+    transform: scale(0.72);
+    transform-origin: bottom left;
+    opacity: 0.42;
   }
 
   .large-login-btn {
@@ -1827,7 +2441,17 @@ body.theme-night .modal-card .ghost-btn {
   .atom-animation,
   .atom-ring,
   .formula-chip,
-  .molecule {
+  .molecule,
+  .saturn-logo,
+  .subject-orbit,
+  .dna-helix,
+  .leaf-bio,
+  .subject-visual,
+  .physics-wave,
+  .physics-ball,
+  .flask-bowl,
+  .chem-bubble,
+  .maths-visual span {
     animation: none;
   }
 }
