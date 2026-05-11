@@ -52,6 +52,10 @@ const teacherLoginPhoto = document.getElementById("teacherLoginPhoto");
 const teacherDashboardPhoto = document.getElementById("teacherDashboardPhoto");
 const teacherPhotoFile = document.getElementById("teacherPhotoFile");
 const teacherLoginPhotoFile = document.getElementById("teacherLoginPhotoFile");
+const teacherNoticeInput = document.getElementById("teacherNoticeInput");
+const homeNoticeText = document.getElementById("homeNoticeText");
+const ranchiTemperature = document.getElementById("ranchiTemperature");
+const ranchiWeatherText = document.getElementById("ranchiWeatherText");
 const whatsappMsg = document.getElementById("whatsappMsg");
 const feePending = document.getElementById("feePending");
 const studentSubmitBtn = document.getElementById("studentSubmitBtn");
@@ -79,6 +83,8 @@ const TEACHER_WHATSAPP_COUNTRY_CODE = "91";
 const SCHEDULE_AUTO_DELETE_AFTER_HOURS = 3;
 const SCHEDULE_CLEANUP_INTERVAL_MS = 60 * 1000;
 const CLASS_TIMER_DURATION_MS = 60 * 60 * 1000;
+const DEFAULT_HOME_NOTICE = "No notice yet.";
+const RANCHI_WEATHER_URL = "https://api.open-meteo.com/v1/forecast?latitude=23.3441&longitude=85.3096&current=temperature_2m,weather_code&timezone=auto";
 const RESET_STUDENT_IDS = [];
 const INITIAL_STUDENTS = [
   { id: "101", name: "Anushak Kumari", feePending: false, feeAmount: 0, feeHistory: {}, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY, subjectRatings: { maths: 0, science: 0 } },
@@ -106,6 +112,7 @@ window.stopClassTimer = stopClassTimer;
 window.sendWhatsApp = sendWhatsApp;
 window.openTeacherWhatsApp = openTeacherWhatsApp;
 window.uploadTeacherPhoto = uploadTeacherPhoto;
+window.saveTeacherNotice = saveTeacherNotice;
 window.setStudentRating = setStudentRating;
 window.submitStudentRating = submitStudentRating;
 window.setRating = setRating;
@@ -125,6 +132,7 @@ initializeScheduleForm();
 startScheduleCleanupLoop();
 startStudentCountdownLoop();
 startTeacherScheduleLoop();
+loadRanchiWeather();
 initializeAppData();
 
 async function initializeAppData() {
@@ -1760,6 +1768,28 @@ async function uploadTeacherPhoto() {
   }
 }
 
+async function saveTeacherNotice() {
+  if (!isFirebaseReady()) {
+    alert(FIREBASE_WARNING);
+    return;
+  }
+
+  const notice = teacherNoticeInput.value.trim();
+
+  try {
+    teacherProfile = {
+      ...(teacherProfile || {}),
+      notice
+    };
+    await updateTeacherProfile(teacherProfile);
+    applyTeacherProfile();
+    alert("Notice saved");
+  } catch (error) {
+    console.error(error);
+    alert("Unable to save notice");
+  }
+}
+
 async function loadTeacherProfile() {
   teacherProfile = await getTeacherProfile();
   applyTeacherProfile();
@@ -1769,6 +1799,68 @@ function applyTeacherProfile() {
   const teacherPhoto = teacherProfile?.photoUrl || DEFAULT_TEACHER_PHOTO;
   teacherLoginPhoto.src = teacherPhoto;
   teacherDashboardPhoto.src = teacherPhoto;
+  const notice = teacherProfile?.notice?.trim() || DEFAULT_HOME_NOTICE;
+
+  if (homeNoticeText) {
+    homeNoticeText.textContent = notice;
+  }
+
+  if (teacherNoticeInput) {
+    teacherNoticeInput.value = teacherProfile?.notice || "";
+  }
+}
+
+async function loadRanchiWeather() {
+  if (!ranchiTemperature || !ranchiWeatherText) {
+    return;
+  }
+
+  try {
+    const response = await fetch(RANCHI_WEATHER_URL);
+    if (!response.ok) {
+      throw new Error("Weather request failed");
+    }
+
+    const weatherData = await response.json();
+    const temperature = Math.round(Number(weatherData?.current?.temperature_2m));
+    const weatherCode = Number(weatherData?.current?.weather_code);
+
+    if (!Number.isFinite(temperature)) {
+      throw new Error("Weather temperature missing");
+    }
+
+    ranchiTemperature.textContent = `${temperature}°C`;
+    ranchiWeatherText.textContent = getWeatherDescription(weatherCode);
+  } catch (error) {
+    console.error(error);
+    ranchiTemperature.textContent = "--";
+    ranchiWeatherText.textContent = "Weather unavailable";
+  }
+}
+
+function getWeatherDescription(weatherCode) {
+  if ([0].includes(weatherCode)) {
+    return "Clear sky";
+  }
+  if ([1, 2].includes(weatherCode)) {
+    return "Partly cloudy";
+  }
+  if ([3].includes(weatherCode)) {
+    return "Cloudy";
+  }
+  if ([45, 48].includes(weatherCode)) {
+    return "Foggy";
+  }
+  if ([51, 53, 55, 56, 57].includes(weatherCode)) {
+    return "Drizzle";
+  }
+  if ([61, 63, 65, 66, 67, 80, 81, 82].includes(weatherCode)) {
+    return "Rain";
+  }
+  if ([95, 96, 99].includes(weatherCode)) {
+    return "Thunderstorm";
+  }
+  return "Current weather";
 }
 
 function normalizeFeeAmount(feeAmount) {

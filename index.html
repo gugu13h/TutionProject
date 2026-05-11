@@ -29,6 +29,25 @@
   <main class="app-shell">
     <div id="loginPage" class="page active">
       <div class="login-layout">
+        <section class="home-info-strip" aria-label="Notice and weather">
+          <div class="cloud-notice-board">
+            <span class="cloud-bubble cloud-bubble-1" aria-hidden="true"></span>
+            <span class="cloud-bubble cloud-bubble-2" aria-hidden="true"></span>
+            <span class="cloud-bubble cloud-bubble-3" aria-hidden="true"></span>
+            <div class="cloud-notice-content">
+              <span class="eyebrow">Notice Board</span>
+              <p id="homeNoticeText">No notice yet.</p>
+            </div>
+          </div>
+          <div class="weather-card">
+            <span class="eyebrow">Ranchi Weather</span>
+            <div class="weather-main">
+              <strong id="ranchiTemperature">--</strong>
+              <span id="ranchiWeatherText">Loading weather...</span>
+            </div>
+          </div>
+        </section>
+
         <section class="hero-card student-auth-card">
           <div class="science-scene home-science-scene" aria-hidden="true">
             <span class="formula-chip formula-chip-1">F=ma</span>
@@ -119,6 +138,11 @@
               <input id="teacherPhotoFile" type="file" accept="image/*">
             </div>
             <button onclick="uploadTeacherPhoto()">Save Photo</button>
+            <div class="field-group teacher-notice-field">
+              <label for="teacherNoticeInput">Home Notice</label>
+              <textarea id="teacherNoticeInput" placeholder="Write notice for students"></textarea>
+            </div>
+            <button class="secondary-btn" onclick="saveTeacherNotice()">Save Notice</button>
           </div>
         </section>
 
