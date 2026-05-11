@@ -33,6 +33,7 @@ const password = document.getElementById("password");
 const studentId = document.getElementById("studentId");
 const studentName = document.getElementById("studentName");
 const studentPhotoFile = document.getElementById("studentPhotoFile");
+const studentFeeAmount = document.getElementById("studentFeeAmount");
 const studentCycleStartDay = document.getElementById("studentCycleStartDay");
 const studentCycleEndDay = document.getElementById("studentCycleEndDay");
 const studentList = document.getElementById("studentList");
@@ -80,11 +81,11 @@ const SCHEDULE_CLEANUP_INTERVAL_MS = 60 * 1000;
 const CLASS_TIMER_DURATION_MS = 60 * 60 * 1000;
 const RESET_STUDENT_IDS = [];
 const INITIAL_STUDENTS = [
-  { id: "101", name: "Anushak Kumari", feePending: false, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY, subjectRatings: { maths: 0, science: 0 } },
-  { id: "102", name: "Abhishek Francis", feePending: false, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY, subjectRatings: { maths: 0, science: 0 } },
-  { id: "81", name: "Saket Kumar", feePending: false, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY, subjectRatings: { maths: 0, science: 0 } },
-  { id: "82", name: "Ashwin Kumar", feePending: false, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY, subjectRatings: { maths: 0, science: 0 } },
-  { id: "7", name: "Arpit Kumar", feePending: false, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY, subjectRatings: { maths: 0, science: 0 } }
+  { id: "101", name: "Anushak Kumari", feePending: false, feeAmount: 0, feeHistory: {}, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY, subjectRatings: { maths: 0, science: 0 } },
+  { id: "102", name: "Abhishek Francis", feePending: false, feeAmount: 0, feeHistory: {}, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY, subjectRatings: { maths: 0, science: 0 } },
+  { id: "81", name: "Saket Kumar", feePending: false, feeAmount: 0, feeHistory: {}, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY, subjectRatings: { maths: 0, science: 0 } },
+  { id: "82", name: "Ashwin Kumar", feePending: false, feeAmount: 0, feeHistory: {}, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY, subjectRatings: { maths: 0, science: 0 } },
+  { id: "7", name: "Arpit Kumar", feePending: false, feeAmount: 0, feeHistory: {}, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY, subjectRatings: { maths: 0, science: 0 } }
 ];
 
 window.teacherLogin = teacherLogin;
@@ -110,6 +111,8 @@ window.submitStudentRating = submitStudentRating;
 window.setRating = setRating;
 window.closeRatingModal = closeRatingModal;
 window.toggleStudentRating = toggleStudentRating;
+window.toggleStudentMore = toggleStudentMore;
+window.setStudentFeeMonthStatus = setStudentFeeMonthStatus;
 window.toggleTeacherStudentDetails = toggleTeacherStudentDetails;
 window.toggleThemeMode = toggleThemeMode;
 
@@ -219,11 +222,17 @@ async function addStudent() {
   const id = studentId.value.trim();
   const name = studentName.value.trim();
   const fee = feePending.checked;
+  const feeAmountValue = Number(studentFeeAmount.value);
   const cycleStartDay = Number(studentCycleStartDay.value);
   const cycleEndDay = Number(studentCycleEndDay.value);
 
   if (!id || !name) {
     alert("Enter Student ID and Name");
+    return;
+  }
+
+  if (studentFeeAmount.value.trim() === "" || !Number.isFinite(feeAmountValue) || feeAmountValue < 0 || !Number.isInteger(feeAmountValue)) {
+    alert("Enter valid student fee amount");
     return;
   }
 
@@ -253,6 +262,10 @@ async function addStudent() {
       id,
       name,
       feePending: fee,
+      feeAmount: feeAmountValue,
+      feeHistory: editingStudentIndex !== null
+        ? getUpdatedFeeHistory(students[editingStudentIndex], fee)
+        : getInitialFeeHistory(fee),
       photoUrl,
       feeCycleStartDay: cycleStartDay,
       feeCycleEndDay: cycleEndDay,
@@ -311,6 +324,11 @@ function showStudents() {
             <strong>Fee Cycle:</strong> ${student.feeCycleStartDay || DEFAULT_FEE_CYCLE_START_DAY} to ${student.feeCycleEndDay || DEFAULT_FEE_CYCLE_END_DAY}<br>
             <strong>Fee Status:</strong> ${formatFeeStatusHtml(student)}<br>
             <strong>Overall Rating:</strong> ${overallText}
+            <button class="secondary-btn compact-btn student-more-btn" onclick="toggleStudentMore(this)">Show More</button>
+            <div class="student-more-details hidden">
+              ${getAttendanceCalendarHtml(student.id)}
+              ${getFeeMonthCalendarHtml(student, new Date(), { editable: true, studentIndex: index })}
+            </div>
           </div>
           <div class="box-actions">
             <button class="ghost-btn" onclick="editStudent(${index})">Edit</button>
@@ -385,6 +403,7 @@ function editStudent(index) {
   openStudentRegisterForm();
   studentId.value = student.id;
   studentName.value = student.name;
+  studentFeeAmount.value = normalizeFeeAmount(student.feeAmount);
   feePending.checked = student.feePending;
   studentCycleStartDay.value = student.feeCycleStartDay || DEFAULT_FEE_CYCLE_START_DAY;
   studentCycleEndDay.value = student.feeCycleEndDay || DEFAULT_FEE_CYCLE_END_DAY;
@@ -795,6 +814,7 @@ async function stopClassTimer(scheduleIdentifier) {
     await updateScheduleRecord(schedule.firestoreId, updatedSchedule);
     schedules[scheduleIndex] = { firestoreId: schedule.firestoreId, ...updatedSchedule };
     loadSchedules();
+    showStudents();
     refreshStudentDataViewIfNeeded();
     alert("Class timer stopped");
   } catch (error) {
@@ -877,6 +897,14 @@ function loadStudentData(options = {}) {
       if (student.id === id) {
         const fullStudent = students.find(s => s.id === id);
         feeReminderStudent = feeReminderStudent || fullStudent || student;
+        const displayStudent = fullStudent
+          ? {
+              ...student,
+              ...fullStudent,
+              attendanceStatus: student.attendanceStatus,
+              attendanceReason: student.attendanceReason
+            }
+          : student;
         const ratings = fullStudent ? (fullStudent.subjectRatings || { maths: 0, science: 0 }) : { maths: 0, science: 0 };
         const overallRating = Math.round((ratings.maths + ratings.science) / 2 * 10) / 10;
         const mathsText = ratings.maths === 0 ? "Not Rated" : `${ratings.maths} / 10`;
@@ -901,13 +929,13 @@ function loadStudentData(options = {}) {
         
         const studentRecordHtml = `
           <div class="box">
-            <img class="profile-avatar record-photo" src="${student.photoUrl || DEFAULT_STUDENT_PHOTO}" alt="${student.name} photo">
-            <strong>Name:</strong> ${student.name}<br>
+            <img class="profile-avatar record-photo" src="${displayStudent.photoUrl || DEFAULT_STUDENT_PHOTO}" alt="${displayStudent.name} photo">
+            <strong>Name:</strong> ${displayStudent.name}<br>
             <strong>Class Date:</strong> ${schedule.date}<br>
             <strong>Class Time:</strong> <span style="color: #0f766e; font-weight: bold;">${schedule.time ? formatTime12Hour(schedule.time) : "Holiday (No Class)"}</span><br>
             ${countdownMarkup}
             <strong>Day:</strong> ${schedule.day}<br>
-            <strong>Fee Status:</strong> ${formatFeeStatusHtml(student)}<br>
+            <strong>Fee Status:</strong> ${formatFeeStatusHtml(displayStudent)}<br>
             <strong>Attendance:</strong> ${getAttendanceStatusText(student)}<br>
             ${attendanceReasonHtml}
             ${attendanceButtonsHtml}
@@ -916,6 +944,8 @@ function loadStudentData(options = {}) {
               <strong>📐 Maths Rating:</strong> ${mathsText}<br>
               <strong>🔬 Science Rating:</strong> ${scienceText}<br>
               <strong style="color: #0f766e; font-size: 1.1rem;">📊 Overall Rating: ${overallText}</strong>
+              ${getAttendanceCalendarHtml(displayStudent.id)}
+              ${getFeeMonthCalendarHtml(displayStudent)}
             </div>
           </div>
         `;
@@ -948,6 +978,8 @@ function loadStudentData(options = {}) {
             <strong>📐 Maths Rating:</strong> ${mathsText}<br>
             <strong>🔬 Science Rating:</strong> ${scienceText}<br>
             <strong style="color: #0f766e; font-size: 1.1rem;">📊 Overall Rating: ${overallText}</strong>
+            ${getAttendanceCalendarHtml(studentRecord.id)}
+            ${getFeeMonthCalendarHtml(studentRecord)}
           </div>
           <strong style="display:block; margin-top: 12px; color: #dc2626;">Class update is not available yet.</strong>
           <strong style="color: #dc2626;">You will be informed soon.</strong><br>
@@ -1002,6 +1034,122 @@ function toggleStudentRating(button) {
     ratingDetails.classList.toggle('hidden');
     button.textContent = ratingDetails.classList.contains('hidden') ? "Show More" : "Show Less";
   }
+}
+
+function toggleStudentMore(button) {
+  let moreDetails = button.nextElementSibling;
+  while (moreDetails && !moreDetails.classList.contains("student-more-details")) {
+    moreDetails = moreDetails.nextElementSibling;
+  }
+
+  if (moreDetails) {
+    moreDetails.classList.toggle("hidden");
+    button.textContent = moreDetails.classList.contains("hidden") ? "Show More" : "Show Less";
+  }
+}
+
+function getAttendanceCalendarHtml(studentId, referenceDate = new Date()) {
+  const year = referenceDate.getFullYear();
+  const month = referenceDate.getMonth();
+  const monthLabel = referenceDate.toLocaleString("en-US", {
+    month: "long",
+    year: "numeric"
+  });
+  const firstDay = new Date(year, month, 1);
+  const totalDays = new Date(year, month + 1, 0).getDate();
+  const attendanceByDate = getStudentAttendanceByDate(studentId, year, month);
+  const dayLabels = ["S", "M", "T", "W", "T", "F", "S"];
+  const blanks = Array.from({ length: firstDay.getDay() }, () => `<span class="attendance-calendar-day is-empty"></span>`);
+  const days = Array.from({ length: totalDays }, (_, dayIndex) => {
+    const day = dayIndex + 1;
+    const dateKey = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const status = attendanceByDate[dateKey] || "none";
+    const label = getAttendanceCalendarLabel(status);
+    return `<span class="attendance-calendar-day status-${status}" title="${label}">${day}</span>`;
+  });
+
+  return `
+    <div class="attendance-calendar">
+      <div class="attendance-calendar-head">
+        <strong>Attendance</strong>
+        <span>${monthLabel}</span>
+      </div>
+      <div class="attendance-calendar-weekdays">
+        ${dayLabels.map((dayLabel) => `<span>${dayLabel}</span>`).join("")}
+      </div>
+      <div class="attendance-calendar-grid">
+        ${[...blanks, ...days].join("")}
+      </div>
+      <div class="attendance-calendar-legend">
+        <span><i class="status-coming"></i>Present</span>
+        <span><i class="status-not-coming"></i>Absent</span>
+        <span><i class="status-holiday"></i>Holiday</span>
+      </div>
+    </div>
+  `;
+}
+
+function getStudentAttendanceByDate(studentId, year, month) {
+  const attendanceByDate = {};
+
+  schedules.forEach((schedule) => {
+    const scheduleDate = parseScheduleDate(schedule.date);
+    if (!scheduleDate || scheduleDate.getFullYear() !== year || scheduleDate.getMonth() !== month) {
+      return;
+    }
+
+    const scheduleStudent = schedule.students.find((student) => student.id === studentId);
+    if (!scheduleStudent) {
+      return;
+    }
+
+    const status = scheduleStudent.attendanceStatus || "pending";
+    if (!["coming", "not-coming", "holiday"].includes(status)) {
+      return;
+    }
+
+    attendanceByDate[schedule.date] = mergeAttendanceCalendarStatus(attendanceByDate[schedule.date], status);
+  });
+
+  return attendanceByDate;
+}
+
+function parseScheduleDate(dateValue) {
+  const dateParts = String(dateValue || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!dateParts) {
+    return null;
+  }
+
+  const [, year, month, day] = dateParts;
+  const parsedDate = new Date(Number(year), Number(month) - 1, Number(day));
+  return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
+}
+
+function mergeAttendanceCalendarStatus(currentStatus, nextStatus) {
+  const priority = {
+    "not-coming": 3,
+    holiday: 2,
+    coming: 1
+  };
+
+  if (!currentStatus || priority[nextStatus] > priority[currentStatus]) {
+    return nextStatus;
+  }
+
+  return currentStatus;
+}
+
+function getAttendanceCalendarLabel(status) {
+  if (status === "coming") {
+    return "Present";
+  }
+  if (status === "not-coming") {
+    return "Absent";
+  }
+  if (status === "holiday") {
+    return "Holiday";
+  }
+  return "No attendance";
 }
 
 function buildStudentAbsenceMessage(schedule, student, customMessage) {
@@ -1113,6 +1261,7 @@ async function updateStudentAttendance(scheduleId, studentId, status, reason) {
     await updateScheduleRecord(schedule.firestoreId, updatedSchedule);
     schedules[scheduleIndex] = { firestoreId: schedule.firestoreId, ...updatedSchedule };
     loadSchedules();
+    showStudents();
     const currentStudentId = loginStudentId.value.trim();
     if (currentStudentId === studentId) {
       loadStudentData({ openModalAfterLoad: true, showFeeReminder: false });
@@ -1140,6 +1289,7 @@ function getAttendanceStatusText(student) {
 
 function getScheduleAttendanceHtml(student, scheduleId) {
   const reasonMarkup = student.attendanceReason ? `<div style="margin-left: 18px; color:#dc2626;">Reason: ${escapeHtml(student.attendanceReason)}</div>` : "";
+  const feeMarkup = student.feePending ? " (Pending)" : "";
   const attendanceButtons = `
     <div style="margin-left: 18px; margin-top: 5px; display: flex; gap: 5px; flex-wrap: wrap;">
       <button class="secondary-btn compact-btn" style="font-size: 11px; padding: 3px 8px;" onclick="studentAttendance('${scheduleId}', '${student.id}', 'holiday', 'teacher')">Mark Holiday</button>
@@ -1147,7 +1297,7 @@ function getScheduleAttendanceHtml(student, scheduleId) {
       <button class="secondary-btn compact-btn" style="font-size: 11px; padding: 3px 8px; background:#0f766e; color:#fff;" onclick="studentAttendance('${scheduleId}', '${student.id}', 'coming', 'teacher')">Mark Present</button>
     </div>
   `;
-  return `- ${student.name} (${student.id}) ${student.feePending ? "(Pending)" : ""} — ${getAttendanceStatusText(student)} ${reasonMarkup}${attendanceButtons}`;
+  return `- ${student.name} (${student.id})${feeMarkup} - ${getAttendanceStatusText(student)} ${reasonMarkup}${attendanceButtons}`;
 }
 
 function sendWhatsApp() {
@@ -1197,6 +1347,7 @@ function resetStudentForm() {
   editingStudentIndex = null;
   studentId.value = "";
   studentName.value = "";
+  studentFeeAmount.value = "";
   studentPhotoFile.value = "";
   studentCycleStartDay.value = DEFAULT_FEE_CYCLE_START_DAY;
   studentCycleEndDay.value = DEFAULT_FEE_CYCLE_END_DAY;
@@ -1266,7 +1417,10 @@ async function syncStudentInSchedules(previousStudentId, updatedStudent) {
       }
 
       hasChanges = true;
-      return { ...updatedStudent };
+      return {
+        ...student,
+        ...updatedStudent
+      };
     });
 
     if (!hasChanges) {
@@ -1454,7 +1608,9 @@ function showFeeReminderIfNeeded(student) {
   }
 
   const feeStatus = getFeeStatusText(student);
-  feeReminderText.textContent = `${student.name}, your fee is pending (${feeStatus}). Scan the PhonePe QR below and complete the payment.`;
+  const feeAmount = formatFeeAmount(student);
+  const amountText = feeAmount === "Not set" ? "" : ` Amount: ${feeAmount}.`;
+  feeReminderText.textContent = `${student.name}, your fee is pending (${feeStatus}).${amountText} Scan the PhonePe QR below and complete the payment.`;
   feeReminderModal.dataset.studentId = student.id || "";
   feeReminderModal.classList.add("active");
   feeReminderModal.setAttribute("aria-hidden", "false");
@@ -1550,6 +1706,8 @@ async function submitStudentRating() {
       id: updatedStudent.id,
       name: updatedStudent.name,
       feePending: updatedStudent.feePending,
+      feeAmount: normalizeFeeAmount(updatedStudent.feeAmount),
+      feeHistory: updatedStudent.feeHistory || {},
       photoUrl: updatedStudent.photoUrl || "",
       feeCycleStartDay: updatedStudent.feeCycleStartDay,
       feeCycleEndDay: updatedStudent.feeCycleEndDay,
@@ -1613,6 +1771,202 @@ function applyTeacherProfile() {
   teacherDashboardPhoto.src = teacherPhoto;
 }
 
+function normalizeFeeAmount(feeAmount) {
+  const normalizedAmount = Number(feeAmount);
+  return Number.isFinite(normalizedAmount) && normalizedAmount >= 0 ? normalizedAmount : 0;
+}
+
+function formatFeeAmount(student) {
+  const feeAmount = normalizeFeeAmount(student?.feeAmount);
+
+  if (feeAmount === 0) {
+    return "Not set";
+  }
+
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0
+  }).format(feeAmount);
+}
+
+function getInitialFeeHistory(feePendingValue) {
+  return getUpdatedFeeHistory({ feePending: null, feeHistory: {} }, feePendingValue);
+}
+
+function getUpdatedFeeHistory(currentStudent, nextFeePending, date = new Date()) {
+  const monthKey = getFeeMonthKey(date);
+  const dateValue = formatDateInputValue(date);
+  const existingHistory = currentStudent?.feeHistory || {};
+  const existingMonthRecord = existingHistory[monthKey] || {};
+  const currentFeePending = Boolean(currentStudent?.feePending);
+  const feeStatusChanged = currentStudent?.feePending === null || currentFeePending !== Boolean(nextFeePending);
+
+  if (!feeStatusChanged && existingMonthRecord.status) {
+    return existingHistory;
+  }
+
+  const nextMonthRecord = nextFeePending
+    ? {
+        ...existingMonthRecord,
+        status: "pending",
+        pendingDate: existingMonthRecord.pendingDate || dateValue
+      }
+    : {
+        ...existingMonthRecord,
+        status: "paid",
+        paidDate: dateValue
+      };
+
+  return {
+    ...existingHistory,
+    [monthKey]: nextMonthRecord
+  };
+}
+
+function getFeeMonthCalendarHtml(student, referenceDate = new Date(), options = {}) {
+  const year = referenceDate.getFullYear();
+  const currentMonthKey = getFeeMonthKey(referenceDate);
+  const months = Array.from({ length: 12 }, (_, monthIndex) => {
+    const monthDate = new Date(year, monthIndex, 1);
+    const monthKey = getFeeMonthKey(monthDate);
+    const monthLabel = monthDate.toLocaleString("en-US", { month: "short" });
+    const feeRecord = getFeeMonthRecord(student, monthKey, currentMonthKey);
+    const title = getFeeMonthTitle(feeRecord);
+    const controls = options.editable
+      ? `
+        <span class="fee-month-actions">
+          <button type="button" class="fee-month-action is-paid" onclick="setStudentFeeMonthStatus(${options.studentIndex}, '${monthKey}', 'paid')" title="Set paid">G</button>
+          <button type="button" class="fee-month-action is-pending" onclick="setStudentFeeMonthStatus(${options.studentIndex}, '${monthKey}', 'pending')" title="Set pending">R</button>
+          <button type="button" class="fee-month-action is-blank" onclick="setStudentFeeMonthStatus(${options.studentIndex}, '${monthKey}', 'none')" title="Set blank">B</button>
+        </span>
+      `
+      : "";
+
+    return `
+      <span class="fee-month-cell">
+        <span class="fee-month status-${feeRecord.status}" title="${title}">${monthLabel}</span>
+        ${controls}
+      </span>
+    `;
+  });
+
+  return `
+    <div class="fee-month-calendar">
+      <div class="fee-month-calendar-head">
+        <strong>Fee</strong>
+        <span>${year}</span>
+      </div>
+      <div class="fee-month-grid">
+        ${months.join("")}
+      </div>
+      <div class="fee-month-legend">
+        <span><i class="status-paid"></i>Paid</span>
+        <span><i class="status-pending"></i>Pending</span>
+      </div>
+    </div>
+  `;
+}
+
+async function setStudentFeeMonthStatus(studentIndex, monthKey, status) {
+  if (!isFirebaseReady()) {
+    alert(FIREBASE_WARNING);
+    return;
+  }
+
+  const currentStudent = students[studentIndex];
+  if (!currentStudent || !["paid", "pending", "none"].includes(status)) {
+    alert("Student fee record not found");
+    return;
+  }
+
+  const feeHistory = {
+    ...(currentStudent.feeHistory || {})
+  };
+  const today = formatDateInputValue(new Date());
+
+  if (status === "none") {
+    delete feeHistory[monthKey];
+  } else {
+    feeHistory[monthKey] = {
+      ...(feeHistory[monthKey] || {}),
+      status,
+      ...(status === "paid" ? { paidDate: today } : { pendingDate: today })
+    };
+  }
+
+  const currentMonthKey = getFeeMonthKey(new Date());
+  const updatedStudent = {
+    ...currentStudent,
+    feePending: monthKey === currentMonthKey ? status === "pending" : currentStudent.feePending,
+    feeHistory
+  };
+
+  const studentPayload = {
+    id: updatedStudent.id,
+    name: updatedStudent.name,
+    feePending: updatedStudent.feePending,
+    feeAmount: normalizeFeeAmount(updatedStudent.feeAmount),
+    feeHistory: updatedStudent.feeHistory,
+    photoUrl: updatedStudent.photoUrl || "",
+    feeCycleStartDay: updatedStudent.feeCycleStartDay,
+    feeCycleEndDay: updatedStudent.feeCycleEndDay,
+    subjectRatings: updatedStudent.subjectRatings || { maths: 0, science: 0 }
+  };
+
+  try {
+    await updateStudentRecord(currentStudent.firestoreId, studentPayload);
+    students[studentIndex] = {
+      firestoreId: currentStudent.firestoreId,
+      ...studentPayload
+    };
+    await syncStudentInSchedules(currentStudent.id, studentPayload);
+    showStudents();
+    showStudentCheckList();
+    refreshStudentDataViewIfNeeded();
+  } catch (error) {
+    console.error(error);
+    alert("Unable to update fee month");
+  }
+}
+
+function getFeeMonthRecord(student, monthKey, currentMonthKey) {
+  const historyRecord = student?.feeHistory?.[monthKey];
+
+  if (monthKey === currentMonthKey) {
+    if (student?.feePending) {
+      return {
+        status: "pending",
+        pendingDate: historyRecord?.pendingDate || formatDateInputValue(new Date())
+      };
+    }
+
+    if (historyRecord?.status === "paid") {
+      return historyRecord;
+    }
+
+    return historyRecord || { status: "none" };
+  }
+
+  return historyRecord || { status: "none" };
+}
+
+function getFeeMonthTitle(feeRecord) {
+  if (feeRecord.status === "paid") {
+    return feeRecord.paidDate ? `Paid on ${feeRecord.paidDate}` : "Paid";
+  }
+
+  if (feeRecord.status === "pending") {
+    return feeRecord.pendingDate ? `Pending from ${feeRecord.pendingDate}` : "Pending";
+  }
+
+  return "No fee record";
+}
+
+function getFeeMonthKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
 function getFeeStatusText(student) {
   if (!student.feePending) {
     return "Clear";
@@ -1661,6 +2015,8 @@ async function normalizeAllStudentFeeCycles() {
       id: updatedStudent.id,
       name: updatedStudent.name,
       feePending: updatedStudent.feePending,
+      feeAmount: normalizeFeeAmount(updatedStudent.feeAmount),
+      feeHistory: updatedStudent.feeHistory || {},
       photoUrl: updatedStudent.photoUrl || "",
       feeCycleStartDay: updatedStudent.feeCycleStartDay,
       feeCycleEndDay: updatedStudent.feeCycleEndDay,

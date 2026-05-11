@@ -1958,6 +1958,252 @@ body.theme-night .modal-card .ghost-btn {
   border-left: 4px solid var(--accent);
 }
 
+.student-more-btn {
+  margin-top: 10px;
+}
+
+.student-more-details {
+  margin-top: 10px;
+}
+
+.attendance-calendar {
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  max-width: 310px;
+}
+
+body.theme-night .attendance-calendar {
+  background: rgba(15, 23, 42, 0.62);
+  border-color: rgba(148, 163, 184, 0.22);
+}
+
+.attendance-calendar-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+  color: var(--text-main);
+}
+
+.attendance-calendar-head span {
+  color: var(--text-muted);
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.attendance-calendar-weekdays,
+.attendance-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.attendance-calendar-weekdays span {
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.attendance-calendar-day {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  min-width: 0;
+  border-radius: 8px;
+  background: rgba(148, 163, 184, 0.14);
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.attendance-calendar-day.is-empty {
+  background: transparent;
+}
+
+.attendance-calendar-day.status-coming {
+  background: #16a34a;
+  color: #fff;
+}
+
+.attendance-calendar-day.status-not-coming {
+  background: #dc2626;
+  color: #fff;
+}
+
+.attendance-calendar-day.status-holiday {
+  background: #f59e0b;
+  color: #111827;
+}
+
+.attendance-calendar-legend {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.attendance-calendar-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.attendance-calendar-legend i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.attendance-calendar-legend .status-coming {
+  background: #16a34a;
+}
+
+.attendance-calendar-legend .status-not-coming {
+  background: #dc2626;
+}
+
+.attendance-calendar-legend .status-holiday {
+  background: #f59e0b;
+}
+
+.fee-month-calendar {
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  max-width: 310px;
+}
+
+body.theme-night .fee-month-calendar {
+  background: rgba(15, 23, 42, 0.62);
+  border-color: rgba(148, 163, 184, 0.22);
+}
+
+.fee-month-calendar-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.fee-month-calendar-head span {
+  color: var(--text-muted);
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.fee-month-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.fee-month-cell {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.fee-month {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  border-radius: 8px;
+  background: rgba(148, 163, 184, 0.14);
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.fee-month.status-paid {
+  background: #16a34a;
+  color: #fff;
+}
+
+.fee-month.status-pending {
+  background: #dc2626;
+  color: #fff;
+}
+
+.fee-month-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 3px;
+}
+
+.fee-month-action {
+  width: 100%;
+  min-width: 0;
+  padding: 4px 0;
+  border-radius: 6px;
+  box-shadow: none;
+  font-size: 0.68rem;
+  line-height: 1;
+}
+
+.fee-month-action:hover {
+  transform: none;
+}
+
+.fee-month-action.is-paid {
+  background: #16a34a;
+  color: #fff;
+}
+
+.fee-month-action.is-pending {
+  background: #dc2626;
+  color: #fff;
+}
+
+.fee-month-action.is-blank {
+  background: rgba(148, 163, 184, 0.25);
+  color: var(--text-main);
+}
+
+.fee-month-legend {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.fee-month-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.fee-month-legend i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.fee-month-legend .status-paid {
+  background: #16a34a;
+}
+
+.fee-month-legend .status-pending {
+  background: #dc2626;
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;
