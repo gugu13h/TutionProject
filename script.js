@@ -1795,7 +1795,7 @@ function getInitialFeeHistory(feePendingValue) {
 }
 
 function getUpdatedFeeHistory(currentStudent, nextFeePending, date = new Date()) {
-  const monthKey = getFeeMonthKey(date);
+  const monthKey = getPreviousFeeMonthKey(date);
   const dateValue = formatDateInputValue(date);
   const existingHistory = currentStudent?.feeHistory || {};
   const existingMonthRecord = existingHistory[monthKey] || {};
@@ -1826,14 +1826,15 @@ function getUpdatedFeeHistory(currentStudent, nextFeePending, date = new Date())
 
 function getFeeMonthCalendarHtml(student, referenceDate = new Date(), options = {}) {
   const year = referenceDate.getFullYear();
+  const dueMonthKey = getPreviousFeeMonthKey(referenceDate);
   const currentMonthKey = getFeeMonthKey(referenceDate);
   const months = Array.from({ length: 12 }, (_, monthIndex) => {
     const monthDate = new Date(year, monthIndex, 1);
     const monthKey = getFeeMonthKey(monthDate);
     const monthLabel = monthDate.toLocaleString("en-US", { month: "short" });
-    const feeRecord = getFeeMonthRecord(student, monthKey, currentMonthKey);
+    const feeRecord = getFeeMonthRecord(student, monthKey, dueMonthKey, currentMonthKey);
     const title = getFeeMonthTitle(feeRecord);
-    const controls = options.editable
+    const controls = options.editable && monthKey !== currentMonthKey
       ? `
         <span class="fee-month-actions">
           <button type="button" class="fee-month-action is-paid" onclick="setStudentFeeMonthStatus(${options.studentIndex}, '${monthKey}', 'paid')" title="Set paid">G</button>
@@ -1895,10 +1896,10 @@ async function setStudentFeeMonthStatus(studentIndex, monthKey, status) {
     };
   }
 
-  const currentMonthKey = getFeeMonthKey(new Date());
+  const dueMonthKey = getPreviousFeeMonthKey(new Date());
   const updatedStudent = {
     ...currentStudent,
-    feePending: monthKey === currentMonthKey ? status === "pending" : currentStudent.feePending,
+    feePending: monthKey === dueMonthKey ? status === "pending" : currentStudent.feePending,
     feeHistory
   };
 
@@ -1930,10 +1931,14 @@ async function setStudentFeeMonthStatus(studentIndex, monthKey, status) {
   }
 }
 
-function getFeeMonthRecord(student, monthKey, currentMonthKey) {
+function getFeeMonthRecord(student, monthKey, dueMonthKey, currentMonthKey) {
+  if (monthKey === currentMonthKey) {
+    return { status: "none" };
+  }
+
   const historyRecord = student?.feeHistory?.[monthKey];
 
-  if (monthKey === currentMonthKey) {
+  if (monthKey === dueMonthKey) {
     if (student?.feePending) {
       return {
         status: "pending",
@@ -1967,16 +1972,16 @@ function getFeeMonthKey(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 }
 
+function getPreviousFeeMonthKey(date) {
+  return getFeeMonthKey(new Date(date.getFullYear(), date.getMonth() - 1, 1));
+}
+
 function getFeeStatusText(student) {
   if (!student.feePending) {
     return "Clear";
   }
 
-  if (hasFeeCycleCrossed(new Date(), student)) {
-    return `Pending - ${getPendingMonthLabel(new Date())}`;
-  }
-
-  return `Pending - Current Cycle`;
+  return `Pending - ${getPreviousFeeMonthLabel(new Date())}`;
 }
 
 function formatFeeStatusHtml(student) {
@@ -2039,4 +2044,8 @@ function getPendingMonthLabel(date) {
     month: "long",
     year: "numeric"
   });
+}
+
+function getPreviousFeeMonthLabel(date) {
+  return getPendingMonthLabel(new Date(date.getFullYear(), date.getMonth() - 1, 1));
 }
