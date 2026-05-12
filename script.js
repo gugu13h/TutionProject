@@ -118,6 +118,7 @@ window.closeStudentModal = closeStudentModal;
 window.closeFeeReminderModal = closeFeeReminderModal;
 window.studentAttendance = studentAttendance;
 window.stopClassTimer = stopClassTimer;
+window.removeStudentFromSchedule = removeStudentFromSchedule;
 window.sendWhatsApp = sendWhatsApp;
 window.openTeacherWhatsApp = openTeacherWhatsApp;
 window.uploadTeacherPhoto = uploadTeacherPhoto;
@@ -1312,9 +1313,65 @@ function getScheduleAttendanceHtml(student, scheduleId) {
       <button class="secondary-btn compact-btn" style="font-size: 11px; padding: 3px 8px;" onclick="studentAttendance('${scheduleId}', '${student.id}', 'holiday', 'teacher')">Mark Holiday</button>
       <button class="secondary-btn compact-btn" style="font-size: 11px; padding: 3px 8px; background:#dc2626; color:#fff;" onclick="studentAttendance('${scheduleId}', '${student.id}', 'not-coming', 'teacher')">Mark Absent</button>
       <button class="secondary-btn compact-btn" style="font-size: 11px; padding: 3px 8px; background:#0f766e; color:#fff;" onclick="studentAttendance('${scheduleId}', '${student.id}', 'coming', 'teacher')">Mark Present</button>
+      <button class="secondary-btn compact-btn" style="font-size: 11px; padding: 3px 8px; background:#b91c1c; color:#fff;" onclick="removeStudentFromSchedule('${scheduleId}', '${student.id}')">Remove</button>
     </div>
   `;
   return `- ${student.name} (${student.id})${feeMarkup} - ${getAttendanceStatusText(student)} ${reasonMarkup}${attendanceButtons}`;
+}
+
+async function removeStudentFromSchedule(scheduleId, studentId) {
+  if (!isFirebaseReady()) {
+    alert(FIREBASE_WARNING);
+    return;
+  }
+
+  const scheduleIndex = schedules.findIndex((schedule) => schedule.firestoreId === scheduleId);
+  if (scheduleIndex === -1) {
+    alert("Schedule not found");
+    return;
+  }
+
+  const schedule = schedules[scheduleIndex];
+  const student = schedule.students.find((s) => s.id === studentId);
+  if (!student) {
+    alert("Student not found in schedule");
+    return;
+  }
+
+  if (!confirm(`Remove ${student.name} from this class schedule?`)) {
+    return;
+  }
+
+  const remainingStudents = schedule.students.filter((s) => s.id !== studentId);
+  try {
+    if (remainingStudents.length === 0) {
+      await deleteScheduleRecord(schedule.firestoreId);
+      schedules.splice(scheduleIndex, 1);
+      alert("Student removed and class schedule deleted because no students remain.");
+    } else {
+      const updatedSchedule = {
+        date: schedule.date,
+        time: schedule.time,
+        day: schedule.day,
+        classStoppedAt: schedule.classStoppedAt || null,
+        students: remainingStudents
+      };
+      await updateScheduleRecord(schedule.firestoreId, updatedSchedule);
+      schedules[scheduleIndex] = { firestoreId: schedule.firestoreId, ...updatedSchedule };
+      alert("Student removed from class schedule.");
+    }
+
+    loadSchedules();
+    showStudents();
+
+    const currentStudentId = loginStudentId.value.trim();
+    if (currentStudentId === studentId) {
+      loadStudentData({ openModalAfterLoad: true, showFeeReminder: false });
+    }
+  } catch (error) {
+    console.error(error);
+    alert("Unable to update class schedule");
+  }
 }
 
 function sendWhatsApp() {
