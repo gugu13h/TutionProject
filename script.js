@@ -85,6 +85,15 @@ const SCHEDULE_CLEANUP_INTERVAL_MS = 60 * 1000;
 const CLASS_TIMER_DURATION_MS = 60 * 60 * 1000;
 const DEFAULT_HOME_NOTICE = "No notice yet.";
 const RANCHI_WEATHER_URL = "https://api.open-meteo.com/v1/forecast?latitude=23.3441&longitude=85.3096&current=temperature_2m,weather_code&timezone=auto";
+const WEATHER_THEME_CLASSES = [
+  "weather-ready",
+  "weather-sunny",
+  "weather-cloudy",
+  "weather-cold",
+  "weather-rainy",
+  "weather-foggy",
+  "weather-thunder"
+];
 const RESET_STUDENT_IDS = [];
 const INITIAL_STUDENTS = [
   { id: "101", name: "Anushak Kumari", feePending: false, feeAmount: 0, feeHistory: {}, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY, subjectRatings: { maths: 0, science: 0 } },
@@ -1829,13 +1838,47 @@ async function loadRanchiWeather() {
       throw new Error("Weather temperature missing");
     }
 
-    ranchiTemperature.textContent = `${temperature}°C`;
+    ranchiTemperature.textContent = `${temperature}\u00B0C`;
     ranchiWeatherText.textContent = getWeatherDescription(weatherCode);
+    applyWeatherTheme(getWeatherTheme(weatherCode, temperature));
   } catch (error) {
     console.error(error);
     ranchiTemperature.textContent = "--";
     ranchiWeatherText.textContent = "Weather unavailable";
+    applyWeatherTheme("");
   }
+}
+
+function applyWeatherTheme(themeName) {
+  document.body.classList.remove(...WEATHER_THEME_CLASSES);
+
+  if (!themeName) {
+    return;
+  }
+
+  document.body.classList.add("weather-ready", `weather-${themeName}`);
+}
+
+function getWeatherTheme(weatherCode, temperature) {
+  if (Number.isFinite(temperature) && temperature <= 16) {
+    return "cold";
+  }
+  if ([95, 96, 99].includes(weatherCode)) {
+    return "thunder";
+  }
+  if ([61, 63, 65, 66, 67, 80, 81, 82, 51, 53, 55, 56, 57].includes(weatherCode)) {
+    return "rainy";
+  }
+  if ([45, 48].includes(weatherCode)) {
+    return "foggy";
+  }
+  if ([3].includes(weatherCode)) {
+    return "cloudy";
+  }
+  if ([0, 1, 2].includes(weatherCode)) {
+    return "sunny";
+  }
+  return "cloudy";
 }
 
 function getWeatherDescription(weatherCode) {
