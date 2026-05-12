@@ -31,7 +31,8 @@ const firebaseConfig = {
 const COLLECTIONS = {
   students: "students",
   schedules: "schedules",
-  teacherProfiles: "teacherProfiles"
+  teacherProfiles: "teacherProfiles",
+  attendanceHistory: "attendanceHistory"
 };
 
 const isConfigured = Object.values(firebaseConfig).every(
@@ -175,4 +176,44 @@ async function getDocSafe(ref) {
 async function updateDocSafe(ref, data) {
   const { setDoc } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
   await setDoc(ref, data, { merge: true });
+}
+
+// Attendance History Functions
+export async function getAttendanceHistory(studentId) {
+  ensureConfigured();
+  const attendanceQuery = query(
+    collection(db, COLLECTIONS.attendanceHistory),
+    where("studentId", "==", studentId),
+    orderBy("date", "desc")
+  );
+  const snapshot = await getDocs(attendanceQuery);
+  return snapshot.docs.map((doc) => ({
+    firestoreId: doc.id,
+    ...doc.data()
+  }));
+}
+
+export async function addAttendanceRecord(attendanceData) {
+  ensureConfigured();
+  const docRef = await addDoc(collection(db, COLLECTIONS.attendanceHistory), {
+    ...attendanceData,
+    createdAt: serverTimestamp()
+  });
+  return docRef.id;
+}
+
+export async function getAttendanceHistoryByDateRange(studentId, startDate, endDate) {
+  ensureConfigured();
+  const attendanceQuery = query(
+    collection(db, COLLECTIONS.attendanceHistory),
+    where("studentId", "==", studentId),
+    where("date", ">=", startDate),
+    where("date", "<=", endDate),
+    orderBy("date", "desc")
+  );
+  const snapshot = await getDocs(attendanceQuery);
+  return snapshot.docs.map((doc) => ({
+    firestoreId: doc.id,
+    ...doc.data()
+  }));
 }
