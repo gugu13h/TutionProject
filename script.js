@@ -14,6 +14,7 @@ import {
   updateStudentRecord,
   watchTeacherAuthState,
   addAttendanceRecord,
+  setAttendanceRecordForDate,
   getAttendanceHistory,
   getAttendanceHistoryByDateRange
 } from "./firebase-api.js";
@@ -137,6 +138,7 @@ window.setStudentFeeMonthStatus = setStudentFeeMonthStatus;
 window.toggleTeacherStudentDetails = toggleTeacherStudentDetails;
 window.toggleThemeMode = toggleThemeMode;
 window.toggleAttendanceMonth = toggleAttendanceMonth;
+window.setAttendanceFromCalendar = setAttendanceFromCalendar;
 
 initializeThemeMode();
 initializeScheduleDefaults();
@@ -349,7 +351,7 @@ function showStudents() {
             <strong>Overall Rating:</strong> ${overallText}
             <button class="secondary-btn compact-btn student-more-btn" onclick="toggleStudentMore(this)">Show More</button>
             <div class="student-more-details hidden">
-              ${getAttendanceCalendarHtml(student.id)}
+              ${getAttendanceCalendarHtml(student.id, new Date(), { editable: true })}
               ${getFeeMonthCalendarHtml(student, new Date(), { editable: true, studentIndex: index })}
             </div>
           </div>
@@ -1126,13 +1128,14 @@ function toggleStudentMore(button) {
   }
 }
 
-function getAttendanceCalendarHtml(studentId, referenceDate = new Date()) {
+function getAttendanceCalendarHtml(studentId, referenceDate = new Date(), options = {}) {
   // Show only current month by default; previous month is hidden until toggled.
   const currentMonth = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), 1);
   const previousMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
+  const editable = Boolean(options.editable);
 
-  const currentMonthHtml = buildMonthCalendar(studentId, currentMonth.getFullYear(), currentMonth.getMonth());
-  const previousMonthHtml = buildMonthCalendar(studentId, previousMonth.getFullYear(), previousMonth.getMonth());
+  const currentMonthHtml = buildMonthCalendar(studentId, currentMonth.getFullYear(), currentMonth.getMonth(), { editable });
+  const previousMonthHtml = buildMonthCalendar(studentId, previousMonth.getFullYear(), previousMonth.getMonth(), { editable });
 
   return `
     <div class="attendance-calendar-toggle" style="margin-bottom: 12px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: center;">
@@ -1150,6 +1153,7 @@ function getAttendanceCalendarHtml(studentId, referenceDate = new Date()) {
       <span><i class="status-not-coming"></i>Absent</span>
       <span><i class="status-holiday"></i>Holiday</span>
     </div>
+    ${editable ? `<div class="attendance-calendar-help">Click a date to change attendance.</div>` : ""}
   `;
 }
 
@@ -1180,7 +1184,7 @@ function toggleAttendanceMonth(button) {
   }
 }
 
-function buildMonthCalendar(studentId, year, month) {
+function buildMonthCalendar(studentId, year, month, options = {}) {
   const monthLabel = new Date(year, month, 1).toLocaleString("en-US", {
     month: "long",
     year: "numeric"
@@ -1190,11 +1194,15 @@ function buildMonthCalendar(studentId, year, month) {
   const attendanceByDate = getStudentAttendanceByDate(studentId, year, month);
   const dayLabels = ["S", "M", "T", "W", "T", "F", "S"];
   const blanks = Array.from({ length: firstDay.getDay() }, () => `<span class="attendance-calendar-day is-empty"></span>`);
+  const editable = Boolean(options.editable);
   const days = Array.from({ length: totalDays }, (_, dayIndex) => {
     const day = dayIndex + 1;
     const dateKey = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     const status = attendanceByDate[dateKey] || "none";
     const label = getAttendanceCalendarLabel(status);
+    if (editable) {
+      return `<button type="button" class="attendance-calendar-day attendance-calendar-action status-${status}" title="${label}. Click to change" onclick='setAttendanceFromCalendar(${JSON.stringify(studentId)}, ${JSON.stringify(dateKey)}, ${JSON.stringify(status)})'>${day}</button>`;
+    }
     return `<span class="attendance-calendar-day status-${status}" title="${label}">${day}</span>`;
   });
 
@@ -1238,25 +1246,46 @@ function getStudentAttendanceByDate(studentId, year, month) {
 
   // Get attendance from history cache
   if (attendanceHistoryCache[studentId]) {
+    const latestHistoryByDate = {};
     attendanceHistoryCache[studentId].forEach((record) => {
       const recordDate = parseScheduleDate(record.date);
       if (!recordDate || recordDate.getFullYear() !== year || recordDate.getMonth() !== month) {
         return;
       }
 
-      const status = record.status || "pending";
-      if (!["coming", "not-coming", "holiday"].includes(status)) {
+      if (attendanceByDate[record.date]) {
         return;
       }
 
-      // Only use history if not already in current schedules
-      if (!attendanceByDate[record.date]) {
-        attendanceByDate[record.date] = status;
+      const currentRecord = latestHistoryByDate[record.date];
+      if (!currentRecord || getAttendanceRecordTime(record) >= getAttendanceRecordTime(currentRecord)) {
+        latestHistoryByDate[record.date] = record;
+      }
+    });
+
+    Object.entries(latestHistoryByDate).forEach(([date, record]) => {
+      const status = record.status || "pending";
+      if (["coming", "not-coming", "holiday"].includes(status)) {
+        attendanceByDate[date] = status;
       }
     });
   }
 
   return attendanceByDate;
+}
+
+function getAttendanceRecordTime(record) {
+  const timestamp = record?.updatedAt || record?.createdAt;
+  if (timestamp instanceof Date) {
+    return timestamp.getTime();
+  }
+  if (timestamp?.toMillis) {
+    return timestamp.toMillis();
+  }
+  if (timestamp?.seconds) {
+    return timestamp.seconds * 1000;
+  }
+  return 0;
 }
 
 function parseScheduleDate(dateValue) {
@@ -1295,6 +1324,101 @@ function getAttendanceCalendarLabel(status) {
     return "Holiday";
   }
   return "No attendance";
+}
+
+async function setAttendanceFromCalendar(studentId, dateKey, currentStatus = "none") {
+  if (!isFirebaseReady()) {
+    alert(FIREBASE_WARNING);
+    return;
+  }
+
+  const student = students.find((studentRecord) => studentRecord.id === studentId);
+  if (!student) {
+    alert("Student not found");
+    return;
+  }
+
+  const currentLabel = getAttendanceCalendarLabel(currentStatus);
+  const choice = prompt(
+    `Set attendance for ${student.name} on ${dateKey}\nP = Present\nA = Absent\nH = Holiday\nC = Clear\n\nCurrent: ${currentLabel}`,
+    currentStatus === "not-coming" ? "A" : currentStatus === "holiday" ? "H" : currentStatus === "coming" ? "P" : ""
+  );
+
+  if (choice === null) {
+    return;
+  }
+
+  const normalizedChoice = choice.trim().toLowerCase();
+  const statusMap = {
+    p: "coming",
+    present: "coming",
+    a: "not-coming",
+    absent: "not-coming",
+    h: "holiday",
+    holiday: "holiday",
+    c: "none",
+    clear: "none"
+  };
+  const status = statusMap[normalizedChoice];
+
+  if (!status) {
+    alert("Use P for Present, A for Absent, H for Holiday, or C to clear.");
+    return;
+  }
+
+  let reason = "";
+  if (status === "holiday") {
+    reason = askHolidayReason();
+    if (reason === null) {
+      return;
+    }
+  } else if (status === "not-coming") {
+    reason = "Marked absent by teacher";
+  }
+
+  const schedule = schedules.find((scheduleRecord) =>
+    scheduleRecord.date === dateKey &&
+    scheduleRecord.students.some((scheduleStudent) => scheduleStudent.id === studentId)
+  );
+
+  if (schedule) {
+    await updateStudentAttendance(schedule.firestoreId, studentId, status, reason);
+    return;
+  }
+
+  try {
+    const attendanceData = {
+      studentId,
+      date: dateKey,
+      day: getDayNameFromDateKey(dateKey),
+      time: "",
+      status,
+      reason,
+      scheduleId: "manual-calendar"
+    };
+    const firestoreId = await setAttendanceRecordForDate(attendanceData);
+    addAttendanceRecordToCache({ firestoreId, ...attendanceData, updatedAt: new Date() });
+    showStudents();
+
+    const currentStudentId = loginStudentId.value.trim();
+    if (currentStudentId === studentId) {
+      loadStudentData({ openModalAfterLoad: true, showFeeReminder: false });
+    }
+
+    alert("Attendance status saved");
+  } catch (error) {
+    console.error(error);
+    alert("Unable to save attendance status");
+  }
+}
+
+function getDayNameFromDateKey(dateKey) {
+  const parsedDate = parseScheduleDate(dateKey);
+  if (!parsedDate) {
+    return "";
+  }
+
+  return parsedDate.toLocaleString("en-US", { weekday: "long" });
 }
 
 function buildStudentAbsenceMessage(schedule, student, customMessage) {
@@ -1415,8 +1539,8 @@ async function updateStudentAttendance(scheduleId, studentId, status, reason) {
       reason: reason || "",
       scheduleId: scheduleId
     };
-    await addAttendanceRecord(attendanceData);
-    addAttendanceRecordToCache(attendanceData);
+    const firestoreId = await setAttendanceRecordForDate(attendanceData);
+    addAttendanceRecordToCache({ firestoreId, ...attendanceData, updatedAt: new Date() });
     
     schedules[scheduleIndex] = { firestoreId: schedule.firestoreId, ...updatedSchedule };
     loadSchedules();
@@ -1524,6 +1648,7 @@ function sendWhatsApp() {
 async function refreshFirestoreData() {
   students = await getStudents();
   schedules = await getSchedules();
+  await Promise.all(students.map((student) => loadAttendanceHistoryForStudent(student.id)));
   await removeExpiredSchedules({ refreshViews: false });
   showStudents();
   showStudentCheckList();

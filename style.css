@@ -2405,6 +2405,20 @@ body.theme-night .attendance-calendar {
   font-weight: 700;
 }
 
+.attendance-calendar-action {
+  border: 0;
+  cursor: pointer;
+  font-family: inherit;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.attendance-calendar-action:hover,
+.attendance-calendar-action:focus-visible {
+  box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.26);
+  outline: none;
+  transform: translateY(-1px);
+}
+
 .attendance-calendar-day.is-empty {
   background: transparent;
 }
@@ -2457,6 +2471,13 @@ body.theme-night .attendance-calendar {
 
 .attendance-calendar-legend .status-holiday {
   background: #f59e0b;
+}
+
+.attendance-calendar-help {
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
 }
 
 .fee-month-calendar {

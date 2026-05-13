@@ -202,6 +202,18 @@ export async function addAttendanceRecord(attendanceData) {
   return docRef.id;
 }
 
+export async function setAttendanceRecordForDate(attendanceData) {
+  ensureConfigured();
+  const safeStudentId = encodeURIComponent(String(attendanceData.studentId || ""));
+  const safeDate = encodeURIComponent(String(attendanceData.date || ""));
+  const attendanceRef = doc(db, COLLECTIONS.attendanceHistory, `${safeStudentId}_${safeDate}`);
+  await updateDocSafe(attendanceRef, {
+    ...attendanceData,
+    updatedAt: serverTimestamp()
+  });
+  return attendanceRef.id;
+}
+
 export async function getAttendanceHistoryByDateRange(studentId, startDate, endDate) {
   ensureConfigured();
   const attendanceQuery = query(
