@@ -326,6 +326,61 @@ body.theme-night .language-toggle-btn {
   border-color: rgba(148, 163, 184, 0.32);
 }
 
+.about-teacher-btn {
+  position: fixed;
+  top: 18px;
+  right: 134px;
+  z-index: 20;
+  min-height: 48px;
+  max-width: min(210px, calc(100vw - 156px));
+  padding: 6px 14px 6px 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #172033;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.14);
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  text-decoration: none;
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1.1;
+  touch-action: none;
+  user-select: none;
+  cursor: grab;
+}
+
+.about-teacher-btn:hover {
+  box-shadow: 0 16px 28px rgba(15, 23, 42, 0.18);
+  transform: translateY(-1px);
+}
+
+.about-teacher-btn.is-dragging {
+  cursor: grabbing;
+  transform: scale(1.02);
+}
+
+.about-teacher-btn img {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(15, 118, 110, 0.32);
+  background: #f8fafc;
+}
+
+.about-teacher-btn span {
+  overflow-wrap: anywhere;
+}
+
+body.theme-night .about-teacher-btn {
+  background: rgba(15, 23, 42, 0.9);
+  color: #edf2ff;
+  border-color: rgba(148, 163, 184, 0.32);
+}
+
 .theme-toggle-icon {
   position: relative;
   width: 22px;
@@ -2933,6 +2988,21 @@ body.theme-night .fee-month-calendar {
 
   .language-toggle-btn {
     right: 60px;
+  }
+
+  .about-teacher-btn {
+    top: 10px;
+    right: 110px;
+    min-height: 42px;
+    max-width: calc(100vw - 162px);
+    padding: 5px 10px 5px 5px;
+    font-size: 0.72rem;
+  }
+
+  .about-teacher-btn img {
+    width: 32px;
+    height: 32px;
+    flex-basis: 32px;
   }
 
   .app-shell {

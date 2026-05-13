@@ -57,6 +57,8 @@ const teacherLoginPhoto = document.getElementById("teacherLoginPhoto");
 const teacherDashboardPhoto = document.getElementById("teacherDashboardPhoto");
 const teacherPhotoFile = document.getElementById("teacherPhotoFile");
 const teacherLoginPhotoFile = document.getElementById("teacherLoginPhotoFile");
+const aboutTeacherBtn = document.getElementById("aboutTeacherBtn");
+const aboutTeacherPhoto = document.getElementById("aboutTeacherPhoto");
 const teacherNoticeInput = document.getElementById("teacherNoticeInput");
 const homeNoticeText = document.getElementById("homeNoticeText");
 const ranchiTemperature = document.getElementById("ranchiTemperature");
@@ -153,6 +155,7 @@ initializeStudentModal();
 initializeFeeReminderModal();
 initializeStudentRegisterForm();
 initializeScheduleForm();
+initializeAboutTeacherButton();
 startScheduleCleanupLoop();
 startStudentCountdownLoop();
 startTeacherScheduleLoop();
@@ -2138,6 +2141,9 @@ function applyTeacherProfile() {
   const teacherPhoto = teacherProfile?.photoUrl || DEFAULT_TEACHER_PHOTO;
   teacherLoginPhoto.src = teacherPhoto;
   teacherDashboardPhoto.src = teacherPhoto;
+  if (aboutTeacherPhoto) {
+    aboutTeacherPhoto.src = teacherPhoto;
+  }
   const notice = teacherProfile?.notice?.trim() || DEFAULT_HOME_NOTICE;
 
   if (homeNoticeText) {
@@ -2147,6 +2153,98 @@ function applyTeacherProfile() {
   if (teacherNoticeInput) {
     teacherNoticeInput.value = teacherProfile?.notice || "";
   }
+}
+
+function initializeAboutTeacherButton() {
+  if (!aboutTeacherBtn) {
+    return;
+  }
+
+  const savedPosition = getSavedAboutTeacherButtonPosition();
+  if (savedPosition) {
+    setAboutTeacherButtonPosition(savedPosition.left, savedPosition.top);
+  }
+
+  let startX = 0;
+  let startY = 0;
+  let startLeft = 0;
+  let startTop = 0;
+  let hasDragged = false;
+
+  aboutTeacherBtn.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0) {
+      return;
+    }
+
+    const rect = aboutTeacherBtn.getBoundingClientRect();
+    startX = event.clientX;
+    startY = event.clientY;
+    startLeft = rect.left;
+    startTop = rect.top;
+    hasDragged = false;
+    aboutTeacherBtn.classList.add("is-dragging");
+    aboutTeacherBtn.setPointerCapture(event.pointerId);
+  });
+
+  aboutTeacherBtn.addEventListener("pointermove", (event) => {
+    if (!aboutTeacherBtn.classList.contains("is-dragging")) {
+      return;
+    }
+
+    const nextLeft = startLeft + event.clientX - startX;
+    const nextTop = startTop + event.clientY - startY;
+    if (Math.abs(event.clientX - startX) > 4 || Math.abs(event.clientY - startY) > 4) {
+      hasDragged = true;
+    }
+    setAboutTeacherButtonPosition(nextLeft, nextTop);
+  });
+
+  aboutTeacherBtn.addEventListener("pointerup", (event) => {
+    if (!aboutTeacherBtn.classList.contains("is-dragging")) {
+      return;
+    }
+
+    aboutTeacherBtn.classList.remove("is-dragging");
+    aboutTeacherBtn.releasePointerCapture(event.pointerId);
+    const rect = aboutTeacherBtn.getBoundingClientRect();
+    localStorage.setItem("aboutTeacherButtonPosition", JSON.stringify({ left: rect.left, top: rect.top }));
+
+    if (hasDragged) {
+      aboutTeacherBtn.dataset.skipClick = "true";
+    }
+  });
+
+  aboutTeacherBtn.addEventListener("click", (event) => {
+    if (aboutTeacherBtn.dataset.skipClick === "true") {
+      event.preventDefault();
+      delete aboutTeacherBtn.dataset.skipClick;
+    }
+  });
+}
+
+function getSavedAboutTeacherButtonPosition() {
+  try {
+    const savedPosition = JSON.parse(localStorage.getItem("aboutTeacherButtonPosition") || "null");
+    if (!savedPosition || !Number.isFinite(savedPosition.left) || !Number.isFinite(savedPosition.top)) {
+      return null;
+    }
+    return savedPosition;
+  } catch (error) {
+    return null;
+  }
+}
+
+function setAboutTeacherButtonPosition(left, top) {
+  if (!aboutTeacherBtn) {
+    return;
+  }
+
+  const rect = aboutTeacherBtn.getBoundingClientRect();
+  const safeLeft = Math.max(8, Math.min(window.innerWidth - rect.width - 8, left));
+  const safeTop = Math.max(8, Math.min(window.innerHeight - rect.height - 8, top));
+  aboutTeacherBtn.style.left = `${safeLeft}px`;
+  aboutTeacherBtn.style.top = `${safeTop}px`;
+  aboutTeacherBtn.style.right = "auto";
 }
 
 async function loadRanchiWeather() {
