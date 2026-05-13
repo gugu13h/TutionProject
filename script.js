@@ -136,6 +136,7 @@ window.toggleStudentMore = toggleStudentMore;
 window.setStudentFeeMonthStatus = setStudentFeeMonthStatus;
 window.toggleTeacherStudentDetails = toggleTeacherStudentDetails;
 window.toggleThemeMode = toggleThemeMode;
+window.toggleAttendanceMonth = toggleAttendanceMonth;
 
 initializeThemeMode();
 initializeScheduleDefaults();
@@ -597,7 +598,7 @@ async function removeExpiredSchedules(options = {}) {
           const attendanceStatus = student.attendanceStatus || "pending";
           if (["coming", "not-coming", "holiday"].includes(attendanceStatus)) {
             try {
-              await addAttendanceRecord({
+              const attendanceData = {
                 studentId: student.id,
                 date: schedule.date,
                 day: schedule.day,
@@ -605,7 +606,9 @@ async function removeExpiredSchedules(options = {}) {
                 status: attendanceStatus,
                 reason: student.attendanceReason || "",
                 scheduleId: schedule.firestoreId
-              });
+              };
+              await addAttendanceRecord(attendanceData);
+              addAttendanceRecordToCache(attendanceData);
             } catch (error) {
               console.error("Failed to save attendance history:", error);
             }
@@ -921,13 +924,24 @@ async function loadAttendanceHistoryForStudent(studentId) {
   }
 }
 
-function loadStudentData(options = {}) {
+function addAttendanceRecordToCache(attendanceData) {
+  if (!attendanceData?.studentId) {
+    return;
+  }
+
+  const studentHistory = attendanceHistoryCache[attendanceData.studentId] || [];
+  attendanceHistoryCache[attendanceData.studentId] = [
+    attendanceData,
+    ...studentHistory
+  ];
+}
+
+async function loadStudentData(options = {}) {
   const { openModalAfterLoad, showFeeReminder } = normalizeLoadStudentDataOptions(options);
   const id = loginStudentId.value.trim();
   
-  // Load attendance history asynchronously
   if (id && isFirebaseReady()) {
-    loadAttendanceHistoryForStudent(id).catch(error => {
+    await loadAttendanceHistoryForStudent(id).catch(error => {
       console.error("Failed to load attendance history:", error);
     });
   }
@@ -1113,25 +1127,57 @@ function toggleStudentMore(button) {
 }
 
 function getAttendanceCalendarHtml(studentId, referenceDate = new Date()) {
-  // Show current month and previous month
+  // Show only current month by default; previous month is hidden until toggled.
   const currentMonth = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), 1);
   const previousMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
-  
-  // Build calendars for both months
+
   const currentMonthHtml = buildMonthCalendar(studentId, currentMonth.getFullYear(), currentMonth.getMonth());
   const previousMonthHtml = buildMonthCalendar(studentId, previousMonth.getFullYear(), previousMonth.getMonth());
 
   return `
-    <div style="display: flex; gap: 15px; flex-wrap: wrap;">
-      ${previousMonthHtml}
-      ${currentMonthHtml}
+    <div class="attendance-calendar-toggle" style="margin-bottom: 12px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: center;">
+      <strong style="font-size: 0.98rem; color: #334155;">Attendance Calendar</strong>
+      <button type="button" class="secondary-btn compact-btn attendance-toggle-btn" onclick="toggleAttendanceMonth(this)" title="Show previous month" aria-label="Toggle previous month">
+        <span class="toggle-arrow">▼</span>
+      </button>
     </div>
-    <div class="attendance-calendar-legend" style="margin-top: 15px;">
+    <div class="attendance-calendar-months" style="display: flex; gap: 15px; flex-wrap: wrap;">
+      <div class="attendance-calendar-current" style="flex: 1; min-width: 250px;">${currentMonthHtml}</div>
+      <div class="attendance-calendar-previous" style="flex: 1; min-width: 250px; display: none;">${previousMonthHtml}</div>
+    </div>
+    <div class="attendance-calendar-legend" style="margin-top: 15px; display: flex; gap: 14px; flex-wrap: wrap; font-size: 0.92rem; color: #475569;">
       <span><i class="status-coming"></i>Present</span>
       <span><i class="status-not-coming"></i>Absent</span>
       <span><i class="status-holiday"></i>Holiday</span>
     </div>
   `;
+}
+
+function toggleAttendanceMonth(button) {
+  const container = button.closest('.attendance-calendar-toggle');
+  if (!container) {
+    return;
+  }
+
+  const parent = container.nextElementSibling;
+  if (!parent) {
+    return;
+  }
+
+  const previousMonthContainer = parent.querySelector('.attendance-calendar-previous');
+  if (!previousMonthContainer) {
+    return;
+  }
+
+  const arrow = button.querySelector('.toggle-arrow');
+  const isHidden = previousMonthContainer.style.display === 'none' || previousMonthContainer.style.display === '';
+  previousMonthContainer.style.display = isHidden ? 'block' : 'none';
+  
+  if (arrow) {
+    arrow.textContent = isHidden ? '▲' : '▼';
+    button.title = isHidden ? 'Hide previous month' : 'Show previous month';
+    button.setAttribute('aria-label', isHidden ? 'Hide previous month' : 'Show previous month');
+  }
 }
 
 function buildMonthCalendar(studentId, year, month) {
@@ -1360,7 +1406,7 @@ async function updateStudentAttendance(scheduleId, studentId, status, reason) {
     await updateScheduleRecord(schedule.firestoreId, updatedSchedule);
     
     // Save attendance to history for persistence
-    await addAttendanceRecord({
+    const attendanceData = {
       studentId: studentId,
       date: schedule.date,
       day: schedule.day,
@@ -1368,7 +1414,9 @@ async function updateStudentAttendance(scheduleId, studentId, status, reason) {
       status: status,
       reason: reason || "",
       scheduleId: scheduleId
-    });
+    };
+    await addAttendanceRecord(attendanceData);
+    addAttendanceRecordToCache(attendanceData);
     
     schedules[scheduleIndex] = { firestoreId: schedule.firestoreId, ...updatedSchedule };
     loadSchedules();
