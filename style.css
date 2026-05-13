@@ -1473,6 +1473,8 @@ body.theme-night .teacher-science-scene .formula-chip {
 }
 
 #loginPage .teacher-photo-container .profile-avatar {
+  width: 104px;
+  height: 104px;
   border-color: rgba(205, 113, 113, 0.95);
   background: linear-gradient(135deg, #fef3c7, #dbeafe);
   box-shadow: 0 18px 28px rgba(14, 116, 144, 0.16);
@@ -1775,6 +1777,11 @@ body.theme-night .dashboard-page .panel-card {
 .dashboard-page .profile-avatar {
   border-color: rgba(255, 255, 255, 0.92);
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.96) 0%, var(--bg-soft) 100%);
+}
+
+#teacherDashboardPhoto {
+  width: 156px;
+  height: 156px;
 }
 
 .dashboard-page .register-form-panel {
