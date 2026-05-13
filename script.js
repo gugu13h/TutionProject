@@ -61,6 +61,7 @@ const teacherNoticeInput = document.getElementById("teacherNoticeInput");
 const homeNoticeText = document.getElementById("homeNoticeText");
 const ranchiTemperature = document.getElementById("ranchiTemperature");
 const ranchiWeatherText = document.getElementById("ranchiWeatherText");
+const ranchiWeatherIcon = document.getElementById("ranchiWeatherIcon");
 const whatsappMsg = document.getElementById("whatsappMsg");
 const feePending = document.getElementById("feePending");
 const studentSubmitBtn = document.getElementById("studentSubmitBtn");
@@ -89,7 +90,7 @@ const SCHEDULE_AUTO_DELETE_AFTER_HOURS = 3;
 const SCHEDULE_CLEANUP_INTERVAL_MS = 60 * 1000;
 const CLASS_TIMER_DURATION_MS = 60 * 60 * 1000;
 const DEFAULT_HOME_NOTICE = "No notice yet.";
-const RANCHI_WEATHER_URL = "https://api.open-meteo.com/v1/forecast?latitude=23.3441&longitude=85.3096&current=temperature_2m,weather_code&timezone=auto";
+const RANCHI_WEATHER_URL = "https://api.open-meteo.com/v1/forecast?latitude=23.3441&longitude=85.3096&current=temperature_2m,weather_code,is_day&timezone=auto";
 const WEATHER_THEME_CLASSES = [
   "weather-ready",
   "weather-sunny",
@@ -98,6 +99,12 @@ const WEATHER_THEME_CLASSES = [
   "weather-rainy",
   "weather-foggy",
   "weather-thunder"
+];
+const WEATHER_ICON_CLASSES = [
+  "weather-icon-sun",
+  "weather-icon-moon",
+  "weather-icon-cloud-sun",
+  "weather-icon-drop"
 ];
 const RESET_STUDENT_IDS = [];
 const INITIAL_STUDENTS = [
@@ -2156,6 +2163,7 @@ async function loadRanchiWeather() {
     const weatherData = await response.json();
     const temperature = Math.round(Number(weatherData?.current?.temperature_2m));
     const weatherCode = Number(weatherData?.current?.weather_code);
+    const isDay = Number(weatherData?.current?.is_day) === 1;
 
     if (!Number.isFinite(temperature)) {
       throw new Error("Weather temperature missing");
@@ -2163,17 +2171,21 @@ async function loadRanchiWeather() {
 
     ranchiTemperature.textContent = `${temperature}\u00B0C`;
     ranchiWeatherText.textContent = getWeatherDescription(weatherCode);
-    applyWeatherTheme(getWeatherTheme(weatherCode, temperature));
+    applyWeatherTheme(getWeatherTheme(weatherCode, temperature), getWeatherIcon(weatherCode, isDay));
   } catch (error) {
     console.error(error);
     ranchiTemperature.textContent = "--";
     ranchiWeatherText.textContent = "Weather unavailable";
-    applyWeatherTheme("");
+    applyWeatherTheme("", "sun");
   }
 }
 
-function applyWeatherTheme(themeName) {
+function applyWeatherTheme(themeName, iconName = "sun") {
   document.body.classList.remove(...WEATHER_THEME_CLASSES);
+  if (ranchiWeatherIcon) {
+    ranchiWeatherIcon.classList.remove(...WEATHER_ICON_CLASSES);
+    ranchiWeatherIcon.classList.add(`weather-icon-${iconName}`);
+  }
 
   if (!themeName) {
     return;
@@ -2202,6 +2214,16 @@ function getWeatherTheme(weatherCode, temperature) {
     return "sunny";
   }
   return "cloudy";
+}
+
+function getWeatherIcon(weatherCode, isDay) {
+  if ([95, 96, 99, 61, 63, 65, 66, 67, 80, 81, 82, 51, 53, 55, 56, 57].includes(weatherCode)) {
+    return "drop";
+  }
+  if ([1, 2, 3, 45, 48].includes(weatherCode)) {
+    return "cloud-sun";
+  }
+  return isDay ? "sun" : "moon";
 }
 
 function getWeatherDescription(weatherCode) {

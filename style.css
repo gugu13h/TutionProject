@@ -489,16 +489,97 @@ body.weather-ready .weather-card {
   box-shadow: 0 18px 34px var(--weather-shadow);
 }
 
-.weather-card::after {
-  content: "";
+.weather-icon {
   position: absolute;
   right: 14px;
   top: 16px;
-  width: 46px;
-  height: 46px;
-  border-radius: 50%;
-  opacity: 0;
+  width: 54px;
+  height: 54px;
   pointer-events: none;
+}
+
+.weather-card::after {
+  content: none;
+}
+
+.weather-icon::before,
+.weather-icon::after {
+  content: "";
+  position: absolute;
+  display: block;
+}
+
+.weather-icon-sun {
+  border-radius: 50%;
+  background: #facc15;
+  box-shadow: 0 0 0 10px rgba(250, 204, 21, 0.18), 0 0 28px rgba(245, 158, 11, 0.42);
+}
+
+.weather-icon-sun::before {
+  inset: -7px;
+  border-radius: 50%;
+  background:
+    linear-gradient(#f59e0b, #f59e0b) center top / 4px 9px no-repeat,
+    linear-gradient(#f59e0b, #f59e0b) center bottom / 4px 9px no-repeat,
+    linear-gradient(90deg, #f59e0b, #f59e0b) left center / 9px 4px no-repeat,
+    linear-gradient(90deg, #f59e0b, #f59e0b) right center / 9px 4px no-repeat;
+}
+
+.weather-icon-moon {
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 64% 32%, rgba(255, 255, 255, 0) 0 18px, #e0f2fe 19px 29px, rgba(255, 255, 255, 0) 30px);
+  filter: drop-shadow(0 0 18px rgba(224, 242, 254, 0.5));
+}
+
+.weather-icon-moon::after {
+  right: 9px;
+  top: 12px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(224, 242, 254, 0.88);
+  box-shadow: -18px 19px 0 -1px rgba(224, 242, 254, 0.72), -8px 30px 0 -2px rgba(224, 242, 254, 0.62);
+}
+
+.weather-icon-cloud-sun::before {
+  right: 3px;
+  top: 2px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #facc15;
+  box-shadow: 0 0 22px rgba(245, 158, 11, 0.42);
+}
+
+.weather-icon-cloud-sun::after {
+  left: 0;
+  bottom: 6px;
+  width: 46px;
+  height: 23px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 12px -8px 0 2px rgba(226, 232, 240, 0.95), 27px 1px 0 -1px rgba(203, 213, 225, 0.86);
+}
+
+.weather-icon-drop {
+  width: 38px;
+  height: 50px;
+  right: 22px;
+  top: 14px;
+  border-radius: 50% 50% 55% 55%;
+  background: linear-gradient(160deg, #93c5fd 0%, #2563eb 68%, #1e40af 100%);
+  box-shadow: 0 12px 24px rgba(30, 64, 175, 0.26);
+  transform: rotate(45deg);
+}
+
+.weather-icon-drop::after {
+  left: 11px;
+  top: 8px;
+  width: 8px;
+  height: 15px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.48);
 }
 
 body.weather-sunny .weather-card::after {
@@ -543,6 +624,7 @@ body.weather-thunder .weather-card::after {
 .weather-main {
   display: grid;
   gap: 4px;
+  padding-right: 68px;
 }
 
 .weather-main strong {
