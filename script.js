@@ -90,6 +90,7 @@ const TEACHER_WHATSAPP_COUNTRY_CODE = "91";
 const SCHEDULE_AUTO_DELETE_AFTER_HOURS = 3;
 const SCHEDULE_CLEANUP_INTERVAL_MS = 60 * 1000;
 const CLASS_TIMER_DURATION_MS = 60 * 60 * 1000;
+const ATTENDANCE_RETENTION_MONTHS = 2;
 const DEFAULT_HOME_NOTICE = "No notice yet.";
 const RANCHI_WEATHER_URL = "https://api.open-meteo.com/v1/forecast?latitude=23.3441&longitude=85.3096&current=temperature_2m,weather_code,is_day&timezone=auto";
 const WEATHER_THEME_CLASSES = [
@@ -309,7 +310,7 @@ async function addStudent() {
     if (editingStudentIndex !== null) {
       await saveStudentUpdate(editingStudentIndex, studentPayload);
     } else {
-      if (students.find((student) => student.id === id)) {
+      if (students.find((student) => isSameStudentId(student.id, id))) {
         alert("Student ID already exists");
         return;
       }
@@ -570,6 +571,14 @@ function isScheduleExpired(schedule, now = new Date()) {
 
 function getVisibleSchedules(now = new Date()) {
   return schedules.filter((schedule) => !isScheduleExpired(schedule, now));
+}
+
+function normalizeStudentId(id) {
+  return String(id || "").trim().toLowerCase();
+}
+
+function isSameStudentId(firstId, secondId) {
+  return normalizeStudentId(firstId) === normalizeStudentId(secondId);
 }
 
 function refreshStudentDataViewIfNeeded() {
@@ -926,26 +935,32 @@ async function loadAttendanceHistoryForStudent(studentId) {
     return;
   }
 
+  const cacheKey = normalizeStudentId(studentId);
+  if (!cacheKey) {
+    return;
+  }
+
   try {
     const history = await getAttendanceHistory(studentId);
-    attendanceHistoryCache[studentId] = history || [];
+    attendanceHistoryCache[cacheKey] = filterAttendanceWithinRetention(history);
   } catch (error) {
     console.error("Error loading attendance history:", error);
   }
 }
 
 function addAttendanceRecordToCache(attendanceData) {
-  if (!attendanceData?.studentId) {
+  const cacheKey = normalizeStudentId(attendanceData?.studentId);
+  if (!cacheKey) {
     return;
   }
 
-  const studentHistory = attendanceHistoryCache[attendanceData.studentId] || [];
+  const studentHistory = attendanceHistoryCache[cacheKey] || [];
   const nextRecord = {
     ...attendanceData,
     updatedAt: attendanceData.updatedAt || new Date()
   };
 
-  attendanceHistoryCache[attendanceData.studentId] = [
+  attendanceHistoryCache[cacheKey] = filterAttendanceWithinRetention([
     nextRecord,
     ...studentHistory.filter((record) => {
       if (nextRecord.firestoreId && record.firestoreId === nextRecord.firestoreId) {
@@ -954,19 +969,43 @@ function addAttendanceRecordToCache(attendanceData) {
 
       return record.date !== nextRecord.date;
     })
-  ];
+  ]);
 }
 
 async function saveAttendanceHistoryRecord(attendanceData) {
-  const recordToSave = { ...attendanceData };
+  const recordToSave = {
+    ...attendanceData,
+    expiresOn: getAttendanceExpiryDateKey(attendanceData.date)
+  };
   const firestoreId = await setAttendanceRecordForDate(recordToSave);
   addAttendanceRecordToCache({ firestoreId, ...recordToSave, updatedAt: new Date() });
   return firestoreId;
 }
 
+function filterAttendanceWithinRetention(history) {
+  const cutoffDate = getAttendanceRetentionCutoffDateKey();
+  return (history || []).filter((record) => String(record.date || "") >= cutoffDate);
+}
+
+function getAttendanceRetentionCutoffDateKey(referenceDate = new Date()) {
+  const cutoffDate = new Date(referenceDate.getFullYear(), referenceDate.getMonth() - ATTENDANCE_RETENTION_MONTHS, referenceDate.getDate());
+  return formatDateKey(cutoffDate);
+}
+
+function getAttendanceExpiryDateKey(dateKey) {
+  const attendanceDate = parseScheduleDate(dateKey) || new Date();
+  return formatDateKey(new Date(attendanceDate.getFullYear(), attendanceDate.getMonth() + ATTENDANCE_RETENTION_MONTHS, attendanceDate.getDate()));
+}
+
+function formatDateKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
 async function loadStudentData(options = {}) {
   const { openModalAfterLoad, showFeeReminder } = normalizeLoadStudentDataOptions(options);
-  const id = loginStudentId.value.trim();
+  const requestedId = loginStudentId.value.trim();
+  const studentRecordForLogin = students.find((student) => isSameStudentId(student.id, requestedId));
+  const id = studentRecordForLogin?.id || requestedId;
   
   if (id && isFirebaseReady()) {
     await loadAttendanceHistoryForStudent(id).catch(error => {
@@ -1000,8 +1039,8 @@ async function loadStudentData(options = {}) {
     classDateTime = getScheduleDateTime(schedule) || new Date(`${schedule.date}T00:00:00`);
 
     schedule.students.forEach((student) => {
-      if (student.id === id) {
-        const fullStudent = students.find(s => s.id === id);
+      if (isSameStudentId(student.id, id)) {
+        const fullStudent = students.find(s => isSameStudentId(s.id, id));
         feeReminderStudent = feeReminderStudent || fullStudent || student;
         const displayStudent = fullStudent
           ? {
@@ -1064,7 +1103,7 @@ async function loadStudentData(options = {}) {
   matchedRecords.sort((a, b) => a.dateTime - b.dateTime);
 
   if (matchedRecords.length === 0) {
-    const studentRecord = students.find((student) => student.id === id);
+    const studentRecord = students.find((student) => isSameStudentId(student.id, id));
     if (studentRecord) {
       feeReminderStudent = studentRecord;
       const ratings = studentRecord.subjectRatings || { maths: 0, science: 0 };
@@ -1257,7 +1296,7 @@ function getStudentAttendanceByDate(studentId, year, month) {
       return;
     }
 
-    const scheduleStudent = schedule.students.find((student) => student.id === studentId);
+    const scheduleStudent = schedule.students.find((student) => isSameStudentId(student.id, studentId));
     if (!scheduleStudent) {
       return;
     }
@@ -1271,9 +1310,10 @@ function getStudentAttendanceByDate(studentId, year, month) {
   });
 
   // Get attendance from history cache
-  if (attendanceHistoryCache[studentId]) {
+  const cachedHistory = attendanceHistoryCache[normalizeStudentId(studentId)];
+  if (cachedHistory) {
     const latestHistoryByDate = {};
-    attendanceHistoryCache[studentId].forEach((record) => {
+    cachedHistory.forEach((record) => {
       const recordDate = parseScheduleDate(record.date);
       if (!recordDate || recordDate.getFullYear() !== year || recordDate.getMonth() !== month) {
         return;
@@ -1358,7 +1398,7 @@ async function setAttendanceFromCalendar(studentId, dateKey, currentStatus = "no
     return;
   }
 
-  const student = students.find((studentRecord) => studentRecord.id === studentId);
+  const student = students.find((studentRecord) => isSameStudentId(studentRecord.id, studentId));
   if (!student) {
     alert("Student not found");
     return;
@@ -1404,11 +1444,11 @@ async function setAttendanceFromCalendar(studentId, dateKey, currentStatus = "no
 
   const schedule = schedules.find((scheduleRecord) =>
     scheduleRecord.date === dateKey &&
-    scheduleRecord.students.some((scheduleStudent) => scheduleStudent.id === studentId)
+    scheduleRecord.students.some((scheduleStudent) => isSameStudentId(scheduleStudent.id, studentId))
   );
 
   if (schedule) {
-    await updateStudentAttendance(schedule.firestoreId, studentId, status, reason);
+    await updateStudentAttendance(schedule.firestoreId, student.id, status, reason);
     return;
   }
 
@@ -1426,7 +1466,7 @@ async function setAttendanceFromCalendar(studentId, dateKey, currentStatus = "no
     showStudents();
 
     const currentStudentId = loginStudentId.value.trim();
-    if (currentStudentId === studentId) {
+    if (isSameStudentId(currentStudentId, studentId)) {
       loadStudentData({ openModalAfterLoad: true, showFeeReminder: false });
     }
 
@@ -1486,7 +1526,7 @@ async function studentAttendance(scheduleId, studentId, status, source = "teache
     return;
   }
 
-  const student = schedule.students.find(s => s.id === studentId);
+  const student = schedule.students.find(s => isSameStudentId(s.id, studentId));
   if (!student) {
     alert("Student not found in schedule");
     return;
@@ -1531,12 +1571,13 @@ async function updateStudentAttendance(scheduleId, studentId, status, reason) {
   }
 
   const schedule = schedules[scheduleIndex];
-  const studentIndex = schedule.students.findIndex((student) => student.id === studentId);
+  const studentIndex = schedule.students.findIndex((student) => isSameStudentId(student.id, studentId));
   if (studentIndex === -1) {
     alert("Student not found in schedule");
     return;
   }
 
+  const matchedStudentId = schedule.students[studentIndex].id;
   const updatedStudent = {
     ...schedule.students[studentIndex],
     attendanceStatus: status,
@@ -1556,7 +1597,7 @@ async function updateStudentAttendance(scheduleId, studentId, status, reason) {
     
     // Save attendance to history for persistence
     const attendanceData = {
-      studentId: studentId,
+      studentId: matchedStudentId,
       date: schedule.date,
       day: schedule.day,
       time: schedule.time || "",
@@ -1570,7 +1611,7 @@ async function updateStudentAttendance(scheduleId, studentId, status, reason) {
     loadSchedules();
     showStudents();
     const currentStudentId = loginStudentId.value.trim();
-    if (currentStudentId === studentId) {
+    if (isSameStudentId(currentStudentId, matchedStudentId)) {
       loadStudentData({ openModalAfterLoad: true, showFeeReminder: false });
     }
     alert("Attendance status saved");
@@ -1621,7 +1662,7 @@ async function removeStudentFromSchedule(scheduleId, studentId) {
   }
 
   const schedule = schedules[scheduleIndex];
-  const student = schedule.students.find((s) => s.id === studentId);
+  const student = schedule.students.find((s) => isSameStudentId(s.id, studentId));
   if (!student) {
     alert("Student not found in schedule");
     return;
@@ -1631,7 +1672,7 @@ async function removeStudentFromSchedule(scheduleId, studentId) {
     return;
   }
 
-  const remainingStudents = schedule.students.filter((s) => s.id !== studentId);
+  const remainingStudents = schedule.students.filter((s) => !isSameStudentId(s.id, studentId));
   try {
     if (remainingStudents.length === 0) {
       await deleteScheduleRecord(schedule.firestoreId);
@@ -1654,7 +1695,7 @@ async function removeStudentFromSchedule(scheduleId, studentId) {
     showStudents();
 
     const currentStudentId = loginStudentId.value.trim();
-    if (currentStudentId === studentId) {
+    if (isSameStudentId(currentStudentId, studentId)) {
       loadStudentData({ openModalAfterLoad: true, showFeeReminder: false });
     }
   } catch (error) {
@@ -1753,7 +1794,7 @@ function closeScheduleForm() {
 async function saveStudentUpdate(index, updatedStudent) {
   const currentStudent = students[index];
   const duplicateStudent = students.find(
-    (student, studentIndex) => student.id === updatedStudent.id && studentIndex !== index
+    (student, studentIndex) => isSameStudentId(student.id, updatedStudent.id) && studentIndex !== index
   );
 
   if (duplicateStudent) {
