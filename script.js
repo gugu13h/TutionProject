@@ -13,7 +13,6 @@ import {
   updateScheduleRecord,
   updateStudentRecord,
   watchTeacherAuthState,
-  addAttendanceRecord,
   setAttendanceRecordForDate,
   getAttendanceHistory,
   getAttendanceHistoryByDateRange
@@ -619,8 +618,7 @@ async function removeExpiredSchedules(options = {}) {
                 reason: student.attendanceReason || "",
                 scheduleId: schedule.firestoreId
               };
-              await addAttendanceRecord(attendanceData);
-              addAttendanceRecordToCache(attendanceData);
+              await saveAttendanceHistoryRecord(attendanceData);
             } catch (error) {
               console.error("Failed to save attendance history:", error);
             }
@@ -942,10 +940,27 @@ function addAttendanceRecordToCache(attendanceData) {
   }
 
   const studentHistory = attendanceHistoryCache[attendanceData.studentId] || [];
+  const nextRecord = {
+    ...attendanceData,
+    updatedAt: attendanceData.updatedAt || new Date()
+  };
+
   attendanceHistoryCache[attendanceData.studentId] = [
-    attendanceData,
-    ...studentHistory
+    nextRecord,
+    ...studentHistory.filter((record) => {
+      if (nextRecord.firestoreId && record.firestoreId === nextRecord.firestoreId) {
+        return false;
+      }
+
+      return record.date !== nextRecord.date;
+    })
   ];
+}
+
+async function saveAttendanceHistoryRecord(attendanceData) {
+  const firestoreId = await setAttendanceRecordForDate(attendanceData);
+  addAttendanceRecordToCache({ firestoreId, ...attendanceData, updatedAt: new Date() });
+  return firestoreId;
 }
 
 async function loadStudentData(options = {}) {
@@ -1406,8 +1421,7 @@ async function setAttendanceFromCalendar(studentId, dateKey, currentStatus = "no
       reason,
       scheduleId: "manual-calendar"
     };
-    const firestoreId = await setAttendanceRecordForDate(attendanceData);
-    addAttendanceRecordToCache({ firestoreId, ...attendanceData, updatedAt: new Date() });
+    await saveAttendanceHistoryRecord(attendanceData);
     showStudents();
 
     const currentStudentId = loginStudentId.value.trim();
@@ -1549,8 +1563,7 @@ async function updateStudentAttendance(scheduleId, studentId, status, reason) {
       reason: reason || "",
       scheduleId: scheduleId
     };
-    const firestoreId = await setAttendanceRecordForDate(attendanceData);
-    addAttendanceRecordToCache({ firestoreId, ...attendanceData, updatedAt: new Date() });
+    await saveAttendanceHistoryRecord(attendanceData);
     
     schedules[scheduleIndex] = { firestoreId: schedule.firestoreId, ...updatedSchedule };
     loadSchedules();
