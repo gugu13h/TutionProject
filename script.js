@@ -25,6 +25,7 @@ let schedules = [];
 let attendanceHistoryCache = {}; // Cache for attendance history: { studentId: [attendance records] }
 let editingStudentIndex = null;
 let teacherProfile = null;
+let isTeacherLoggedIn = false;
 let currentRatingStudentIndex = null;
 let selectedMathsRating = 0;
 let selectedScienceRating = 0;
@@ -57,7 +58,6 @@ const feeReminderText = document.getElementById("feeReminderText");
 const teacherLoginPhoto = document.getElementById("teacherLoginPhoto");
 const teacherDashboardPhoto = document.getElementById("teacherDashboardPhoto");
 const teacherPhotoFile = document.getElementById("teacherPhotoFile");
-const teacherLoginPhotoFile = document.getElementById("teacherLoginPhotoFile");
 const aboutTeacherBtn = document.getElementById("aboutTeacherBtn");
 const aboutTeacherPhoto = document.getElementById("aboutTeacherPhoto");
 const teacherNoticeInput = document.getElementById("teacherNoticeInput");
@@ -1920,6 +1920,8 @@ function getDayName(date) {
 
 function initializeTeacherAuth() {
   watchTeacherAuthState((user) => {
+    isTeacherLoggedIn = Boolean(user);
+
     if (user) {
       showPage("teacherPage");
       return;
@@ -1930,32 +1932,6 @@ function initializeTeacherAuth() {
       showPage("loginPage");
     }
   });
-
-  // Teacher login photo setting
-  const teacherPhotoContainer = document.querySelector(".teacher-photo-container");
-  if (teacherPhotoContainer) {
-    teacherPhotoContainer.addEventListener("click", () => {
-      teacherLoginPhotoFile.click();
-    });
-  }
-
-  if (teacherLoginPhotoFile) {
-    teacherLoginPhotoFile.addEventListener("change", async (event) => {
-      if (!event.target.files[0]) return;
-      try {
-        const photoUrl = await uploadImageToCloudinary(event.target.files[0], "tuition-project/teachers");
-        teacherLoginPhoto.src = photoUrl;
-        teacherDashboardPhoto.src = photoUrl;
-        // Save to teacher profile
-        await updateTeacherProfile({ photoUrl });
-        alert("Teacher photo updated successfully!");
-      } catch (error) {
-        console.error(error);
-        alert("Failed to upload photo");
-      }
-      event.target.value = "";
-    });
-  }
 }
 
 function initializeStudentModal() {
@@ -2157,6 +2133,11 @@ function closeRatingModal() {
 }
 
 async function uploadTeacherPhoto() {
+  if (!isTeacherLoggedIn) {
+    alert("Teacher login required to upload photo");
+    return;
+  }
+
   if (!teacherPhotoFile.files[0]) {
     alert("Choose a teacher photo first");
     return;
