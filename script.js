@@ -3,7 +3,6 @@ import {
   addStudentRecord,
   deleteScheduleRecord,
   deleteStudentRecord,
-  deleteAttendanceHistoryOlderThan,
   getSchedules,
   getStudents,
   getTeacherProfile,
@@ -15,8 +14,7 @@ import {
   updateStudentRecord,
   watchTeacherAuthState,
   setAttendanceRecordForDate,
-  getAttendanceHistory,
-  getAttendanceHistoryByDateRange
+  getAttendanceHistory
 } from "./firebase-api.js";
 import { uploadImageToCloudinary } from "./cloudinary-api.js";
 
@@ -30,7 +28,6 @@ let currentRatingStudentIndex = null;
 let selectedMathsRating = 0;
 let selectedScienceRating = 0;
 let scheduleCleanupTimerId = null;
-let attendanceCleanupTimerId = null;
 let isCleaningExpiredSchedules = false;
 let studentCountdownTimerId = null;
 let teacherScheduleTimerId = null;
@@ -92,9 +89,7 @@ const TEACHER_WHATSAPP_NUMBER = "8864022272";
 const TEACHER_WHATSAPP_COUNTRY_CODE = "91";
 const SCHEDULE_AUTO_DELETE_AFTER_HOURS = 3;
 const SCHEDULE_CLEANUP_INTERVAL_MS = 60 * 1000;
-const ATTENDANCE_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
 const CLASS_TIMER_DURATION_MS = 60 * 60 * 1000;
-const ATTENDANCE_RETENTION_MONTHS = 2;
 const DEFAULT_HOME_NOTICE = "No notice yet.";
 const RANCHI_WEATHER_URL = "https://api.open-meteo.com/v1/forecast?latitude=23.3441&longitude=85.3096&current=temperature_2m,weather_code,is_day&timezone=auto";
 const WEATHER_THEME_CLASSES = [
@@ -161,7 +156,6 @@ initializeStudentRegisterForm();
 initializeScheduleForm();
 initializeAboutTeacherButton();
 startScheduleCleanupLoop();
-startAttendanceCleanupLoop();
 startStudentCountdownLoop();
 startTeacherScheduleLoop();
 loadRanchiWeather();
@@ -666,16 +660,6 @@ function startScheduleCleanupLoop() {
   }, SCHEDULE_CLEANUP_INTERVAL_MS);
 }
 
-function startAttendanceCleanupLoop() {
-  if (attendanceCleanupTimerId !== null) {
-    return;
-  }
-
-  attendanceCleanupTimerId = window.setInterval(() => {
-    void cleanupOldAttendanceHistory();
-  }, ATTENDANCE_CLEANUP_INTERVAL_MS);
-}
-
 function startStudentCountdownLoop() {
   if (studentCountdownTimerId !== null) {
     return;
@@ -944,7 +928,7 @@ async function loadAttendanceHistoryForStudent(studentId) {
 
   try {
     const history = await getAttendanceHistory(studentId);
-    attendanceHistoryCache[studentId] = filterAttendanceWithinRetention(history);
+    attendanceHistoryCache[studentId] = history || [];
   } catch (error) {
     console.error("Error loading attendance history:", error);
   }
@@ -974,48 +958,10 @@ function addAttendanceRecordToCache(attendanceData) {
 }
 
 async function saveAttendanceHistoryRecord(attendanceData) {
-  const recordToSave = {
-    ...attendanceData,
-    expiresOn: getAttendanceExpiryDateKey(attendanceData.date)
-  };
+  const recordToSave = { ...attendanceData };
   const firestoreId = await setAttendanceRecordForDate(recordToSave);
   addAttendanceRecordToCache({ firestoreId, ...recordToSave, updatedAt: new Date() });
   return firestoreId;
-}
-
-function filterAttendanceWithinRetention(history) {
-  const cutoffDate = getAttendanceRetentionCutoffDateKey();
-  return (history || []).filter((record) => String(record.date || "") >= cutoffDate);
-}
-
-function getAttendanceRetentionCutoffDateKey(referenceDate = new Date()) {
-  const cutoffDate = new Date(referenceDate.getFullYear(), referenceDate.getMonth() - ATTENDANCE_RETENTION_MONTHS, referenceDate.getDate());
-  return formatDateKey(cutoffDate);
-}
-
-function getAttendanceExpiryDateKey(dateKey) {
-  const attendanceDate = parseScheduleDate(dateKey) || new Date();
-  return formatDateKey(new Date(attendanceDate.getFullYear(), attendanceDate.getMonth() + ATTENDANCE_RETENTION_MONTHS, attendanceDate.getDate()));
-}
-
-function formatDateKey(date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-}
-
-async function cleanupOldAttendanceHistory() {
-  if (!isFirebaseReady()) {
-    return;
-  }
-
-  const cutoffDate = getAttendanceRetentionCutoffDateKey();
-  try {
-    await deleteAttendanceHistoryOlderThan(cutoffDate);
-    Object.keys(attendanceHistoryCache).forEach((studentId) => {
-      attendanceHistoryCache[studentId] = filterAttendanceWithinRetention(attendanceHistoryCache[studentId]);
-    });
-  } catch (error) {
-    console.error("Unable to clean old attendance history:", error);
-  }
 }
 
 async function loadStudentData(options = {}) {
@@ -1726,7 +1672,6 @@ function sendWhatsApp() {
 async function refreshFirestoreData() {
   students = await getStudents();
   schedules = await getSchedules();
-  await cleanupOldAttendanceHistory();
   await Promise.all(students.map((student) => loadAttendanceHistoryForStudent(student.id)));
   await removeExpiredSchedules({ refreshViews: false });
   showStudents();
