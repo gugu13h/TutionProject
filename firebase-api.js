@@ -214,6 +214,17 @@ export async function setAttendanceRecordForDate(attendanceData) {
   return attendanceRef.id;
 }
 
+export async function deleteAttendanceHistoryOlderThan(cutoffDate) {
+  ensureConfigured();
+  const attendanceQuery = query(
+    collection(db, COLLECTIONS.attendanceHistory),
+    where("date", "<", cutoffDate)
+  );
+  const snapshot = await getDocs(attendanceQuery);
+  await Promise.all(snapshot.docs.map((attendanceDoc) => deleteDoc(attendanceDoc.ref)));
+  return snapshot.size;
+}
+
 export async function getAttendanceHistoryByDateRange(studentId, startDate, endDate) {
   ensureConfigured();
   const attendanceQuery = query(
