@@ -56,6 +56,7 @@ const studentModalBody = document.getElementById("studentModalBody");
 const feeReminderModal = document.getElementById("feeReminderModal");
 const feeReminderText = document.getElementById("feeReminderText");
 const teacherLoginPhoto = document.getElementById("teacherLoginPhoto");
+const teacherLoginBackgroundPhoto = document.getElementById("teacherLoginBackgroundPhoto");
 const teacherDashboardPhoto = document.getElementById("teacherDashboardPhoto");
 const teacherPhotoFile = document.getElementById("teacherPhotoFile");
 const aboutTeacherBtn = document.getElementById("aboutTeacherBtn");
@@ -2189,6 +2190,9 @@ async function loadTeacherProfile() {
 function applyTeacherProfile() {
   const teacherPhoto = teacherProfile?.photoUrl || DEFAULT_TEACHER_PHOTO;
   teacherLoginPhoto.src = teacherPhoto;
+  if (teacherLoginBackgroundPhoto) {
+    teacherLoginBackgroundPhoto.src = teacherPhoto;
+  }
   teacherDashboardPhoto.src = teacherPhoto;
   if (aboutTeacherPhoto) {
     aboutTeacherPhoto.src = teacherPhoto;
