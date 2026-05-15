@@ -3,6 +3,7 @@ import {
   addStudentRecord,
   deleteScheduleRecord,
   deleteStudentRecord,
+  deleteAttendanceHistoryOlderThan,
   getSchedules,
   getStudents,
   getTeacherProfile,
@@ -28,6 +29,7 @@ let currentRatingStudentIndex = null;
 let selectedMathsRating = 0;
 let selectedScienceRating = 0;
 let scheduleCleanupTimerId = null;
+let attendanceCleanupTimerId = null;
 let isCleaningExpiredSchedules = false;
 let studentCountdownTimerId = null;
 let teacherScheduleTimerId = null;
@@ -89,6 +91,7 @@ const TEACHER_WHATSAPP_NUMBER = "8864022272";
 const TEACHER_WHATSAPP_COUNTRY_CODE = "91";
 const SCHEDULE_AUTO_DELETE_AFTER_HOURS = 3;
 const SCHEDULE_CLEANUP_INTERVAL_MS = 60 * 1000;
+const ATTENDANCE_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
 const CLASS_TIMER_DURATION_MS = 60 * 60 * 1000;
 const ATTENDANCE_RETENTION_MONTHS = 2;
 const DEFAULT_HOME_NOTICE = "No notice yet.";
@@ -157,6 +160,7 @@ initializeStudentRegisterForm();
 initializeScheduleForm();
 initializeAboutTeacherButton();
 startScheduleCleanupLoop();
+startAttendanceCleanupLoop();
 startStudentCountdownLoop();
 startTeacherScheduleLoop();
 loadRanchiWeather();
@@ -207,6 +211,84 @@ function applyThemeMode(mode) {
 function showPage(id) {
   document.querySelectorAll(".page").forEach((page) => page.classList.remove("active"));
   document.getElementById(id).classList.add("active");
+}
+
+function captureUiPositionState() {
+  const openTeacherStudentIds = Array.from(document.querySelectorAll(".teacher-student-card"))
+    .filter((card) => !card.querySelector(".teacher-student-details")?.hidden)
+    .map((card) => card.dataset.studentKey)
+    .filter(Boolean);
+
+  const openTeacherMoreIds = Array.from(document.querySelectorAll(".teacher-student-card"))
+    .filter((card) => !card.querySelector(".student-more-details")?.classList.contains("hidden"))
+    .map((card) => card.dataset.studentKey)
+    .filter(Boolean);
+
+  const modalCard = document.querySelector(".modal-overlay.active .modal-card");
+
+  return {
+    scrollX: window.scrollX,
+    scrollY: window.scrollY,
+    modalScrollTop: modalCard ? modalCard.scrollTop : 0,
+    openTeacherStudentIds,
+    openTeacherMoreIds,
+    studentRatingOpen: Boolean(studentData?.querySelector(".rating-details:not(.hidden)")),
+    studentModalRatingOpen: Boolean(studentModalBody?.querySelector(".rating-details:not(.hidden)"))
+  };
+}
+
+function restoreUiPositionState(state) {
+  if (!state) {
+    return;
+  }
+
+  state.openTeacherStudentIds.forEach((studentKey) => {
+    const card = Array.from(document.querySelectorAll(".teacher-student-card"))
+      .find((studentCard) => studentCard.dataset.studentKey === studentKey);
+    const details = card?.querySelector(".teacher-student-details");
+    const nameButton = card?.querySelector(".teacher-student-name");
+    if (details && nameButton) {
+      details.hidden = false;
+      nameButton.setAttribute("aria-expanded", "true");
+    }
+  });
+
+  state.openTeacherMoreIds.forEach((studentKey) => {
+    const card = Array.from(document.querySelectorAll(".teacher-student-card"))
+      .find((studentCard) => studentCard.dataset.studentKey === studentKey);
+    const moreDetails = card?.querySelector(".student-more-details");
+    const moreButton = card?.querySelector(".student-more-btn");
+    if (moreDetails && moreButton) {
+      moreDetails.classList.remove("hidden");
+      moreButton.textContent = "Show Less";
+    }
+  });
+
+  if (state.studentRatingOpen && studentData) {
+    studentData.querySelectorAll(".rating-details").forEach((details) => details.classList.remove("hidden"));
+    studentData.querySelectorAll("button").forEach((button) => {
+      if (button.textContent.trim() === "Show More" && button.nextElementSibling?.classList.contains("rating-details")) {
+        button.textContent = "Show Less";
+      }
+    });
+  }
+
+  if (state.studentModalRatingOpen && studentModalBody) {
+    studentModalBody.querySelectorAll(".rating-details").forEach((details) => details.classList.remove("hidden"));
+    studentModalBody.querySelectorAll("button").forEach((button) => {
+      if (button.textContent.trim() === "Show More" && button.nextElementSibling?.classList.contains("rating-details")) {
+        button.textContent = "Show Less";
+      }
+    });
+  }
+
+  window.requestAnimationFrame(() => {
+    window.scrollTo(state.scrollX, state.scrollY);
+    const modalCard = document.querySelector(".modal-overlay.active .modal-card");
+    if (modalCard) {
+      modalCard.scrollTop = state.modalScrollTop;
+    }
+  });
 }
 
 async function teacherLogin() {
@@ -330,15 +412,17 @@ async function addStudent() {
 }
 
 function showStudents() {
+  const uiPositionState = captureUiPositionState();
   studentList.innerHTML = "";
   students.forEach((student, index) => {
     const ratings = student.subjectRatings || { maths: 0, science: 0 };
     const overallRating = Math.round((ratings.maths + ratings.science) / 2 * 10) / 10;
     const overallText = overallRating === 0 ? "Not Rated" : `${overallRating} / 10`;
     const studentDetailsId = `teacherStudentDetails_${index}`;
+    const studentKey = normalizeStudentId(student.id);
     
     studentList.innerHTML += `
-      <div class="box teacher-student-card">
+      <div class="box teacher-student-card" data-student-key="${escapeHtml(studentKey)}">
         <div class="teacher-student-summary">
           <button
             class="teacher-student-name"
@@ -374,6 +458,7 @@ function showStudents() {
       </div>
     `;
   });
+  restoreUiPositionState(uiPositionState);
 }
 
 function toggleTeacherStudentDetails(index) {
@@ -669,6 +754,16 @@ function startScheduleCleanupLoop() {
   }, SCHEDULE_CLEANUP_INTERVAL_MS);
 }
 
+function startAttendanceCleanupLoop() {
+  if (attendanceCleanupTimerId !== null) {
+    return;
+  }
+
+  attendanceCleanupTimerId = window.setInterval(() => {
+    void cleanupOldAttendanceHistory();
+  }, ATTENDANCE_CLEANUP_INTERVAL_MS);
+}
+
 function startStudentCountdownLoop() {
   if (studentCountdownTimerId !== null) {
     return;
@@ -793,6 +888,7 @@ function getClassStartTimeFromElement(countdownElement) {
 }
 
 function loadSchedules() {
+  const uiPositionState = captureUiPositionState();
   const visibleSchedules = getVisibleSchedules();
   scheduleList.innerHTML = "";
   visibleSchedules.forEach((schedule) => {
@@ -813,6 +909,7 @@ function loadSchedules() {
     `;
   });
   updateClassTimers();
+  restoreUiPositionState(uiPositionState);
 }
 
 function isClassRunning(schedule, now = new Date()) {
@@ -1001,7 +1098,24 @@ function formatDateKey(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
+async function cleanupOldAttendanceHistory() {
+  if (!isFirebaseReady()) {
+    return;
+  }
+
+  const cutoffDate = getAttendanceRetentionCutoffDateKey();
+  try {
+    await deleteAttendanceHistoryOlderThan(cutoffDate);
+    Object.keys(attendanceHistoryCache).forEach((studentId) => {
+      attendanceHistoryCache[studentId] = filterAttendanceWithinRetention(attendanceHistoryCache[studentId]);
+    });
+  } catch (error) {
+    console.error("Unable to clean old attendance history:", error);
+  }
+}
+
 async function loadStudentData(options = {}) {
+  const uiPositionState = captureUiPositionState();
   const { openModalAfterLoad, showFeeReminder } = normalizeLoadStudentDataOptions(options);
   const requestedId = loginStudentId.value.trim();
   const studentRecordForLogin = students.find((student) => isSameStudentId(student.id, requestedId));
@@ -1140,6 +1254,7 @@ async function loadStudentData(options = {}) {
       if (showFeeReminder) {
         showFeeReminderIfNeeded(feeReminderStudent);
       }
+      restoreUiPositionState(uiPositionState);
       return;
     }
 
@@ -1155,6 +1270,7 @@ async function loadStudentData(options = {}) {
       openStudentModal();
     }
     closeFeeReminderModal();
+    restoreUiPositionState(uiPositionState);
     return;
   }
 
@@ -1168,6 +1284,7 @@ async function loadStudentData(options = {}) {
   if (showFeeReminder) {
     showFeeReminderIfNeeded(feeReminderStudent);
   }
+  restoreUiPositionState(uiPositionState);
 }
 
 function toggleStudentRating(button) {
@@ -1713,6 +1830,7 @@ function sendWhatsApp() {
 async function refreshFirestoreData() {
   students = await getStudents();
   schedules = await getSchedules();
+  await cleanupOldAttendanceHistory();
   await Promise.all(students.map((student) => loadAttendanceHistoryForStudent(student.id)));
   await removeExpiredSchedules({ refreshViews: false });
   showStudents();

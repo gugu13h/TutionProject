@@ -181,22 +181,44 @@ async function updateDocSafe(ref, data) {
 // Attendance History Functions
 export async function getAttendanceHistory(studentId) {
   ensureConfigured();
+  const requestedStudentId = String(studentId || "").trim();
+  const normalizedStudentId = String(studentId || "").trim().toLowerCase();
   const attendanceQuery = query(
     collection(db, COLLECTIONS.attendanceHistory),
-    where("studentId", "==", studentId),
-    orderBy("date", "desc")
+    where("studentIdNormalized", "==", normalizedStudentId)
   );
   const snapshot = await getDocs(attendanceQuery);
-  return snapshot.docs.map((doc) => ({
+  const recordsById = new Map(snapshot.docs.map((doc) => [doc.id, {
     firestoreId: doc.id,
     ...doc.data()
-  }));
+  }]));
+
+  if (requestedStudentId) {
+    const legacyQuery = query(
+      collection(db, COLLECTIONS.attendanceHistory),
+      where("studentId", "==", requestedStudentId)
+    );
+    const legacySnapshot = await getDocs(legacyQuery);
+    legacySnapshot.docs.forEach((doc) => {
+      recordsById.set(doc.id, {
+        firestoreId: doc.id,
+        ...doc.data()
+      });
+    });
+  }
+
+  const records = Array.from(recordsById.values());
+  records.sort((firstRecord, secondRecord) => String(secondRecord.date || "").localeCompare(String(firstRecord.date || "")));
+  return records;
 }
 
 export async function addAttendanceRecord(attendanceData) {
   ensureConfigured();
+  const studentId = String(attendanceData.studentId || "").trim();
   const docRef = await addDoc(collection(db, COLLECTIONS.attendanceHistory), {
     ...attendanceData,
+    studentId,
+    studentIdNormalized: studentId.toLowerCase(),
     createdAt: serverTimestamp()
   });
   return docRef.id;
@@ -204,11 +226,15 @@ export async function addAttendanceRecord(attendanceData) {
 
 export async function setAttendanceRecordForDate(attendanceData) {
   ensureConfigured();
-  const safeStudentId = encodeURIComponent(String(attendanceData.studentId || ""));
+  const studentId = String(attendanceData.studentId || "").trim();
+  const normalizedStudentId = studentId.toLowerCase();
+  const safeStudentId = encodeURIComponent(normalizedStudentId);
   const safeDate = encodeURIComponent(String(attendanceData.date || ""));
   const attendanceRef = doc(db, COLLECTIONS.attendanceHistory, `${safeStudentId}_${safeDate}`);
   await updateDocSafe(attendanceRef, {
     ...attendanceData,
+    studentId,
+    studentIdNormalized: normalizedStudentId,
     updatedAt: serverTimestamp()
   });
   return attendanceRef.id;
