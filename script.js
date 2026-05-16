@@ -2738,8 +2738,10 @@ async function normalizeAllStudentFeeCycles() {
   for (let index = 0; index < students.length; index += 1) {
     const student = students[index];
     const needsUpdate =
-      Number(student.feeCycleStartDay) !== DEFAULT_FEE_CYCLE_START_DAY ||
-      Number(student.feeCycleEndDay) !== DEFAULT_FEE_CYCLE_END_DAY;
+      student.feeCycleStartDay === undefined ||
+      student.feeCycleStartDay === null ||
+      student.feeCycleEndDay === undefined ||
+      student.feeCycleEndDay === null;
 
     if (!needsUpdate) {
       continue;
@@ -2747,8 +2749,8 @@ async function normalizeAllStudentFeeCycles() {
 
     const updatedStudent = {
       ...student,
-      feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY,
-      feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY
+      feeCycleStartDay: student.feeCycleStartDay || DEFAULT_FEE_CYCLE_START_DAY,
+      feeCycleEndDay: student.feeCycleEndDay || DEFAULT_FEE_CYCLE_END_DAY
     };
 
     await updateStudentRecord(student.firestoreId, {
