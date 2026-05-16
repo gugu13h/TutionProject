@@ -282,50 +282,6 @@
           <div id="studentList" class="stack-list"></div>
         </section>
 
-        <section class="panel-card wide-card">
-          <div class="section-head">
-            <h3>Homework Management</h3>
-            <span class="badge">Assign Tasks</span>
-          </div>
-
-          <div id="homeworkForm" class="register-form-panel homework-form" style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-            <div class="register-form-top">
-              <span class="badge">Assign Homework</span>
-            </div>
-
-            <div class="field-group">
-              <label for="homeworkStudentSelect">Select Student</label>
-              <select id="homeworkStudentSelect">
-                <option value="">-- Select Student --</option>
-              </select>
-            </div>
-
-            <div class="field-group">
-              <label for="homeworkTitle">Homework Title</label>
-              <input id="homeworkTitle" type="text" placeholder="e.g., Chapter 5 Exercises">
-            </div>
-
-            <div class="field-group">
-              <label for="homeworkDescription">Description</label>
-              <textarea id="homeworkDescription" placeholder="Describe the homework task..."></textarea>
-            </div>
-
-            <div class="field-group">
-              <label for="homeworkDueDate">Due Date</label>
-              <input id="homeworkDueDate" type="date">
-            </div>
-
-            <div class="action-row">
-              <button id="homeworkSubmitBtn" onclick="submitHomework()">Assign Homework</button>
-              <button type="button" class="ghost-btn" onclick="resetHomeworkForm()" style="margin-left: 10px;">Clear</button>
-            </div>
-          </div>
-
-          <div class="section-head" style="margin-top: 20px;">
-            <h4>Assigned Homework</h4>
-          </div>
-          <div id="homeworkList" class="stack-list"></div>
-        </section>
       </div>
     </div>
 
@@ -412,13 +368,6 @@
           <div id="studentData" class="stack-list"></div>
         </section>
 
-        <section class="panel-card wide-card">
-          <div class="section-head">
-            <h3>My Homework</h3>
-            <span class="badge">Tasks</span>
-          </div>
-          <div id="studentHomeworkList" class="stack-list"></div>
-        </section>
       </div>
     </div>
   </main>
@@ -509,7 +458,7 @@
     </div>
   </div>
 
-  <script type="module" src="script.js?v=teacher-login-bg-photo-1"></script>
+  <script type="module" src="script.js?v=student-data-fix-1"></script>
 </body>
 
 </html>

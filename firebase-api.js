@@ -77,11 +77,11 @@ export async function signOutTeacher() {
 
 export async function getStudents() {
   ensureConfigured();
-  const snapshot = await getDocs(query(collection(db, COLLECTIONS.students), orderBy("createdAt", "asc")));
-  return snapshot.docs.map((studentDoc) => ({
+  const snapshot = await getDocs(collection(db, COLLECTIONS.students));
+  return sortByCreatedAtAsc(snapshot.docs.map((studentDoc) => ({
     firestoreId: studentDoc.id,
     ...studentDoc.data()
-  }));
+  })));
 }
 
 export async function addStudentRecord(student) {
@@ -116,11 +116,11 @@ export async function updateStudentRecord(firestoreId, student) {
 
 export async function getSchedules() {
   ensureConfigured();
-  const snapshot = await getDocs(query(collection(db, COLLECTIONS.schedules), orderBy("createdAt", "asc")));
-  return snapshot.docs.map((scheduleDoc) => ({
+  const snapshot = await getDocs(collection(db, COLLECTIONS.schedules));
+  return sortByCreatedAtAsc(snapshot.docs.map((scheduleDoc) => ({
     firestoreId: scheduleDoc.id,
     ...scheduleDoc.data()
-  }));
+  })));
 }
 
 export async function addScheduleRecord(schedule) {
@@ -283,27 +283,22 @@ export async function getHomeworkByStudent(studentId) {
   const normalizedStudentId = String(studentId || "").trim().toLowerCase();
   const homeworkQuery = query(
     collection(db, COLLECTIONS.homework),
-    where("studentIdNormalized", "==", normalizedStudentId),
-    orderBy("createdAt", "desc")
+    where("studentIdNormalized", "==", normalizedStudentId)
   );
   const snapshot = await getDocs(homeworkQuery);
-  return snapshot.docs.map((doc) => ({
+  return sortByCreatedAtDesc(snapshot.docs.map((doc) => ({
     firestoreId: doc.id,
     ...doc.data()
-  }));
+  })));
 }
 
 export async function getAllHomework() {
   ensureConfigured();
-  const homeworkQuery = query(
-    collection(db, COLLECTIONS.homework),
-    orderBy("createdAt", "desc")
-  );
-  const snapshot = await getDocs(homeworkQuery);
-  return snapshot.docs.map((doc) => ({
+  const snapshot = await getDocs(collection(db, COLLECTIONS.homework));
+  return sortByCreatedAtDesc(snapshot.docs.map((doc) => ({
     firestoreId: doc.id,
     ...doc.data()
-  }));
+  })));
 }
 
 export async function updateHomeworkRecord(firestoreId, homework) {
@@ -317,4 +312,30 @@ export async function updateHomeworkRecord(firestoreId, homework) {
 export async function deleteHomeworkRecord(firestoreId) {
   ensureConfigured();
   await deleteDoc(doc(db, COLLECTIONS.homework, firestoreId));
+}
+
+function sortByCreatedAtAsc(records) {
+  return [...records].sort((firstRecord, secondRecord) => {
+    return getCreatedAtMillis(firstRecord) - getCreatedAtMillis(secondRecord);
+  });
+}
+
+function sortByCreatedAtDesc(records) {
+  return [...records].sort((firstRecord, secondRecord) => {
+    return getCreatedAtMillis(secondRecord) - getCreatedAtMillis(firstRecord);
+  });
+}
+
+function getCreatedAtMillis(record) {
+  const createdAt = record?.createdAt;
+  if (createdAt && typeof createdAt.toMillis === "function") {
+    return createdAt.toMillis();
+  }
+
+  if (createdAt?.seconds) {
+    return Number(createdAt.seconds) * 1000;
+  }
+
+  const parsedDate = Date.parse(createdAt || record?.assignedDate || record?.date || "");
+  return Number.isNaN(parsedDate) ? 0 : parsedDate;
 }
