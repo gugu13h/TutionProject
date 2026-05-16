@@ -15,13 +15,19 @@ import {
   updateStudentRecord,
   watchTeacherAuthState,
   setAttendanceRecordForDate,
-  getAttendanceHistory
+  getAttendanceHistory,
+  addHomeworkRecord,
+  getHomeworkByStudent,
+  getAllHomework,
+  updateHomeworkRecord,
+  deleteHomeworkRecord
 } from "./firebase-api.js";
 import { uploadImageToCloudinary } from "./cloudinary-api.js";
 
 let students = [];
 let schedules = [];
 let attendanceHistoryCache = {}; // Cache for attendance history: { studentId: [attendance records] }
+let homework = []; // Cache for homework records
 let editingStudentIndex = null;
 let teacherProfile = null;
 let isTeacherLoggedIn = false;
@@ -81,6 +87,16 @@ const ratingModal = document.getElementById("ratingModal");
 const ratingModalTitle = document.getElementById("ratingModalTitle");
 const currentRatingDisplay = document.getElementById("currentRatingDisplay");
 const themeToggleBtn = document.getElementById("themeToggleBtn");
+
+// Homework UI Elements
+const homeworkList = document.getElementById("homeworkList") || null;
+const studentHomeworkList = document.getElementById("studentHomeworkList") || null;
+const homeworkForm = document.getElementById("homeworkForm") || null;
+const homeworkStudentSelect = document.getElementById("homeworkStudentSelect") || null;
+const homeworkTitle = document.getElementById("homeworkTitle") || null;
+const homeworkDescription = document.getElementById("homeworkDescription") || null;
+const homeworkDueDate = document.getElementById("homeworkDueDate") || null;
+const homeworkSubmitBtn = document.getElementById("homeworkSubmitBtn") || null;
 
 const FIREBASE_WARNING = "Firebase config missing. Open firebase-api.js and paste your Firebase web app config.";
 const DEFAULT_TEACHER_PHOTO = "https://placehold.co/300x300/f2efe6/8b5e34?text=Teacher";
@@ -1284,6 +1300,7 @@ async function loadStudentData(options = {}) {
   if (showFeeReminder) {
     showFeeReminderIfNeeded(feeReminderStudent);
   }
+  await loadStudentHomework(id);
   restoreUiPositionState(uiPositionState);
 }
 
@@ -1830,12 +1847,15 @@ function sendWhatsApp() {
 async function refreshFirestoreData() {
   students = await getStudents();
   schedules = await getSchedules();
+  homework = await getAllHomework();
   await cleanupOldAttendanceHistory();
   await Promise.all(students.map((student) => loadAttendanceHistoryForStudent(student.id)));
   await removeExpiredSchedules({ refreshViews: false });
   showStudents();
   showStudentCheckList();
+  populateHomeworkStudentSelect();
   loadSchedules();
+  loadTeacherHomework();
 }
 
 async function seedInitialStudents() {
@@ -2419,6 +2439,259 @@ async function loadRanchiWeather() {
     const temperature = Math.round(Number(weatherData?.current?.temperature_2m));
     const weatherCode = Number(weatherData?.current?.weather_code);
     const isDay = Number(weatherData?.current?.is_day) === 1;
+    const weatherClass = getWeatherThemeClass(weatherCode, isDay);
+    ranchiTemperature.textContent = `${temperature}°C`;
+    ranchiWeatherText.textContent = getWeatherDescription(weatherCode);
+    ranchiWeatherIcon.className = `weather-icon ${getWeatherIcon(weatherCode, isDay)}`;
+    document.documentElement.classList.toggle(weatherClass, true);
+  } catch (error) {
+    console.error("Weather loading failed:", error);
+    ranchiTemperature.textContent = "--";
+    ranchiWeatherText.textContent = "Weather unavailable";
+  }
+}
+
+// Homework Functions
+function populateHomeworkStudentSelect() {
+  if (!homeworkStudentSelect) {
+    return;
+  }
+
+  homeworkStudentSelect.innerHTML = '<option value="">-- Select Student --</option>';
+  students.forEach((student) => {
+    const option = document.createElement("option");
+    option.value = student.id;
+    option.textContent = `${student.name} (ID: ${student.id})`;
+    homeworkStudentSelect.appendChild(option);
+  });
+}
+
+async function submitHomework() {
+  if (!homeworkStudentSelect || !homeworkTitle || !homeworkDescription || !homeworkDueDate) {
+    return;
+  }
+
+  const studentId = homeworkStudentSelect.value.trim();
+  const title = homeworkTitle.value.trim();
+  const description = homeworkDescription.value.trim();
+  const dueDate = homeworkDueDate.value;
+
+  if (!studentId) {
+    alert("Please select a student");
+    return;
+  }
+
+  if (!title) {
+    alert("Please enter homework title");
+    return;
+  }
+
+  if (!description) {
+    alert("Please enter homework description");
+    return;
+  }
+
+  if (!dueDate) {
+    alert("Please select a due date");
+    return;
+  }
+
+  if (!isFirebaseReady()) {
+    alert(FIREBASE_WARNING);
+    return;
+  }
+
+  try {
+    const student = students.find((s) => s.id === studentId);
+    if (!student) {
+      alert("Student not found");
+      return;
+    }
+
+    const homeworkData = {
+      studentId,
+      studentName: student.name,
+      studentIdNormalized: studentId.toLowerCase(),
+      title,
+      description,
+      dueDate,
+      assignedDate: new Date().toISOString().split("T")[0],
+      completed: false
+    };
+
+    const firestoreId = await addHomeworkRecord(homeworkData);
+    homework.push({ firestoreId, ...homeworkData });
+
+    alert("Homework assigned successfully");
+    resetHomeworkForm();
+    loadTeacherHomework();
+  } catch (error) {
+    console.error(error);
+    alert(error.message || "Unable to assign homework");
+  }
+}
+
+function resetHomeworkForm() {
+  if (!homeworkStudentSelect || !homeworkTitle || !homeworkDescription || !homeworkDueDate) {
+    return;
+  }
+
+  homeworkStudentSelect.value = "";
+  homeworkTitle.value = "";
+  homeworkDescription.value = "";
+  homeworkDueDate.value = "";
+}
+
+async function loadTeacherHomework() {
+  if (!homeworkList) {
+    return;
+  }
+
+  if (!isFirebaseReady()) {
+    homeworkList.innerHTML = `<div class="box" style="color: #999;">Firebase not configured</div>`;
+    return;
+  }
+
+  try {
+    homework = await getAllHomework();
+
+    if (homework.length === 0) {
+      homeworkList.innerHTML = `<div class="box" style="color: #999; text-align: center;">No homework assigned yet</div>`;
+      return;
+    }
+
+    homeworkList.innerHTML = homework.map((hw, index) => {
+      const today = new Date().toISOString().split("T")[0];
+      const isOverdue = hw.dueDate < today && !hw.completed;
+      const dueSoon = hw.dueDate >= today && hw.dueDate <= new Date(new Date().getTime() + 3 * 24 * 60 * 60 * 1000).toISOString().split("T")[0] && !hw.completed;
+
+      let statusClass = "status-pending";
+      let statusText = "Pending";
+
+      if (hw.completed) {
+        statusClass = "status-completed";
+        statusText = "Completed";
+      } else if (isOverdue) {
+        statusClass = "status-overdue";
+        statusText = "Overdue";
+      } else if (dueSoon) {
+        statusClass = "status-due-soon";
+        statusText = "Due Soon";
+      }
+
+      return `
+        <div class="box homework-box">
+          <div style="display: flex; justify-content: space-between; align-items: start; gap: 10px;">
+            <div style="flex: 1;">
+              <strong style="font-size: 16px;">${escapeHtml(hw.title)}</strong><br>
+              <span style="color: #666; font-size: 14px;">Student: ${escapeHtml(hw.studentName)} (ID: ${escapeHtml(hw.studentId)})</span><br>
+              <p style="color: #555; margin: 8px 0; font-size: 14px;">${escapeHtml(hw.description)}</p>
+              <span style="color: #888; font-size: 13px;">Assigned: ${hw.assignedDate}</span><br>
+              <span style="color: #d97706; font-weight: 600; font-size: 13px;">Due: ${hw.dueDate}</span><br>
+              <span class="${statusClass}" style="display: inline-block; margin-top: 8px; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600;">
+                ${statusText}
+              </span>
+            </div>
+            <button class="ghost-btn compact-btn" onclick="deleteHomeworkRecord('${hw.firestoreId}')" style="color: #dc2626;">Delete</button>
+          </div>
+        </div>
+      `;
+    }).join("");
+  } catch (error) {
+    console.error("Error loading homework:", error);
+    homeworkList.innerHTML = `<div class="box" style="color: #dc2626;">Error loading homework</div>`;
+  }
+}
+
+async function loadStudentHomework(studentId) {
+  const studentHomeworkList = document.getElementById("studentHomeworkList");
+  if (!studentHomeworkList) {
+    return;
+  }
+
+  if (!isFirebaseReady()) {
+    studentHomeworkList.innerHTML = `<div class="box" style="color: #999;">Firebase not configured</div>`;
+    return;
+  }
+
+  try {
+    const studentHW = await getHomeworkByStudent(studentId);
+
+    if (studentHW.length === 0) {
+      studentHomeworkList.innerHTML = `<div class="box" style="color: #999; text-align: center;">No homework assigned yet</div>`;
+      return;
+    }
+
+    studentHomeworkList.innerHTML = studentHW.map((hw) => {
+      const today = new Date().toISOString().split("T")[0];
+      const isOverdue = hw.dueDate < today && !hw.completed;
+      const dueSoon = hw.dueDate >= today && hw.dueDate <= new Date(new Date().getTime() + 3 * 24 * 60 * 60 * 1000).toISOString().split("T")[0] && !hw.completed;
+
+      let statusClass = "status-pending";
+      let statusText = "Pending";
+      let bgColor = "#f0fdf4";
+
+      if (hw.completed) {
+        statusClass = "status-completed";
+        statusText = "Completed ✓";
+        bgColor = "#f0fdf4";
+      } else if (isOverdue) {
+        statusClass = "status-overdue";
+        statusText = "Overdue ⚠️";
+        bgColor = "#fef2f2";
+      } else if (dueSoon) {
+        statusClass = "status-due-soon";
+        statusText = "Due Soon ⏰";
+        bgColor = "#fffbeb";
+      }
+
+      return `
+        <div class="box" style="background: ${bgColor}; border-left: 4px solid ${isOverdue ? '#dc2626' : dueSoon ? '#f59e0b' : hw.completed ? '#16a34a' : '#3b82f6'};">
+          <strong style="font-size: 16px; color: #1f2937;">${escapeHtml(hw.title)}</strong><br>
+          <p style="color: #555; margin: 10px 0; font-size: 14px; line-height: 1.5;">${escapeHtml(hw.description)}</p>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(0,0,0,0.1);">
+            <div>
+              <span style="color: #888; font-size: 13px;">Assigned: ${hw.assignedDate}</span><br>
+              <span style="color: #d97706; font-weight: 600; font-size: 14px;">Due: ${hw.dueDate}</span>
+            </div>
+            <span class="${statusClass}" style="padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: 600; background: white;">${statusText}</span>
+          </div>
+        </div>
+      `;
+    }).join("");
+  } catch (error) {
+    console.error("Error loading student homework:", error);
+    studentHomeworkList.innerHTML = `<div class="box" style="color: #dc2626;">Error loading homework</div>`;
+  }
+}
+
+async function deleteHomeworkRecord(firestoreId) {
+  if (!confirm("Are you sure you want to delete this homework?")) {
+    return;
+  }
+
+  if (!isFirebaseReady()) {
+    alert(FIREBASE_WARNING);
+    return;
+  }
+
+  try {
+    // Import directly with alias to avoid naming conflict
+    const firebaseApi = await import("./firebase-api.js");
+    await firebaseApi.deleteHomeworkRecord(firestoreId);
+    homework = homework.filter((hw) => hw.firestoreId !== firestoreId);
+    loadTeacherHomework();
+    alert("Homework deleted");
+  } catch (error) {
+    console.error(error);
+    alert(error.message || "Unable to delete homework");
+  }
+}
+
+window.submitHomework = submitHomework;
+window.deleteHomeworkRecord = deleteHomeworkRecord;
+window.resetHomeworkForm = resetHomeworkForm;
+window.loadStudentHomework = loadStudentHomework;
 
     if (!Number.isFinite(temperature)) {
       throw new Error("Weather temperature missing");

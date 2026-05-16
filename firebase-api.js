@@ -32,7 +32,8 @@ const COLLECTIONS = {
   students: "students",
   schedules: "schedules",
   teacherProfiles: "teacherProfiles",
-  attendanceHistory: "attendanceHistory"
+  attendanceHistory: "attendanceHistory",
+  homework: "homework"
 };
 
 const isConfigured = Object.values(firebaseConfig).every(
@@ -265,4 +266,55 @@ export async function getAttendanceHistoryByDateRange(studentId, startDate, endD
     firestoreId: doc.id,
     ...doc.data()
   }));
+}
+
+// Homework Functions
+export async function addHomeworkRecord(homework) {
+  ensureConfigured();
+  const docRef = await addDoc(collection(db, COLLECTIONS.homework), {
+    ...homework,
+    createdAt: serverTimestamp()
+  });
+  return docRef.id;
+}
+
+export async function getHomeworkByStudent(studentId) {
+  ensureConfigured();
+  const normalizedStudentId = String(studentId || "").trim().toLowerCase();
+  const homeworkQuery = query(
+    collection(db, COLLECTIONS.homework),
+    where("studentIdNormalized", "==", normalizedStudentId),
+    orderBy("createdAt", "desc")
+  );
+  const snapshot = await getDocs(homeworkQuery);
+  return snapshot.docs.map((doc) => ({
+    firestoreId: doc.id,
+    ...doc.data()
+  }));
+}
+
+export async function getAllHomework() {
+  ensureConfigured();
+  const homeworkQuery = query(
+    collection(db, COLLECTIONS.homework),
+    orderBy("createdAt", "desc")
+  );
+  const snapshot = await getDocs(homeworkQuery);
+  return snapshot.docs.map((doc) => ({
+    firestoreId: doc.id,
+    ...doc.data()
+  }));
+}
+
+export async function updateHomeworkRecord(firestoreId, homework) {
+  ensureConfigured();
+  await updateDoc(doc(db, COLLECTIONS.homework, firestoreId), {
+    ...homework,
+    updatedAt: serverTimestamp()
+  });
+}
+
+export async function deleteHomeworkRecord(firestoreId) {
+  ensureConfigured();
+  await deleteDoc(doc(db, COLLECTIONS.homework, firestoreId));
 }
