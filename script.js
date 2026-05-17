@@ -23,6 +23,7 @@ let students = [];
 let schedules = [];
 let attendanceHistoryCache = {}; // Cache for attendance history: { studentId: [attendance records] }
 let editingStudentIndex = null;
+let editingScheduleId = null;
 let teacherProfile = null;
 let isTeacherLoggedIn = false;
 let currentRatingStudentIndex = null;
@@ -77,6 +78,8 @@ const scheduleForm = document.getElementById("scheduleForm");
 const newScheduleBtn = document.getElementById("newScheduleBtn");
 const newScheduleBtnText = document.getElementById("newScheduleBtnText");
 const scheduleCloseBtn = document.getElementById("scheduleCloseBtn");
+const scheduleSubmitBtn = document.getElementById("scheduleSubmitBtn");
+const scheduleCancelBtn = document.getElementById("scheduleCancelBtn");
 const ratingModal = document.getElementById("ratingModal");
 const ratingModalTitle = document.getElementById("ratingModalTitle");
 const currentRatingDisplay = document.getElementById("currentRatingDisplay");
@@ -96,6 +99,13 @@ const ATTENDANCE_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
 const CLASS_TIMER_DURATION_MS = 60 * 60 * 1000;
 const ATTENDANCE_RETENTION_MONTHS = 2;
 const DEFAULT_HOME_NOTICE = "No notice yet.";
+const ABSENCE_REASON_OPTIONS = [
+  "I am not in home",
+  "I am not in Ranchi",
+  "I am sick",
+  "Due to bad weather I will not come",
+  "I will come late today"
+];
 const RANCHI_WEATHER_URL = "https://api.open-meteo.com/v1/forecast?latitude=23.3441&longitude=85.3096&current=temperature_2m,weather_code,is_day&timezone=auto";
 const WEATHER_THEME_CLASSES = [
   "weather-ready",
@@ -130,11 +140,16 @@ window.editStudent = editStudent;
 window.cancelStudentEdit = cancelStudentEdit;
 window.toggleStudentRegisterForm = toggleStudentRegisterForm;
 window.saveSchedule = saveSchedule;
+window.editSchedule = editSchedule;
+window.cancelScheduleEdit = cancelScheduleEdit;
 window.deleteSchedule = deleteSchedule;
 window.loadStudentData = loadStudentData;
 window.closeStudentModal = closeStudentModal;
 window.closeFeeReminderModal = closeFeeReminderModal;
 window.studentAttendance = studentAttendance;
+window.showAbsenceReasonPicker = showAbsenceReasonPicker;
+window.handleAbsenceReasonChange = handleAbsenceReasonChange;
+window.sendStudentOtherAbsenceReason = sendStudentOtherAbsenceReason;
 window.stopClassTimer = stopClassTimer;
 window.removeStudentFromSchedule = removeStudentFromSchedule;
 window.sendWhatsApp = sendWhatsApp;
@@ -558,9 +573,19 @@ async function saveSchedule() {
   const date = classDate.value;
   const time = classTime.value;
   const day = classDay.value;
+  const scheduleIndex = editingScheduleId
+    ? schedules.findIndex((schedule) => schedule.firestoreId === editingScheduleId)
+    : -1;
+  const editingSchedule = scheduleIndex === -1 ? null : schedules[scheduleIndex];
 
   if (!date || !day) {
     alert("Fill Date and Day");
+    return;
+  }
+
+  if (editingScheduleId && !editingSchedule) {
+    alert("Schedule not found");
+    resetScheduleForm();
     return;
   }
 
@@ -576,19 +601,28 @@ async function saveSchedule() {
     if (checkbox && checkbox.checked) {
       const holidayCheckbox = document.getElementById(`holiday_${index}`);
       const isHoliday = holidayCheckbox && holidayCheckbox.checked;
+      const existingScheduleStudent = editingSchedule?.students?.find((scheduleStudent) =>
+        isSameStudentId(scheduleStudent.id, student.id)
+      );
+      const preservedAttendanceStatus = existingScheduleStudent?.attendanceStatus || "pending";
+      const preservedAttendanceReason = existingScheduleStudent?.attendanceReason || "";
       let attendanceReason = "";
 
       if (isHoliday) {
-        attendanceReason = askHolidayReason();
-        if (attendanceReason === null) {
-          return;
+        if (preservedAttendanceStatus === "holiday") {
+          attendanceReason = preservedAttendanceReason;
+        } else {
+          attendanceReason = askHolidayReason();
+          if (attendanceReason === null) {
+            return;
+          }
         }
       }
       
       selectedStudents.push({
         ...student,
-        attendanceStatus: isHoliday ? "holiday" : "pending",
-        attendanceReason
+        attendanceStatus: isHoliday ? "holiday" : preservedAttendanceStatus === "holiday" ? "pending" : preservedAttendanceStatus,
+        attendanceReason: isHoliday ? attendanceReason : preservedAttendanceReason
       });
     }
   }
@@ -611,23 +645,28 @@ async function saveSchedule() {
     date,
     time: time || "", // Use empty string if no time provided
     day,
-    classStoppedAt: null,
+    classStoppedAt: editingSchedule?.classStoppedAt || null,
     students: selectedStudents.map(({ firestoreId, ...student }) => ({
       ...student
     }))
   };
 
   try {
-    const firestoreId = await addScheduleRecord(schedulePayload);
-    schedules.push({ firestoreId, ...schedulePayload });
+    if (editingSchedule) {
+      await updateScheduleRecord(editingSchedule.firestoreId, schedulePayload);
+      schedules[scheduleIndex] = { firestoreId: editingSchedule.firestoreId, ...schedulePayload };
+    } else {
+      const firestoreId = await addScheduleRecord(schedulePayload);
+      schedules.push({ firestoreId, ...schedulePayload });
+    }
+
     loadSchedules();
-    setScheduleFieldsToDate(new Date());
-    classTime.value = "";
-    showStudentCheckList();
-    alert("Saved");
+    resetScheduleForm();
+    refreshStudentDataViewIfNeeded();
+    alert(editingSchedule ? "Class updated" : "Saved");
   } catch (error) {
     console.error(error);
-    alert("Unable to save schedule to Firestore");
+    alert(editingSchedule ? "Unable to update schedule in Firestore" : "Unable to save schedule to Firestore");
   }
 }
 
@@ -1013,9 +1052,52 @@ function getScheduleActionsHtml(schedule) {
     <div class="schedule-actions">
       ${stopTimerButton}
       ${stoppedText}
+      <button class="ghost-btn compact-btn" onclick="editSchedule('${schedule.firestoreId}')">Edit Class</button>
       <button class="delete compact-btn" onclick="deleteSchedule('${schedule.firestoreId}')">Delete Class</button>
     </div>
   `;
+}
+
+function editSchedule(scheduleIdentifier) {
+  const schedule = schedules.find((currentSchedule) => currentSchedule.firestoreId === scheduleIdentifier);
+
+  if (!schedule) {
+    alert("Schedule not found");
+    return;
+  }
+
+  editingScheduleId = schedule.firestoreId;
+  classDate.value = schedule.date || "";
+  classTime.value = schedule.time || "";
+  classDay.value = schedule.day || "";
+  showStudentCheckList();
+
+  students.forEach((student, index) => {
+    const scheduleStudent = schedule.students?.find((currentStudent) => isSameStudentId(currentStudent.id, student.id));
+    const studentCheckbox = document.getElementById(`student_${index}`);
+    const holidayCheckbox = document.getElementById(`holiday_${index}`);
+
+    if (studentCheckbox) {
+      studentCheckbox.checked = Boolean(scheduleStudent);
+    }
+
+    if (holidayCheckbox) {
+      holidayCheckbox.checked = scheduleStudent?.attendanceStatus === "holiday";
+    }
+  });
+
+  openScheduleForm();
+  if (scheduleSubmitBtn) {
+    scheduleSubmitBtn.textContent = "Update Schedule";
+  }
+  if (scheduleCancelBtn) {
+    scheduleCancelBtn.style.display = "block";
+  }
+  classDate.focus();
+}
+
+function cancelScheduleEdit() {
+  resetScheduleForm();
 }
 
 async function stopClassTimer(scheduleIdentifier) {
@@ -1081,6 +1163,9 @@ async function deleteSchedule(scheduleIdentifier) {
   try {
     await deleteScheduleRecord(schedules[scheduleIndex].firestoreId);
     schedules.splice(scheduleIndex, 1);
+    if (editingScheduleId === scheduleIdentifier) {
+      resetScheduleForm();
+    }
     loadSchedules();
     refreshStudentDataViewIfNeeded();
   } catch (error) {
@@ -1255,12 +1340,14 @@ async function loadStudentData(options = {}) {
           ? `<strong>Reason:</strong> <span style="color:#dc2626; font-weight:700;">${escapeHtml(attendanceReason)}</span><br>`
           : "";
         
+        const absenceReasonHtml = buildAbsenceReasonPickerHtml(schedule.firestoreId, student.id);
         const attendanceButtonsHtml = isHoliday ? 
           `<div style="margin-top: 10px; padding: 8px; background: #fef3c7; border-radius: 5px; color: #f59e0b; font-weight: bold;">Holiday marked by teacher</div>` :
           `<div class="attendance-actions" style="display:flex; gap:10px; flex-wrap:wrap; margin-top: 10px;">
             <button class="secondary-btn compact-btn" style="flex:1; min-width: 160px;" onclick="studentAttendance('${schedule.firestoreId}','${student.id}','coming','student')">I will come</button>
-            <button class="secondary-btn compact-btn" style="flex:1; min-width: 160px; background:#dc2626; color:#fff;" onclick="studentAttendance('${schedule.firestoreId}','${student.id}','not-coming','student')">I will not come today</button>
-          </div>`;
+            <button class="secondary-btn compact-btn" style="flex:1; min-width: 160px; background:#dc2626; color:#fff;" onclick="showAbsenceReasonPicker(this)">I will not come today</button>
+          </div>
+          ${absenceReasonHtml}`;
         const countdownMarkup = getCountdownMarkup(schedule, classDateTime, isHoliday);
         
         const studentRecordHtml = `
@@ -1685,6 +1772,66 @@ function buildStudentAbsenceMessage(schedule, student, customMessage) {
   return `Student ${student.name} (ID: ${student.id}) will not come to class on ${schedule.date}${classTiming}. Message: ${customMessage}`;
 }
 
+function buildAbsenceReasonPickerHtml(scheduleId, studentId) {
+  const options = ABSENCE_REASON_OPTIONS
+    .map((reason) => `<option value="${escapeHtml(reason)}">${escapeHtml(reason)}</option>`)
+    .join("");
+
+  return `
+    <div class="absence-reason-panel hidden">
+      <label class="absence-reason-label">Reason</label>
+      <select class="absence-reason-select" onchange="handleAbsenceReasonChange(this, '${scheduleId}', '${studentId}')">
+        <option value="">Select one reason</option>
+        ${options}
+        <option value="other">Other</option>
+      </select>
+      <div class="absence-other-row hidden">
+        <textarea class="absence-other-message" placeholder="I will not come due to -"></textarea>
+        <button type="button" class="whatsapp-btn compact-btn" onclick="sendStudentOtherAbsenceReason(this, '${scheduleId}', '${studentId}')">Send WhatsApp</button>
+      </div>
+    </div>
+  `;
+}
+
+function showAbsenceReasonPicker(button) {
+  const panel = button.closest(".box")?.querySelector(".absence-reason-panel");
+  if (!panel) {
+    return;
+  }
+
+  panel.classList.remove("hidden");
+  panel.querySelector(".absence-reason-select")?.focus();
+}
+
+async function handleAbsenceReasonChange(selectElement, scheduleId, studentId) {
+  const selectedReason = selectElement.value;
+  const panel = selectElement.closest(".absence-reason-panel");
+  const otherRow = panel?.querySelector(".absence-other-row");
+
+  if (otherRow) {
+    otherRow.classList.toggle("hidden", selectedReason !== "other");
+  }
+
+  if (!selectedReason || selectedReason === "other") {
+    return;
+  }
+
+  await studentAttendance(scheduleId, studentId, "not-coming", "student", selectedReason);
+}
+
+async function sendStudentOtherAbsenceReason(button, scheduleId, studentId) {
+  const panel = button.closest(".absence-reason-panel");
+  const messageInput = panel?.querySelector(".absence-other-message");
+  const customReason = messageInput?.value.trim();
+
+  if (!customReason) {
+    alert("Write your reason");
+    return;
+  }
+
+  await studentAttendance(scheduleId, studentId, "not-coming", "student", customReason, { openWhatsApp: true });
+}
+
 function getTeacherWhatsAppUrl(message = "") {
   const phone = `${TEACHER_WHATSAPP_COUNTRY_CODE}${TEACHER_WHATSAPP_NUMBER}`;
   const encodedMessage = message ? `&text=${encodeURIComponent(message)}` : "";
@@ -1713,7 +1860,7 @@ function askHolidayReason() {
   return holidayReason.trim() || "Holiday marked by teacher";
 }
 
-async function studentAttendance(scheduleId, studentId, status, source = "teacher") {
+async function studentAttendance(scheduleId, studentId, status, source = "teacher", selectedReason = "", options = {}) {
   const schedule = schedules.find(s => s.firestoreId === scheduleId);
   if (!schedule) {
     alert("Schedule not found");
@@ -1727,12 +1874,17 @@ async function studentAttendance(scheduleId, studentId, status, source = "teache
   }
 
   if (source === "student" && status === "not-coming") {
-    const customMessage = whatsappMsg.value.trim() || "I will not come today.";
-    whatsappMsg.value = customMessage;
+    const customMessage = selectedReason.trim();
+    if (!customMessage) {
+      alert("Select one reason");
+      return;
+    }
 
-    const message = buildStudentAbsenceMessage(schedule, student, customMessage);
     await updateStudentAttendance(scheduleId, studentId, status, customMessage);
-    openTeacherWhatsApp(message);
+    if (options.openWhatsApp) {
+      const message = buildStudentAbsenceMessage(schedule, student, `I will not come due to - ${customMessage}`);
+      openTeacherWhatsApp(message);
+    }
     return;
   }
 
@@ -1986,7 +2138,7 @@ function closeStudentRegisterForm() {
 
 function toggleScheduleForm() {
   if (scheduleForm.classList.contains("active")) {
-    closeScheduleForm();
+    resetScheduleForm();
     return;
   }
 
@@ -1995,12 +2147,26 @@ function toggleScheduleForm() {
 
 function openScheduleForm() {
   scheduleForm.classList.add("active");
-  newScheduleBtnText.textContent = "Close Form";
+  newScheduleBtnText.textContent = editingScheduleId ? "Close Form" : "Hide Form";
 }
 
 function closeScheduleForm() {
   scheduleForm.classList.remove("active");
   newScheduleBtnText.textContent = "New Schedule";
+}
+
+function resetScheduleForm() {
+  editingScheduleId = null;
+  setScheduleFieldsToDate(new Date());
+  classTime.value = "";
+  showStudentCheckList();
+  if (scheduleSubmitBtn) {
+    scheduleSubmitBtn.textContent = "Save Schedule";
+  }
+  if (scheduleCancelBtn) {
+    scheduleCancelBtn.style.display = "none";
+  }
+  closeScheduleForm();
 }
 
 async function saveStudentUpdate(index, updatedStudent) {
@@ -2170,7 +2336,7 @@ function initializeStudentRegisterForm() {
 }
 
 function initializeScheduleForm() {
-  closeScheduleForm();
+  resetScheduleForm();
 
   if (newScheduleBtn) {
     newScheduleBtn.addEventListener("click", toggleScheduleForm);
@@ -2178,8 +2344,12 @@ function initializeScheduleForm() {
 
   if (scheduleCloseBtn) {
     scheduleCloseBtn.addEventListener("click", () => {
-      closeScheduleForm();
+      resetScheduleForm();
     });
+  }
+
+  if (scheduleCancelBtn) {
+    scheduleCancelBtn.addEventListener("click", cancelScheduleEdit);
   }
 }
 

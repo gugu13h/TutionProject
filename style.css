@@ -2045,6 +2045,38 @@ a.secondary-btn {
   font-size: 1.1rem;
 }
 
+.absence-reason-panel {
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid rgba(220, 38, 38, 0.18);
+  border-radius: 10px;
+  background: rgba(254, 242, 242, 0.86);
+}
+
+.absence-reason-label {
+  display: block;
+  margin-bottom: 6px;
+  color: #991b1b;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.absence-reason-select,
+.absence-other-message {
+  width: 100%;
+}
+
+.absence-other-row {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.absence-other-message {
+  min-height: 74px;
+  resize: vertical;
+}
+
 .compact-btn {
   width: auto;
   min-width: 120px;
