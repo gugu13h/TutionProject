@@ -90,6 +90,7 @@ const DEFAULT_FEE_CYCLE_END_DAY = 30;
 const TEACHER_WHATSAPP_NUMBER = "8864022272";
 const TEACHER_WHATSAPP_COUNTRY_CODE = "91";
 const SCHEDULE_AUTO_DELETE_AFTER_HOURS = 3;
+const HOLIDAY_STUDENT_AUTO_DELETE_HOUR = 20;
 const SCHEDULE_CLEANUP_INTERVAL_MS = 60 * 1000;
 const ATTENDANCE_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
 const CLASS_TIMER_DURATION_MS = 60 * 60 * 1000;
@@ -661,6 +662,21 @@ function isScheduleExpired(schedule, now = new Date()) {
   return now.getTime() >= expiresAt;
 }
 
+function getHolidayStudentAutoDeleteTime(schedule) {
+  const scheduleDate = parseScheduleDate(schedule?.date);
+  if (!scheduleDate) {
+    return null;
+  }
+
+  scheduleDate.setHours(HOLIDAY_STUDENT_AUTO_DELETE_HOUR, 0, 0, 0);
+  return scheduleDate;
+}
+
+function isHolidayStudentAutoDeleteDue(schedule, now = new Date()) {
+  const deleteTime = getHolidayStudentAutoDeleteTime(schedule);
+  return Boolean(deleteTime && now.getTime() >= deleteTime.getTime());
+}
+
 function getVisibleSchedules(now = new Date()) {
   return schedules.filter((schedule) => !isScheduleExpired(schedule, now));
 }
@@ -701,6 +717,7 @@ async function removeExpiredSchedules(options = {}) {
 
   isCleaningExpiredSchedules = true;
   const deletedScheduleIds = [];
+  const updatedScheduleIds = [];
 
   try {
     for (const schedule of expiredSchedules) {
@@ -734,18 +751,71 @@ async function removeExpiredSchedules(options = {}) {
       }
     }
 
-    if (deletedScheduleIds.length === 0) {
+    const remainingSchedules = schedules.filter((schedule) => !deletedScheduleIds.includes(schedule.firestoreId));
+    for (let index = 0; index < remainingSchedules.length; index += 1) {
+      const schedule = remainingSchedules[index];
+      if (!isHolidayStudentAutoDeleteDue(schedule, now)) {
+        continue;
+      }
+
+      const holidayStudents = schedule.students.filter((student) => student.attendanceStatus === "holiday");
+      if (holidayStudents.length === 0) {
+        continue;
+      }
+
+      try {
+        for (const student of holidayStudents) {
+          try {
+            const attendanceData = {
+              studentId: student.id,
+              date: schedule.date,
+              day: schedule.day,
+              time: schedule.time || "",
+              status: "holiday",
+              reason: student.attendanceReason || "",
+              scheduleId: schedule.firestoreId
+            };
+            await saveAttendanceHistoryRecord(attendanceData);
+          } catch (error) {
+            console.error("Failed to save holiday attendance history:", error);
+          }
+        }
+
+        const remainingStudents = schedule.students.filter((student) => student.attendanceStatus !== "holiday");
+        if (remainingStudents.length === 0) {
+          await deleteScheduleRecord(schedule.firestoreId);
+          deletedScheduleIds.push(schedule.firestoreId);
+          continue;
+        }
+
+        const updatedSchedule = {
+          date: schedule.date,
+          time: schedule.time,
+          day: schedule.day,
+          classStoppedAt: schedule.classStoppedAt || null,
+          students: remainingStudents
+        };
+        await updateScheduleRecord(schedule.firestoreId, updatedSchedule);
+        remainingSchedules[index] = { firestoreId: schedule.firestoreId, ...updatedSchedule };
+        updatedScheduleIds.push(schedule.firestoreId);
+      } catch (error) {
+        console.error("Unable to auto-delete holiday student from schedule:", error);
+      }
+    }
+
+    if (deletedScheduleIds.length === 0 && updatedScheduleIds.length === 0) {
       return 0;
     }
 
-    schedules = schedules.filter((schedule) => !deletedScheduleIds.includes(schedule.firestoreId));
+    schedules = remainingSchedules.filter((schedule) => !deletedScheduleIds.includes(schedule.firestoreId));
 
     if (refreshViews) {
       loadSchedules();
+      showStudents();
       refreshStudentDataViewIfNeeded();
     }
 
-    return deletedScheduleIds.length;
+    return deletedScheduleIds.length + updatedScheduleIds.length;
   } finally {
     isCleaningExpiredSchedules = false;
   }
