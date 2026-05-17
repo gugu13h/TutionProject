@@ -520,6 +520,42 @@ body.theme-night .panel-card {
   color: var(--text-main);
   font-weight: 700;
   line-height: 1.45;
+  transition: opacity 0.28s ease, transform 0.28s ease;
+}
+
+.cloud-notice-content p.is-changing {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.cloud-notice-content.notice-color-1 {
+  background: #fff7ed;
+  box-shadow: 0 18px 34px rgba(194, 65, 12, 0.16);
+}
+
+.cloud-notice-content.notice-color-1 p,
+.cloud-notice-content.notice-color-1 .eyebrow {
+  color: #7c2d12;
+}
+
+.cloud-notice-content.notice-color-2 {
+  background: #ecfdf5;
+  box-shadow: 0 18px 34px rgba(4, 120, 87, 0.16);
+}
+
+.cloud-notice-content.notice-color-2 p,
+.cloud-notice-content.notice-color-2 .eyebrow {
+  color: #064e3b;
+}
+
+.cloud-notice-content.notice-color-3 {
+  background: #eff6ff;
+  box-shadow: 0 18px 34px rgba(29, 78, 216, 0.16);
+}
+
+.cloud-notice-content.notice-color-3 p,
+.cloud-notice-content.notice-color-3 .eyebrow {
+  color: #1e3a8a;
 }
 
 body.theme-night .cloud-bubble,
@@ -530,6 +566,36 @@ body.theme-night .cloud-notice-content {
 
 body.theme-night .cloud-notice-content p {
   color: #0f172a;
+}
+
+body.theme-night .cloud-notice-content.notice-color-1 {
+  background: #431407;
+  box-shadow: 0 18px 34px rgba(251, 146, 60, 0.18);
+}
+
+body.theme-night .cloud-notice-content.notice-color-1 p,
+body.theme-night .cloud-notice-content.notice-color-1 .eyebrow {
+  color: #ffedd5;
+}
+
+body.theme-night .cloud-notice-content.notice-color-2 {
+  background: #052e2b;
+  box-shadow: 0 18px 34px rgba(45, 212, 191, 0.18);
+}
+
+body.theme-night .cloud-notice-content.notice-color-2 p,
+body.theme-night .cloud-notice-content.notice-color-2 .eyebrow {
+  color: #ccfbf1;
+}
+
+body.theme-night .cloud-notice-content.notice-color-3 {
+  background: #172554;
+  box-shadow: 0 18px 34px rgba(96, 165, 250, 0.18);
+}
+
+body.theme-night .cloud-notice-content.notice-color-3 p,
+body.theme-night .cloud-notice-content.notice-color-3 .eyebrow {
+  color: #dbeafe;
 }
 
 .weather-card {
@@ -702,6 +768,11 @@ body.weather-thunder .weather-card::after {
 
 .teacher-notice-field textarea {
   min-height: 92px;
+  margin-bottom: 10px;
+}
+
+.teacher-notice-field textarea:last-child {
+  margin-bottom: 0;
 }
 
 .auth-card {

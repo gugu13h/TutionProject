@@ -34,6 +34,8 @@ let attendanceCleanupTimerId = null;
 let isCleaningExpiredSchedules = false;
 let studentCountdownTimerId = null;
 let teacherScheduleTimerId = null;
+let noticeRotationTimerId = null;
+let currentNoticeIndex = 0;
 
 const username = document.getElementById("username");
 const password = document.getElementById("password");
@@ -61,7 +63,11 @@ const teacherDashboardPhoto = document.getElementById("teacherDashboardPhoto");
 const teacherPhotoFile = document.getElementById("teacherPhotoFile");
 const aboutTeacherBtn = document.getElementById("aboutTeacherBtn");
 const aboutTeacherPhoto = document.getElementById("aboutTeacherPhoto");
-const teacherNoticeInput = document.getElementById("teacherNoticeInput");
+const teacherNoticeInputs = [
+  document.getElementById("teacherNoticeInput1"),
+  document.getElementById("teacherNoticeInput2"),
+  document.getElementById("teacherNoticeInput3")
+];
 const homeNoticeText = document.getElementById("homeNoticeText");
 const ranchiTemperature = document.getElementById("ranchiTemperature");
 const ranchiWeatherText = document.getElementById("ranchiWeatherText");
@@ -98,6 +104,8 @@ const SCHEDULE_CLEANUP_INTERVAL_MS = 60 * 1000;
 const ATTENDANCE_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
 const CLASS_TIMER_DURATION_MS = 60 * 60 * 1000;
 const ATTENDANCE_RETENTION_MONTHS = 2;
+const NOTICE_ROTATION_INTERVAL_MS = 5000;
+const NOTICE_COLOR_CLASSES = ["notice-color-1", "notice-color-2", "notice-color-3"];
 const DEFAULT_HOME_NOTICE = "No notice yet.";
 const ABSENCE_REASON_OPTIONS = [
   "I am not in home",
@@ -441,6 +449,8 @@ function showStudents() {
     const ratings = student.subjectRatings || { maths: 0, science: 0 };
     const overallRating = Math.round((ratings.maths + ratings.science) / 2 * 10) / 10;
     const overallText = overallRating === 0 ? "Not Rated" : `${overallRating} / 10`;
+    const feeCycleStartDay = getFeeCycleDay(student.feeCycleStartDay, DEFAULT_FEE_CYCLE_START_DAY);
+    const feeCycleEndDay = getFeeCycleDay(student.feeCycleEndDay, DEFAULT_FEE_CYCLE_END_DAY);
     const studentDetailsId = `teacherStudentDetails_${index}`;
     const studentKey = normalizeStudentId(student.id);
     
@@ -463,7 +473,7 @@ function showStudents() {
           <div>
             <strong>Name:</strong> ${escapeHtml(student.name)}<br>
             <strong>ID:</strong> ${escapeHtml(student.id)}<br>
-            <strong>Fee Cycle:</strong> ${student.feeCycleStartDay || DEFAULT_FEE_CYCLE_START_DAY} to ${student.feeCycleEndDay || DEFAULT_FEE_CYCLE_END_DAY}<br>
+            <strong>Fee Cycle:</strong> ${feeCycleStartDay} to ${feeCycleEndDay}<br>
             <strong>Fee Status:</strong> ${formatFeeStatusHtml(student)}<br>
             <strong>Overall Rating:</strong> ${overallText}
             <button class="secondary-btn compact-btn student-more-btn" onclick="toggleStudentMore(this)">Show More</button>
@@ -548,8 +558,8 @@ function editStudent(index) {
   studentName.value = student.name;
   studentFeeAmount.value = normalizeFeeAmount(student.feeAmount);
   feePending.checked = student.feePending;
-  studentCycleStartDay.value = student.feeCycleStartDay || DEFAULT_FEE_CYCLE_START_DAY;
-  studentCycleEndDay.value = student.feeCycleEndDay || DEFAULT_FEE_CYCLE_END_DAY;
+  studentCycleStartDay.value = getFeeCycleDay(student.feeCycleStartDay, DEFAULT_FEE_CYCLE_START_DAY);
+  studentCycleEndDay.value = getFeeCycleDay(student.feeCycleEndDay, DEFAULT_FEE_CYCLE_END_DAY);
   studentPhotoFile.value = "";
   studentSubmitBtn.textContent = "Update Student";
   studentCancelBtn.style.display = "block";
@@ -2534,12 +2544,13 @@ async function saveTeacherNotice() {
     return;
   }
 
-  const notice = teacherNoticeInput.value.trim();
+  const notices = getTeacherNoticeInputs();
 
   try {
     teacherProfile = {
       ...(teacherProfile || {}),
-      notice
+      notice: notices[0] || "",
+      notices
     };
     await updateTeacherProfile(teacherProfile);
     applyTeacherProfile();
@@ -2565,15 +2576,81 @@ function applyTeacherProfile() {
   if (aboutTeacherPhoto) {
     aboutTeacherPhoto.src = teacherPhoto;
   }
-  const notice = teacherProfile?.notice?.trim() || DEFAULT_HOME_NOTICE;
+  const notices = getTeacherProfileNotices();
+  applyNoticeBoard(notices);
+  teacherNoticeInputs.forEach((input, index) => {
+    if (input) {
+      input.value = notices[index] === DEFAULT_HOME_NOTICE ? "" : notices[index] || "";
+    }
+  });
+}
 
-  if (homeNoticeText) {
-    homeNoticeText.textContent = notice;
+function getTeacherNoticeInputs() {
+  return teacherNoticeInputs
+    .map((input) => input?.value.trim() || "")
+    .filter(Boolean)
+    .slice(0, 3);
+}
+
+function getTeacherProfileNotices() {
+  const savedNotices = Array.isArray(teacherProfile?.notices)
+    ? teacherProfile.notices
+    : [];
+  const notices = savedNotices
+    .map((notice) => String(notice || "").trim())
+    .filter(Boolean)
+    .slice(0, 3);
+
+  if (notices.length > 0) {
+    return notices;
   }
 
-  if (teacherNoticeInput) {
-    teacherNoticeInput.value = teacherProfile?.notice || "";
+  const legacyNotice = teacherProfile?.notice?.trim();
+  return legacyNotice ? [legacyNotice] : [DEFAULT_HOME_NOTICE];
+}
+
+function applyNoticeBoard(notices) {
+  if (!homeNoticeText) {
+    return;
   }
+
+  const noticeContent = homeNoticeText.closest(".cloud-notice-content");
+  const activeNotices = (notices || [])
+    .map((notice) => String(notice || "").trim())
+    .filter(Boolean);
+  const displayNotices = activeNotices.length > 0 ? activeNotices.slice(0, 3) : [DEFAULT_HOME_NOTICE];
+
+  currentNoticeIndex = 0;
+  homeNoticeText.textContent = displayNotices[currentNoticeIndex];
+  setNoticeColor(noticeContent, currentNoticeIndex);
+
+  if (noticeRotationTimerId !== null) {
+    window.clearInterval(noticeRotationTimerId);
+    noticeRotationTimerId = null;
+  }
+
+  if (displayNotices.length < 2) {
+    return;
+  }
+
+  noticeRotationTimerId = window.setInterval(() => {
+    currentNoticeIndex = (currentNoticeIndex + 1) % displayNotices.length;
+    homeNoticeText.classList.add("is-changing");
+    window.setTimeout(() => {
+      homeNoticeText.textContent = displayNotices[currentNoticeIndex];
+      setNoticeColor(noticeContent, currentNoticeIndex);
+      homeNoticeText.classList.remove("is-changing");
+    }, 280);
+  }, NOTICE_ROTATION_INTERVAL_MS);
+}
+
+function setNoticeColor(noticeContent, noticeIndex) {
+  if (!noticeContent) {
+    return;
+  }
+
+  noticeContent.classList.remove(...NOTICE_COLOR_CLASSES);
+  noticeContent.classList.add(NOTICE_COLOR_CLASSES[noticeIndex % NOTICE_COLOR_CLASSES.length]);
 }
 
 function initializeAboutTeacherButton() {
@@ -2667,6 +2744,15 @@ function setAboutTeacherButtonPosition(left, top) {
   aboutTeacherBtn.style.left = `${safeLeft}px`;
   aboutTeacherBtn.style.top = `${safeTop}px`;
   aboutTeacherBtn.style.right = "auto";
+}
+
+function isValidFeeCycleDay(dayValue) {
+  const day = Number(dayValue);
+  return Number.isInteger(day) && day >= 1 && day <= 31;
+}
+
+function getFeeCycleDay(dayValue, defaultDay) {
+  return isValidFeeCycleDay(dayValue) ? Number(dayValue) : defaultDay;
 }
 
 async function loadRanchiWeather() {
@@ -2993,7 +3079,7 @@ function formatFeeStatusHtml(student) {
 }
 
 function hasFeeCycleCrossed(date, student) {
-  return date.getDate() > Number(student.feeCycleEndDay || DEFAULT_FEE_CYCLE_END_DAY);
+  return date.getDate() > getFeeCycleDay(student.feeCycleEndDay, DEFAULT_FEE_CYCLE_END_DAY);
 }
 
 async function normalizeAllStudentFeeCycles() {
@@ -3013,24 +3099,11 @@ async function normalizeAllStudentFeeCycles() {
 
     const updatedStudent = {
       ...student,
-      feeCycleStartDay: student.feeCycleStartDay || DEFAULT_FEE_CYCLE_START_DAY,
-      feeCycleEndDay: student.feeCycleEndDay || DEFAULT_FEE_CYCLE_END_DAY
+      feeCycleStartDay: getFeeCycleDay(student.feeCycleStartDay, DEFAULT_FEE_CYCLE_START_DAY),
+      feeCycleEndDay: getFeeCycleDay(student.feeCycleEndDay, DEFAULT_FEE_CYCLE_END_DAY)
     };
 
-    await updateStudentRecord(student.firestoreId, {
-      id: updatedStudent.id,
-      name: updatedStudent.name,
-      feePending: updatedStudent.feePending,
-      feeAmount: normalizeFeeAmount(updatedStudent.feeAmount),
-      feeHistory: updatedStudent.feeHistory || {},
-      photoUrl: updatedStudent.photoUrl || "",
-      feeCycleStartDay: updatedStudent.feeCycleStartDay,
-      feeCycleEndDay: updatedStudent.feeCycleEndDay,
-      subjectRatings: updatedStudent.subjectRatings || { maths: 0, science: 0 }
-    });
-
     students[index] = updatedStudent;
-    await syncStudentInSchedules(student.id, updatedStudent);
     studentsUpdated = true;
   }
 
