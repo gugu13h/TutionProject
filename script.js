@@ -2636,8 +2636,9 @@ function initializeAboutTeacherButton() {
   });
 
   aboutTeacherBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+
     if (aboutTeacherBtn.dataset.skipClick === "true") {
-      event.preventDefault();
       delete aboutTeacherBtn.dataset.skipClick;
     }
   });

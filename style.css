@@ -356,6 +356,10 @@ body.theme-night .language-toggle-btn {
   transform: translateY(-1px);
 }
 
+.about-teacher-btn.is-disabled {
+  opacity: 0.82;
+}
+
 .about-teacher-btn.is-dragging {
   cursor: grabbing;
   transform: scale(1.02);
