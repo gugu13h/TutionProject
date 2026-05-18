@@ -2157,6 +2157,10 @@ a.secondary-btn {
   min-width: 120px;
 }
 
+#studentPage .forgot-id-btn {
+  margin-top: 14px;
+}
+
 .phone-call-btn {
   padding: 14px 18px;
 }
