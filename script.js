@@ -338,6 +338,7 @@ async function teacherLogin() {
 
   try {
     await signInTeacher(u, p);
+    isTeacherLoggedIn = true;
     await refreshFirestoreData();
     loadSchedules();
     showPage("teacherPage");
@@ -353,6 +354,7 @@ function showStudentPage() {
 
 function logout() {
   if (!isFirebaseReady()) {
+    isTeacherLoggedIn = false;
     showPage("loginPage");
     return;
   }
@@ -362,11 +364,25 @@ function logout() {
       console.error(error);
     })
     .finally(() => {
+      isTeacherLoggedIn = false;
       showPage("loginPage");
     });
 }
 
+function requireTeacherLogin(actionText = "make this change") {
+  if (isTeacherLoggedIn) {
+    return true;
+  }
+
+  alert(`Teacher login required to ${actionText}`);
+  return false;
+}
+
 async function addStudent() {
+  if (!requireTeacherLogin("change student details")) {
+    return;
+  }
+
   const id = studentId.value.trim();
   const name = studentName.value.trim();
   const fee = feePending.checked;
@@ -508,6 +524,10 @@ function toggleTeacherStudentDetails(index) {
 }
 
 async function deleteStudent(index) {
+  if (!requireTeacherLogin("delete student")) {
+    return;
+  }
+
   if (!isFirebaseReady()) {
     alert(FIREBASE_WARNING);
     return;
@@ -551,6 +571,10 @@ function showStudentCheckList() {
 }
 
 function editStudent(index) {
+  if (!requireTeacherLogin("change student details")) {
+    return;
+  }
+
   const student = students[index];
   editingStudentIndex = index;
   openStudentRegisterForm();
@@ -580,6 +604,10 @@ function toggleStudentRegisterForm() {
 }
 
 async function saveSchedule() {
+  if (!requireTeacherLogin("change class schedule")) {
+    return;
+  }
+
   const date = classDate.value;
   const time = classTime.value;
   const day = classDay.value;
@@ -1684,6 +1712,10 @@ function getAttendanceCalendarLabel(status) {
 }
 
 async function setAttendanceFromCalendar(studentId, dateKey, currentStatus = "none") {
+  if (!requireTeacherLogin("change attendance")) {
+    return;
+  }
+
   if (!isFirebaseReady()) {
     alert(FIREBASE_WARNING);
     return;
@@ -1871,6 +1903,10 @@ function askHolidayReason() {
 }
 
 async function studentAttendance(scheduleId, studentId, status, source = "teacher", selectedReason = "", options = {}) {
+  if (source === "teacher" && !requireTeacherLogin("change attendance")) {
+    return;
+  }
+
   const schedule = schedules.find(s => s.firestoreId === scheduleId);
   if (!schedule) {
     alert("Schedule not found");
@@ -2006,6 +2042,10 @@ function getScheduleAttendanceHtml(student, scheduleId) {
 }
 
 async function removeStudentFromSchedule(scheduleId, studentId) {
+  if (!requireTeacherLogin("change class schedule")) {
+    return;
+  }
+
   if (!isFirebaseReady()) {
     alert(FIREBASE_WARNING);
     return;
@@ -2179,6 +2219,26 @@ function resetScheduleForm() {
   closeScheduleForm();
 }
 
+function buildStudentRecordPayload(student, options = {}) {
+  const { includeFeeCycle = false } = options;
+  const payload = {
+    id: student.id,
+    name: student.name,
+    feePending: Boolean(student.feePending),
+    feeAmount: normalizeFeeAmount(student.feeAmount),
+    feeHistory: student.feeHistory || {},
+    photoUrl: student.photoUrl || "",
+    subjectRatings: student.subjectRatings || { maths: 0, science: 0 }
+  };
+
+  if (includeFeeCycle) {
+    payload.feeCycleStartDay = getFeeCycleDay(student.feeCycleStartDay, DEFAULT_FEE_CYCLE_START_DAY);
+    payload.feeCycleEndDay = getFeeCycleDay(student.feeCycleEndDay, DEFAULT_FEE_CYCLE_END_DAY);
+  }
+
+  return payload;
+}
+
 async function saveStudentUpdate(index, updatedStudent) {
   const currentStudent = students[index];
   const duplicateStudent = students.find(
@@ -2189,7 +2249,7 @@ async function saveStudentUpdate(index, updatedStudent) {
     throw new Error("Student ID already exists");
   }
 
-  await updateStudentRecord(currentStudent.firestoreId, updatedStudent);
+  await updateStudentRecord(currentStudent.firestoreId, buildStudentRecordPayload(updatedStudent, { includeFeeCycle: true }));
 
   students[index] = {
     firestoreId: currentStudent.firestoreId,
@@ -2400,6 +2460,10 @@ function closeFeeReminderModal() {
 }
 
 function setStudentRating(index) {
+  if (!requireTeacherLogin("change student rating")) {
+    return;
+  }
+
   currentRatingStudentIndex = index;
   const ratings = students[index].subjectRatings || { maths: 0, science: 0 };
   selectedMathsRating = ratings.maths || 0;
@@ -2455,6 +2519,10 @@ function updateRatingStars() {
 }
 
 async function submitStudentRating() {
+  if (!requireTeacherLogin("change student rating")) {
+    return;
+  }
+
   if (currentRatingStudentIndex === null) {
     alert("No student selected");
     return;
@@ -2475,17 +2543,7 @@ async function submitStudentRating() {
       }
     };
 
-    await updateStudentRecord(currentStudent.firestoreId, {
-      id: updatedStudent.id,
-      name: updatedStudent.name,
-      feePending: updatedStudent.feePending,
-      feeAmount: normalizeFeeAmount(updatedStudent.feeAmount),
-      feeHistory: updatedStudent.feeHistory || {},
-      photoUrl: updatedStudent.photoUrl || "",
-      feeCycleStartDay: updatedStudent.feeCycleStartDay,
-      feeCycleEndDay: updatedStudent.feeCycleEndDay,
-      subjectRatings: updatedStudent.subjectRatings
-    });
+    await updateStudentRecord(currentStudent.firestoreId, buildStudentRecordPayload(updatedStudent));
 
     students[currentRatingStudentIndex] = updatedStudent;
     await syncStudentInSchedules(currentStudent.id, updatedStudent);
@@ -2955,6 +3013,10 @@ function getFeeMonthCalendarHtml(student, referenceDate = new Date(), options = 
 }
 
 async function setStudentFeeMonthStatus(studentIndex, monthKey, status) {
+  if (!requireTeacherLogin("change student fee status")) {
+    return;
+  }
+
   if (!isFirebaseReady()) {
     alert(FIREBASE_WARNING);
     return;
@@ -2988,22 +3050,14 @@ async function setStudentFeeMonthStatus(studentIndex, monthKey, status) {
     feeHistory
   };
 
-  const studentPayload = {
-    id: updatedStudent.id,
-    name: updatedStudent.name,
-    feePending: updatedStudent.feePending,
-    feeAmount: normalizeFeeAmount(updatedStudent.feeAmount),
-    feeHistory: updatedStudent.feeHistory,
-    photoUrl: updatedStudent.photoUrl || "",
-    feeCycleStartDay: updatedStudent.feeCycleStartDay,
-    feeCycleEndDay: updatedStudent.feeCycleEndDay,
-    subjectRatings: updatedStudent.subjectRatings || { maths: 0, science: 0 }
-  };
+  const studentPayload = buildStudentRecordPayload(updatedStudent);
 
   try {
     await updateStudentRecord(currentStudent.firestoreId, studentPayload);
     students[studentIndex] = {
       firestoreId: currentStudent.firestoreId,
+      feeCycleStartDay: currentStudent.feeCycleStartDay,
+      feeCycleEndDay: currentStudent.feeCycleEndDay,
       ...studentPayload
     };
     await syncStudentInSchedules(currentStudent.id, studentPayload);
