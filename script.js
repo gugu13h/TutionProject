@@ -2219,24 +2219,18 @@ function resetScheduleForm() {
   closeScheduleForm();
 }
 
-function buildStudentRecordPayload(student, options = {}) {
-  const { includeFeeCycle = false } = options;
-  const payload = {
+function buildStudentRecordPayload(student) {
+  return {
     id: student.id,
     name: student.name,
     feePending: Boolean(student.feePending),
     feeAmount: normalizeFeeAmount(student.feeAmount),
     feeHistory: student.feeHistory || {},
     photoUrl: student.photoUrl || "",
+    feeCycleStartDay: getFeeCycleDay(student.feeCycleStartDay, DEFAULT_FEE_CYCLE_START_DAY),
+    feeCycleEndDay: getFeeCycleDay(student.feeCycleEndDay, DEFAULT_FEE_CYCLE_END_DAY),
     subjectRatings: student.subjectRatings || { maths: 0, science: 0 }
   };
-
-  if (includeFeeCycle) {
-    payload.feeCycleStartDay = getFeeCycleDay(student.feeCycleStartDay, DEFAULT_FEE_CYCLE_START_DAY);
-    payload.feeCycleEndDay = getFeeCycleDay(student.feeCycleEndDay, DEFAULT_FEE_CYCLE_END_DAY);
-  }
-
-  return payload;
 }
 
 async function saveStudentUpdate(index, updatedStudent) {
@@ -2249,7 +2243,7 @@ async function saveStudentUpdate(index, updatedStudent) {
     throw new Error("Student ID already exists");
   }
 
-  await updateStudentRecord(currentStudent.firestoreId, buildStudentRecordPayload(updatedStudent, { includeFeeCycle: true }));
+  await updateStudentRecord(currentStudent.firestoreId, buildStudentRecordPayload(updatedStudent));
 
   students[index] = {
     firestoreId: currentStudent.firestoreId,
@@ -3056,8 +3050,6 @@ async function setStudentFeeMonthStatus(studentIndex, monthKey, status) {
     await updateStudentRecord(currentStudent.firestoreId, studentPayload);
     students[studentIndex] = {
       firestoreId: currentStudent.firestoreId,
-      feeCycleStartDay: currentStudent.feeCycleStartDay,
-      feeCycleEndDay: currentStudent.feeCycleEndDay,
       ...studentPayload
     };
     await syncStudentInSchedules(currentStudent.id, studentPayload);
