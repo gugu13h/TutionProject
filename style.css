@@ -187,7 +187,8 @@ body.theme-night.weather-thunder {
 }
 
 .bg-slide,
-.background-overlay {
+.background-overlay,
+.sky-effects {
   position: absolute;
   inset: 0;
 }
@@ -242,6 +243,155 @@ body.weather-ready {
 
 body.weather-ready .background-overlay {
   background: var(--weather-overlay-bg);
+}
+
+.sky-effects {
+  z-index: 2;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.sunlight {
+  position: absolute;
+  top: -110px;
+  right: -80px;
+  width: min(46vw, 420px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, 0.9) 0 10%, rgba(250, 204, 21, 0.58) 11% 30%, rgba(251, 146, 60, 0.2) 31% 52%, transparent 68%),
+    conic-gradient(from 8deg, rgba(250, 204, 21, 0), rgba(250, 204, 21, 0.26), rgba(250, 204, 21, 0));
+  filter: blur(0.4px);
+  opacity: 0.92;
+  animation: sunlightPulse 7s ease-in-out infinite;
+}
+
+.sunlight::before,
+.sunlight::after {
+  content: "";
+  position: absolute;
+  inset: -18%;
+  border-radius: 50%;
+  background: repeating-conic-gradient(from 18deg, rgba(250, 204, 21, 0.24) 0 7deg, transparent 7deg 19deg);
+  -webkit-mask-image: radial-gradient(circle, transparent 0 31%, #000 32% 64%, transparent 65%);
+  mask-image: radial-gradient(circle, transparent 0 31%, #000 32% 64%, transparent 65%);
+  animation: sunlightRotate 30s linear infinite;
+}
+
+.sunlight::after {
+  inset: -34%;
+  opacity: 0.34;
+  animation-duration: 46s;
+  animation-direction: reverse;
+}
+
+.bird {
+  position: absolute;
+  width: 44px;
+  height: 18px;
+  opacity: 0.64;
+  transform: translateX(-12vw);
+  animation: birdFly 18s linear infinite;
+}
+
+.bird::before,
+.bird::after {
+  content: "";
+  position: absolute;
+  top: 8px;
+  width: 22px;
+  height: 12px;
+  border-top: 3px solid rgba(15, 23, 42, 0.74);
+}
+
+.bird::before {
+  left: 0;
+  border-radius: 70% 30% 0 0;
+  transform: rotate(15deg);
+  transform-origin: right center;
+  animation: birdWingLeft 1.15s ease-in-out infinite;
+}
+
+.bird::after {
+  right: 0;
+  border-radius: 30% 70% 0 0;
+  transform: rotate(-15deg);
+  transform-origin: left center;
+  animation: birdWingRight 1.15s ease-in-out infinite;
+}
+
+.bird-1 {
+  top: 16%;
+  animation-delay: -2s;
+}
+
+.bird-2 {
+  top: 26%;
+  width: 34px;
+  height: 14px;
+  opacity: 0.48;
+  animation-duration: 23s;
+  animation-delay: -10s;
+}
+
+.bird-3 {
+  top: 11%;
+  width: 28px;
+  height: 12px;
+  opacity: 0.42;
+  animation-duration: 28s;
+  animation-delay: -17s;
+}
+
+.star-field {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  background-repeat: repeat;
+}
+
+.star-field-1 {
+  background-image:
+    radial-gradient(circle, rgba(255, 255, 255, 0.95) 0 1px, transparent 1.7px),
+    radial-gradient(circle, rgba(191, 219, 254, 0.82) 0 1px, transparent 1.6px);
+  background-size: 92px 92px, 138px 138px;
+  background-position: 12px 20px, 44px 58px;
+  animation: starTwinkle 2.9s ease-in-out infinite;
+}
+
+.star-field-2 {
+  background-image:
+    radial-gradient(circle, rgba(255, 255, 255, 0.88) 0 1.2px, transparent 2px),
+    radial-gradient(circle, rgba(250, 204, 21, 0.7) 0 1px, transparent 1.8px);
+  background-size: 126px 126px, 184px 184px;
+  background-position: 68px 16px, 18px 96px;
+  animation: starTwinkle 3.8s ease-in-out infinite reverse;
+}
+
+.star-field-3 {
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.9) 0 1.6px, transparent 2.5px);
+  background-size: 240px 240px;
+  background-position: 132px 74px;
+  filter: drop-shadow(0 0 8px rgba(191, 219, 254, 0.7));
+  animation: glitterDrift 8s ease-in-out infinite;
+}
+
+body.theme-night .sunlight,
+body.theme-night .bird {
+  opacity: 0;
+}
+
+body.theme-night .star-field {
+  opacity: 0.78;
+}
+
+body.theme-night .star-field-2 {
+  opacity: 0.54;
+}
+
+body.theme-night .star-field-3 {
+  opacity: 0.72;
 }
 
 .background-glow {
@@ -3153,6 +3303,78 @@ body.theme-night .status-due-soon {
   100% {
     opacity: 0;
     transform: scale(1);
+  }
+}
+
+@keyframes sunlightPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.86;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
+}
+
+@keyframes sunlightRotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes birdFly {
+  0% {
+    transform: translate3d(-14vw, 0, 0) scale(0.88);
+  }
+  45% {
+    transform: translate3d(48vw, -18px, 0) scale(1);
+  }
+  100% {
+    transform: translate3d(112vw, 10px, 0) scale(0.92);
+  }
+}
+
+@keyframes birdWingLeft {
+  0%, 100% {
+    transform: rotate(18deg);
+  }
+  50% {
+    transform: rotate(-18deg);
+  }
+}
+
+@keyframes birdWingRight {
+  0%, 100% {
+    transform: rotate(-18deg);
+  }
+  50% {
+    transform: rotate(18deg);
+  }
+}
+
+@keyframes starTwinkle {
+  0%, 100% {
+    filter: brightness(0.7) drop-shadow(0 0 2px rgba(255, 255, 255, 0.28));
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    filter: brightness(1.45) drop-shadow(0 0 7px rgba(191, 219, 254, 0.72));
+    transform: translate3d(0, -3px, 0);
+  }
+}
+
+@keyframes glitterDrift {
+  0%, 100% {
+    filter: brightness(0.8) drop-shadow(0 0 4px rgba(191, 219, 254, 0.42));
+    transform: translate3d(0, 0, 0);
+  }
+  35% {
+    filter: brightness(1.8) drop-shadow(0 0 10px rgba(250, 204, 21, 0.5));
+  }
+  65% {
+    filter: brightness(1.25) drop-shadow(0 0 12px rgba(125, 211, 252, 0.62));
+    transform: translate3d(8px, -6px, 0);
   }
 }
 
