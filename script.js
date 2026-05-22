@@ -107,6 +107,11 @@ const ATTENDANCE_RETENTION_MONTHS = 2;
 const NOTICE_ROTATION_INTERVAL_MS = 5000;
 const NOTICE_COLOR_CLASSES = ["notice-color-1", "notice-color-2", "notice-color-3"];
 const DEFAULT_HOME_NOTICE = "No notice yet.";
+const REQUESTED_FEE_CYCLE_FIXES = {
+  "75": { feeCycleStartDay: 11, feeCycleEndDay: 12 },
+  "76": { feeCycleStartDay: 11, feeCycleEndDay: 12 },
+  "7": { feeCycleStartDay: 15, feeCycleEndDay: 16 }
+};
 const ABSENCE_REASON_OPTIONS = [
   "I am not in home",
   "I am not in Ranchi",
@@ -136,7 +141,7 @@ const INITIAL_STUDENTS = [
   { id: "102", name: "Abhishek Francis", feePending: false, feeAmount: 0, feeHistory: {}, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY, subjectRatings: { maths: 0, science: 0 } },
   { id: "81", name: "Saket Kumar", feePending: false, feeAmount: 0, feeHistory: {}, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY, subjectRatings: { maths: 0, science: 0 } },
   { id: "82", name: "Ashwin Kumar", feePending: false, feeAmount: 0, feeHistory: {}, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY, subjectRatings: { maths: 0, science: 0 } },
-  { id: "7", name: "Arpit Kumar", feePending: false, feeAmount: 0, feeHistory: {}, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY, subjectRatings: { maths: 0, science: 0 } }
+  { id: "7", name: "Arpit Kumar", feePending: false, feeAmount: 0, feeHistory: {}, photoUrl: "", feeCycleStartDay: 15, feeCycleEndDay: 16, subjectRatings: { maths: 0, science: 0 } }
 ];
 
 window.teacherLogin = teacherLogin;
@@ -172,6 +177,7 @@ window.toggleStudentRating = toggleStudentRating;
 window.toggleStudentMore = toggleStudentMore;
 window.setStudentFeeMonthStatus = setStudentFeeMonthStatus;
 window.toggleTeacherStudentDetails = toggleTeacherStudentDetails;
+window.toggleScheduleDetails = toggleScheduleDetails;
 window.toggleThemeMode = toggleThemeMode;
 window.toggleAttendanceMonth = toggleAttendanceMonth;
 window.setAttendanceFromCalendar = setAttendanceFromCalendar;
@@ -207,7 +213,6 @@ async function initializeAppData() {
     initializeTeacherAuth();
     await loadTeacherProfile();
     await refreshFirestoreData();
-    await normalizeAllStudentFeeCycles();
     await seedInitialStudents();
   } catch (error) {
     console.error(error);
@@ -254,6 +259,10 @@ function captureUiPositionState() {
     .filter((card) => !card.querySelector(".student-more-details")?.classList.contains("hidden"))
     .map((card) => card.dataset.studentKey)
     .filter(Boolean);
+  const openScheduleIds = Array.from(document.querySelectorAll(".schedule-card"))
+    .filter((card) => !card.querySelector(".schedule-card-details")?.hidden)
+    .map((card) => card.dataset.scheduleKey)
+    .filter(Boolean);
 
   const modalCard = document.querySelector(".modal-overlay.active .modal-card");
 
@@ -263,6 +272,7 @@ function captureUiPositionState() {
     modalScrollTop: modalCard ? modalCard.scrollTop : 0,
     openTeacherStudentIds,
     openTeacherMoreIds,
+    openScheduleIds,
     studentRatingOpen: Boolean(studentData?.querySelector(".rating-details:not(.hidden)")),
     studentModalRatingOpen: Boolean(studentModalBody?.querySelector(".rating-details:not(.hidden)"))
   };
@@ -292,6 +302,17 @@ function restoreUiPositionState(state) {
     if (moreDetails && moreButton) {
       moreDetails.classList.remove("hidden");
       moreButton.textContent = "Show Less";
+    }
+  });
+
+  state.openScheduleIds?.forEach((scheduleKey) => {
+    const card = Array.from(document.querySelectorAll(".schedule-card"))
+      .find((scheduleCard) => scheduleCard.dataset.scheduleKey === scheduleKey);
+    const details = card?.querySelector(".schedule-card-details");
+    const toggleButton = card?.querySelector(".schedule-card-toggle");
+    if (details && toggleButton) {
+      details.hidden = false;
+      toggleButton.setAttribute("aria-expanded", "true");
     }
   });
 
@@ -465,8 +486,6 @@ function showStudents() {
     const ratings = student.subjectRatings || { maths: 0, science: 0 };
     const overallRating = Math.round((ratings.maths + ratings.science) / 2 * 10) / 10;
     const overallText = overallRating === 0 ? "Not Rated" : `${overallRating} / 10`;
-    const feeCycleStartDay = getFeeCycleDay(student.feeCycleStartDay, DEFAULT_FEE_CYCLE_START_DAY);
-    const feeCycleEndDay = getFeeCycleDay(student.feeCycleEndDay, DEFAULT_FEE_CYCLE_END_DAY);
     const studentDetailsId = `teacherStudentDetails_${index}`;
     const studentKey = normalizeStudentId(student.id);
     
@@ -489,7 +508,7 @@ function showStudents() {
           <div>
             <strong>Name:</strong> ${escapeHtml(student.name)}<br>
             <strong>ID:</strong> ${escapeHtml(student.id)}<br>
-            <strong>Fee Cycle:</strong> ${feeCycleStartDay} to ${feeCycleEndDay}<br>
+            <strong>Fee Cycle:</strong> ${formatFeeCycleLabel(student)}<br>
             <strong>Fee Status:</strong> ${formatFeeStatusHtml(student)}<br>
             <strong>Overall Rating:</strong> ${overallText}
             <button class="secondary-btn compact-btn student-more-btn" onclick="toggleStudentMore(this)">Show More</button>
@@ -582,8 +601,8 @@ function editStudent(index) {
   studentName.value = student.name;
   studentFeeAmount.value = normalizeFeeAmount(student.feeAmount);
   feePending.checked = student.feePending;
-  studentCycleStartDay.value = getFeeCycleDay(student.feeCycleStartDay, DEFAULT_FEE_CYCLE_START_DAY);
-  studentCycleEndDay.value = getFeeCycleDay(student.feeCycleEndDay, DEFAULT_FEE_CYCLE_END_DAY);
+  studentCycleStartDay.value = getFeeCycleDayOrNull(student.feeCycleStartDay) ?? "";
+  studentCycleEndDay.value = getFeeCycleDayOrNull(student.feeCycleEndDay) ?? "";
   studentPhotoFile.value = "";
   studentSubmitBtn.textContent = "Update Student";
   studentCancelBtn.style.display = "block";
@@ -1045,25 +1064,50 @@ function loadSchedules() {
   const uiPositionState = captureUiPositionState();
   const visibleSchedules = getVisibleSchedules();
   scheduleList.innerHTML = "";
-  visibleSchedules.forEach((schedule) => {
+  visibleSchedules.forEach((schedule, index) => {
     const scheduleDateTime = getScheduleDateTime(schedule);
     const countdownMarkup = getCountdownMarkup(schedule, scheduleDateTime, !schedule.time);
     const scheduleActions = getScheduleActionsHtml(schedule);
+    const scheduleKey = schedule.firestoreId || `schedule_${index}`;
+    const scheduleDetailsId = `scheduleDetails_${index}`;
+    const scheduleTimeLabel = schedule.time ? formatTime12Hour(schedule.time) : "Holiday (No Class)";
 
     scheduleList.innerHTML += `
-      <div class="box">
-        <strong>Date:</strong> ${schedule.date}<br>
-        <strong>Time:</strong> ${schedule.time ? formatTime12Hour(schedule.time) : "Holiday (No Class)"}<br>
-        ${countdownMarkup}
-        <strong>Day:</strong> ${schedule.day}<br>
-        <strong>Students:</strong><br>
-        ${schedule.students.map((student) => getScheduleAttendanceHtml(student, schedule.firestoreId)).join("<br>")}
-        ${scheduleActions}
+      <div class="box schedule-card" data-schedule-key="${escapeHtml(scheduleKey)}">
+        <button
+          class="schedule-card-toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="${scheduleDetailsId}"
+          onclick="toggleScheduleDetails('${scheduleDetailsId}', this)"
+        >
+          <span class="schedule-time-label">${escapeHtml(scheduleTimeLabel)}</span>
+          <span class="schedule-toggle-icon" aria-hidden="true">+</span>
+        </button>
+        <div id="${scheduleDetailsId}" class="schedule-card-details" hidden>
+          <strong>Date:</strong> ${escapeHtml(schedule.date)}<br>
+          ${countdownMarkup}
+          <strong>Day:</strong> ${escapeHtml(schedule.day)}<br>
+          <strong>Students:</strong><br>
+          ${schedule.students.map((student) => getScheduleAttendanceHtml(student, schedule.firestoreId)).join("<br>")}
+          ${scheduleActions}
+        </div>
       </div>
     `;
   });
   updateClassTimers();
   restoreUiPositionState(uiPositionState);
+}
+
+function toggleScheduleDetails(detailsId, toggleButton) {
+  const details = document.getElementById(detailsId);
+  if (!details) {
+    return;
+  }
+
+  const shouldOpen = details.hidden;
+  details.hidden = !shouldOpen;
+  toggleButton?.setAttribute("aria-expanded", String(shouldOpen));
 }
 
 function isClassRunning(schedule, now = new Date()) {
@@ -2127,11 +2171,49 @@ async function refreshFirestoreData() {
   }
 
   await cleanupOldAttendanceHistory();
+  await applyRequestedFeeCycleFixes();
   await Promise.all(students.map((student) => loadAttendanceHistoryForStudent(student.id)));
   await removeExpiredSchedules({ refreshViews: false });
   showStudents();
   showStudentCheckList();
   loadSchedules();
+}
+
+async function applyRequestedFeeCycleFixes() {
+  for (let index = 0; index < students.length; index += 1) {
+    const student = students[index];
+    const requestedCycle = REQUESTED_FEE_CYCLE_FIXES[normalizeStudentId(student.id)];
+
+    if (!requestedCycle) {
+      continue;
+    }
+
+    const hasRequestedCycle =
+      getFeeCycleDayOrNull(student.feeCycleStartDay) === requestedCycle.feeCycleStartDay &&
+      getFeeCycleDayOrNull(student.feeCycleEndDay) === requestedCycle.feeCycleEndDay;
+
+    if (hasRequestedCycle) {
+      continue;
+    }
+
+    const updatedStudent = {
+      ...student,
+      ...requestedCycle
+    };
+
+    students[index] = updatedStudent;
+
+    if (!student.firestoreId) {
+      continue;
+    }
+
+    try {
+      await updateStudentRecord(student.firestoreId, buildStudentRecordPayload(updatedStudent));
+      await syncStudentInSchedules(student.id, updatedStudent);
+    } catch (error) {
+      console.error(`Unable to update fee cycle for student ID ${student.id}:`, error);
+    }
+  }
 }
 
 async function seedInitialStudents() {
@@ -2168,8 +2250,8 @@ function resetStudentForm() {
   studentName.value = "";
   studentFeeAmount.value = "";
   studentPhotoFile.value = "";
-  studentCycleStartDay.value = DEFAULT_FEE_CYCLE_START_DAY;
-  studentCycleEndDay.value = DEFAULT_FEE_CYCLE_END_DAY;
+  studentCycleStartDay.value = "";
+  studentCycleEndDay.value = "";
   feePending.checked = false;
   studentSubmitBtn.textContent = "Add Student";
   studentCancelBtn.style.display = "none";
@@ -2220,17 +2302,27 @@ function resetScheduleForm() {
 }
 
 function buildStudentRecordPayload(student) {
-  return {
+  const payload = {
     id: student.id,
     name: student.name,
     feePending: Boolean(student.feePending),
     feeAmount: normalizeFeeAmount(student.feeAmount),
     feeHistory: student.feeHistory || {},
     photoUrl: student.photoUrl || "",
-    feeCycleStartDay: getFeeCycleDay(student.feeCycleStartDay, DEFAULT_FEE_CYCLE_START_DAY),
-    feeCycleEndDay: getFeeCycleDay(student.feeCycleEndDay, DEFAULT_FEE_CYCLE_END_DAY),
     subjectRatings: student.subjectRatings || { maths: 0, science: 0 }
   };
+  const feeCycleStartDay = getFeeCycleDayOrNull(student.feeCycleStartDay);
+  const feeCycleEndDay = getFeeCycleDayOrNull(student.feeCycleEndDay);
+
+  if (feeCycleStartDay !== null) {
+    payload.feeCycleStartDay = feeCycleStartDay;
+  }
+
+  if (feeCycleEndDay !== null) {
+    payload.feeCycleEndDay = feeCycleEndDay;
+  }
+
+  return payload;
 }
 
 async function saveStudentUpdate(index, updatedStudent) {
@@ -2385,8 +2477,8 @@ function initializeFeeReminderModal() {
 
 function initializeStudentRegisterForm() {
   closeStudentRegisterForm();
-  studentCycleStartDay.value = DEFAULT_FEE_CYCLE_START_DAY;
-  studentCycleEndDay.value = DEFAULT_FEE_CYCLE_END_DAY;
+  studentCycleStartDay.value = "";
+  studentCycleEndDay.value = "";
 
   if (newRegisterBtn) {
     newRegisterBtn.addEventListener("click", toggleStudentRegisterForm);
@@ -2807,6 +2899,21 @@ function getFeeCycleDay(dayValue, defaultDay) {
   return isValidFeeCycleDay(dayValue) ? Number(dayValue) : defaultDay;
 }
 
+function getFeeCycleDayOrNull(dayValue) {
+  return isValidFeeCycleDay(dayValue) ? Number(dayValue) : null;
+}
+
+function formatFeeCycleLabel(student) {
+  const feeCycleStartDay = getFeeCycleDayOrNull(student?.feeCycleStartDay);
+  const feeCycleEndDay = getFeeCycleDayOrNull(student?.feeCycleEndDay);
+
+  if (feeCycleStartDay === null || feeCycleEndDay === null) {
+    return "Not set";
+  }
+
+  return `${feeCycleStartDay} to ${feeCycleEndDay}`;
+}
+
 async function loadRanchiWeather() {
   if (!ranchiTemperature || !ranchiWeatherText) {
     return;
@@ -3126,37 +3233,6 @@ function formatFeeStatusHtml(student) {
 
 function hasFeeCycleCrossed(date, student) {
   return date.getDate() > getFeeCycleDay(student.feeCycleEndDay, DEFAULT_FEE_CYCLE_END_DAY);
-}
-
-async function normalizeAllStudentFeeCycles() {
-  let studentsUpdated = false;
-
-  for (let index = 0; index < students.length; index += 1) {
-    const student = students[index];
-    const needsUpdate =
-      student.feeCycleStartDay === undefined ||
-      student.feeCycleStartDay === null ||
-      student.feeCycleEndDay === undefined ||
-      student.feeCycleEndDay === null;
-
-    if (!needsUpdate) {
-      continue;
-    }
-
-    const updatedStudent = {
-      ...student,
-      feeCycleStartDay: getFeeCycleDay(student.feeCycleStartDay, DEFAULT_FEE_CYCLE_START_DAY),
-      feeCycleEndDay: getFeeCycleDay(student.feeCycleEndDay, DEFAULT_FEE_CYCLE_END_DAY)
-    };
-
-    students[index] = updatedStudent;
-    studentsUpdated = true;
-  }
-
-  if (studentsUpdated) {
-    showStudents();
-    showStudentCheckList();
-  }
 }
 
 function getPendingMonthLabel(date) {
