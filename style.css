@@ -1960,6 +1960,86 @@ body.theme-night #studentPage .box {
   box-shadow: 0 14px 26px rgba(2, 6, 23, 0.28);
 }
 
+.daily-question-card {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid rgba(20, 184, 166, 0.24);
+  border-left: 4px solid #14b8a6;
+  border-radius: 12px;
+  background: rgba(236, 253, 245, 0.68);
+  color: var(--text-main);
+  font-weight: 700;
+}
+
+.daily-question-loading {
+  color: #0f766e;
+}
+
+.daily-question-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 0.86rem;
+}
+
+.daily-question-meta span,
+.daily-question-meta strong {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #0f766e;
+}
+
+.daily-question-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.daily-question-list li {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 10px;
+  align-items: start;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.74);
+  border: 1px solid rgba(14, 165, 233, 0.16);
+  line-height: 1.45;
+}
+
+.daily-question-list li span {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #0f766e;
+  color: #ffffff;
+  font-size: 0.82rem;
+}
+
+body.theme-night .daily-question-card {
+  background: rgba(15, 23, 42, 0.76);
+  border-color: rgba(45, 212, 191, 0.28);
+  border-left-color: #2dd4bf;
+}
+
+body.theme-night .daily-question-meta span,
+body.theme-night .daily-question-meta strong,
+body.theme-night .daily-question-list li {
+  background: rgba(30, 41, 59, 0.82);
+  border-color: rgba(148, 163, 184, 0.24);
+  color: #ccfbf1;
+}
+
 body.weather-ready #loginPage .login-layout {
   background: var(--weather-login-bg);
   box-shadow: 0 28px 48px var(--weather-shadow);

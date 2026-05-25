@@ -41,6 +41,7 @@ const username = document.getElementById("username");
 const password = document.getElementById("password");
 const studentId = document.getElementById("studentId");
 const studentName = document.getElementById("studentName");
+const studentClassInput = document.getElementById("studentClassInput");
 const studentPhotoFile = document.getElementById("studentPhotoFile");
 const studentFeeAmount = document.getElementById("studentFeeAmount");
 const studentCycleStartDay = document.getElementById("studentCycleStartDay");
@@ -52,7 +53,9 @@ const classDay = document.getElementById("classDay");
 const studentCheckList = document.getElementById("studentCheckList");
 const scheduleList = document.getElementById("scheduleList");
 const loginStudentId = document.getElementById("loginStudentId");
+const studentClassSelect = document.getElementById("studentClassSelect");
 const studentData = document.getElementById("studentData");
+const dailyQuestionsPanel = document.getElementById("dailyQuestionsPanel");
 const studentRecordModal = document.getElementById("studentRecordModal");
 const studentModalBody = document.getElementById("studentModalBody");
 const feeReminderModal = document.getElementById("feeReminderModal");
@@ -94,6 +97,7 @@ const themeToggleBtn = document.getElementById("themeToggleBtn");
 const FIREBASE_WARNING = "Firebase config missing. Open firebase-api.js and paste your Firebase web app config.";
 const DEFAULT_TEACHER_PHOTO = "https://placehold.co/300x300/f2efe6/8b5e34?text=Teacher";
 const DEFAULT_STUDENT_PHOTO = "https://placehold.co/300x300/e8f5f1/1f6f66?text=Student";
+const DEFAULT_STUDENT_CLASS = "8";
 const DEFAULT_FEE_CYCLE_START_DAY = 1;
 const DEFAULT_FEE_CYCLE_END_DAY = 30;
 const TEACHER_WHATSAPP_NUMBER = "8864022272";
@@ -107,6 +111,80 @@ const ATTENDANCE_RETENTION_MONTHS = 2;
 const NOTICE_ROTATION_INTERVAL_MS = 5000;
 const NOTICE_COLOR_CLASSES = ["notice-color-1", "notice-color-2", "notice-color-3"];
 const DEFAULT_HOME_NOTICE = "No notice yet.";
+const DAILY_QUESTION_COUNT = 5;
+const DAILY_QUESTION_API_URL = "/api/daily-questions";
+const DAILY_QUESTION_BANK = {
+  "1": [
+    "Maths: Count from 1 to 20.",
+    "Maths: What is 5 + 3?",
+    "Maths: Which is bigger: 9 or 6?",
+    "Science: Name two fruits.",
+    "Science: Name two parts of your body."
+  ],
+  "2": [
+    "Maths: What is 12 + 8?",
+    "Maths: Write the table of 2 up to 20.",
+    "Maths: What comes next: 2, 4, 6, 8, ?",
+    "Science: Name three parts of a plant.",
+    "Science: Why do we need water?"
+  ],
+  "3": [
+    "Maths: Subtract 27 from 50.",
+    "Maths: Write the table of 5.",
+    "Maths: Add 38 and 46.",
+    "Science: Why do we drink water?",
+    "Science: Name two animals that live in water."
+  ],
+  "4": [
+    "Maths: Multiply 24 by 3.",
+    "Maths: Find half of 86.",
+    "Science: Name three states of matter.",
+    "Science: Give one example each of solid, liquid, and gas.",
+    "Maths: Complete: 10, 20, 30, 40, ?"
+  ],
+  "5": [
+    "Maths: Divide 144 by 12.",
+    "Maths: Convert 1/2 into a decimal.",
+    "Science: What is evaporation?",
+    "Science: Name two sources of energy.",
+    "Maths: What comes next: 3, 6, 9, 12, ?"
+  ],
+  "6": [
+    "Maths: Find the HCF of 24 and 36.",
+    "Maths: Convert 3/5 into a decimal.",
+    "Science: Why do shadows change size during the day?",
+    "Science: Name two sources of protein.",
+    "Maths: What comes next: 2, 4, 8, 16, ?"
+  ],
+  "7": [
+    "Maths: Solve: 3x + 5 = 20.",
+    "Maths: Find 15% of 200.",
+    "Science: What is photosynthesis?",
+    "Science: Why is iron painted before use?",
+    "Science: Which gas do plants release during photosynthesis?"
+  ],
+  "8": [
+    "Maths: Factorise: x^2 + 7x + 12.",
+    "Maths: Find the square root of 324.",
+    "Science: State Newton's first law of motion.",
+    "Science: What happens when acids react with metals?",
+    "Maths: Find the cube of 6."
+  ],
+  "9": [
+    "Maths: Solve: 2x - 3 = 11.",
+    "Maths: Find the value of (a + b)^2 when a = 3 and b = 4.",
+    "Science: Define acceleration with its SI unit.",
+    "Science: Explain one difference between mixture and compound.",
+    "Maths: Find the missing number: 5, 11, 23, 47, ?"
+  ],
+  "10": [
+    "Maths: Find the roots of x^2 - 5x + 6 = 0.",
+    "Maths: Prove that sqrt(2) is irrational in 4-5 lines.",
+    "Science: Explain why metals are good conductors.",
+    "Science: Write the balanced equation for photosynthesis.",
+    "Maths: A clock shows 3:15. What is the angle between the hands?"
+  ]
+};
 const REQUESTED_FEE_CYCLE_FIXES = {
   "75": { feeCycleStartDay: 11, feeCycleEndDay: 12 },
   "76": { feeCycleStartDay: 11, feeCycleEndDay: 12 },
@@ -137,11 +215,11 @@ const WEATHER_ICON_CLASSES = [
 ];
 const RESET_STUDENT_IDS = [];
 const INITIAL_STUDENTS = [
-  { id: "101", name: "Anushak Kumari", feePending: false, feeAmount: 0, feeHistory: {}, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY, subjectRatings: { maths: 0, science: 0 } },
-  { id: "102", name: "Abhishek Francis", feePending: false, feeAmount: 0, feeHistory: {}, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY, subjectRatings: { maths: 0, science: 0 } },
-  { id: "81", name: "Saket Kumar", feePending: false, feeAmount: 0, feeHistory: {}, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY, subjectRatings: { maths: 0, science: 0 } },
-  { id: "82", name: "Ashwin Kumar", feePending: false, feeAmount: 0, feeHistory: {}, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY, subjectRatings: { maths: 0, science: 0 } },
-  { id: "7", name: "Arpit Kumar", feePending: false, feeAmount: 0, feeHistory: {}, photoUrl: "", feeCycleStartDay: 15, feeCycleEndDay: 16, subjectRatings: { maths: 0, science: 0 } }
+  { id: "101", name: "Anushak Kumari", classLevel: DEFAULT_STUDENT_CLASS, feePending: false, feeAmount: 0, feeHistory: {}, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY, subjectRatings: { maths: 0, science: 0 } },
+  { id: "102", name: "Abhishek Francis", classLevel: DEFAULT_STUDENT_CLASS, feePending: false, feeAmount: 0, feeHistory: {}, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY, subjectRatings: { maths: 0, science: 0 } },
+  { id: "81", name: "Saket Kumar", classLevel: DEFAULT_STUDENT_CLASS, feePending: false, feeAmount: 0, feeHistory: {}, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY, subjectRatings: { maths: 0, science: 0 } },
+  { id: "82", name: "Ashwin Kumar", classLevel: DEFAULT_STUDENT_CLASS, feePending: false, feeAmount: 0, feeHistory: {}, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY, subjectRatings: { maths: 0, science: 0 } },
+  { id: "7", name: "Arpit Kumar", classLevel: DEFAULT_STUDENT_CLASS, feePending: false, feeAmount: 0, feeHistory: {}, photoUrl: "", feeCycleStartDay: 15, feeCycleEndDay: 16, subjectRatings: { maths: 0, science: 0 } }
 ];
 
 window.teacherLogin = teacherLogin;
@@ -188,6 +266,7 @@ initializeStudentModal();
 initializeFeeReminderModal();
 initializeStudentRegisterForm();
 initializeScheduleForm();
+initializeDailyQuestions();
 initializeAboutTeacherButton();
 startScheduleCleanupLoop();
 startAttendanceCleanupLoop();
@@ -371,6 +450,7 @@ async function teacherLogin() {
 
 function showStudentPage() {
   showPage("studentPage");
+  renderDailyQuestionsForStudent(loginStudentId.value.trim());
 }
 
 function logout() {
@@ -406,6 +486,7 @@ async function addStudent() {
 
   const id = studentId.value.trim();
   const name = studentName.value.trim();
+  const classLevel = normalizeStudentClass(studentClassInput?.value);
   const fee = feePending.checked;
   const feeAmountValue = Number(studentFeeAmount.value);
   const cycleStartDay = Number(studentCycleStartDay.value);
@@ -446,6 +527,7 @@ async function addStudent() {
     const studentPayload = {
       id,
       name,
+      classLevel,
       feePending: fee,
       feeAmount: feeAmountValue,
       feeHistory: editingStudentIndex !== null
@@ -508,6 +590,7 @@ function showStudents() {
           <div>
             <strong>Name:</strong> ${escapeHtml(student.name)}<br>
             <strong>ID:</strong> ${escapeHtml(student.id)}<br>
+            <strong>Class:</strong> ${formatStudentClass(student)}<br>
             <strong>Fee Cycle:</strong> ${formatFeeCycleLabel(student)}<br>
             <strong>Fee Status:</strong> ${formatFeeStatusHtml(student)}<br>
             <strong>Overall Rating:</strong> ${overallText}
@@ -579,7 +662,7 @@ function showStudentCheckList() {
       <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
         <label style="flex: 1;">
           <input type="checkbox" id="student_${index}" value="${index}">
-          ${student.name} (ID:${student.id}) ${student.feePending ? "(Pending)" : ""}
+          ${student.name} (ID:${student.id}, ${formatStudentClass(student)}) ${student.feePending ? "(Pending)" : ""}
         </label>
         <label style="font-size: 12px; color: #f59e0b;">
           <input type="checkbox" id="holiday_${index}" value="${index}"> Holiday
@@ -599,6 +682,7 @@ function editStudent(index) {
   openStudentRegisterForm();
   studentId.value = student.id;
   studentName.value = student.name;
+  studentClassInput.value = getStudentClassLevel(student);
   studentFeeAmount.value = normalizeFeeAmount(student.feeAmount);
   feePending.checked = student.feePending;
   studentCycleStartDay.value = getFeeCycleDayOrNull(student.feeCycleStartDay) ?? "";
@@ -783,6 +867,184 @@ function normalizeStudentId(id) {
 
 function isSameStudentId(firstId, secondId) {
   return normalizeStudentId(firstId) === normalizeStudentId(secondId);
+}
+
+function normalizeStudentClass(value) {
+  const classLevel = String(value || DEFAULT_STUDENT_CLASS).replace(/[^0-9]/g, "");
+  return DAILY_QUESTION_BANK[classLevel] ? classLevel : DEFAULT_STUDENT_CLASS;
+}
+
+function getStudentClassLevel(student) {
+  return normalizeStudentClass(student?.classLevel || student?.studentClass || student?.className);
+}
+
+function formatStudentClass(student) {
+  return `Class ${escapeHtml(getStudentClassLevel(student))}`;
+}
+
+function initializeDailyQuestions() {
+  if (!studentClassSelect) {
+    return;
+  }
+
+  studentClassSelect.addEventListener("change", () => {
+    renderDailyQuestionsForStudent(loginStudentId.value.trim());
+  });
+
+  if (loginStudentId) {
+    loginStudentId.addEventListener("input", () => {
+      if (!dailyQuestionsPanel || !dailyQuestionsPanel.dataset.loadedFor) {
+        return;
+      }
+
+      dailyQuestionsPanel.dataset.loadedFor = "";
+      dailyQuestionsPanel.textContent = "Click Show My Details to refresh today's questions.";
+    });
+  }
+}
+
+async function renderDailyQuestionsForStudent(studentId) {
+  if (!dailyQuestionsPanel) {
+    return;
+  }
+
+  const cleanStudentId = String(studentId || "").trim();
+  const selectedClass = getStudentClassForQuestions(cleanStudentId);
+
+  if (!cleanStudentId) {
+    dailyQuestionsPanel.dataset.loadedFor = "";
+    dailyQuestionsPanel.textContent = "Enter your student ID and class to see today's questions.";
+    return;
+  }
+
+  const todayKey = formatDateKey(new Date());
+  const loadedFor = `${cleanStudentId}|${selectedClass}|${todayKey}`;
+  dailyQuestionsPanel.dataset.loadedFor = loadedFor;
+  dailyQuestionsPanel.innerHTML = `<div class="daily-question-loading">Preparing today's questions...</div>`;
+
+  const fallbackQuestions = getLocalDailyQuestions(selectedClass, cleanStudentId, todayKey);
+  let questionSet = {
+    source: "Local Daily Set",
+    questions: fallbackQuestions
+  };
+
+  try {
+    const aiQuestions = await fetchDailyAiQuestions(selectedClass, cleanStudentId, todayKey);
+    if (Array.isArray(aiQuestions) && aiQuestions.length >= DAILY_QUESTION_COUNT) {
+      questionSet = {
+        source: "AI Generated",
+        questions: aiQuestions.slice(0, DAILY_QUESTION_COUNT)
+      };
+    }
+  } catch (error) {
+    console.warn("Daily AI questions unavailable; using local set.", error);
+  }
+
+  if (dailyQuestionsPanel.dataset.loadedFor !== loadedFor) {
+    return;
+  }
+
+  dailyQuestionsPanel.innerHTML = buildDailyQuestionsHtml(questionSet.questions, selectedClass, todayKey, questionSet.source);
+}
+
+function getSelectedStudentClass() {
+  return String(studentClassSelect?.value || "8");
+}
+
+function getStudentClassForQuestions(studentId) {
+  const studentRecord = students.find((student) => isSameStudentId(student.id, studentId));
+  const selectedClass = studentRecord ? getStudentClassLevel(studentRecord) : normalizeStudentClass(getSelectedStudentClass());
+
+  if (studentClassSelect) {
+    studentClassSelect.value = selectedClass;
+  }
+
+  return selectedClass;
+}
+
+async function fetchDailyAiQuestions(selectedClass, studentId, dateKey) {
+  if (window.location.protocol === "file:") {
+    return [];
+  }
+
+  const response = await fetch(DAILY_QUESTION_API_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      className: selectedClass,
+      studentId,
+      date: dateKey,
+      count: DAILY_QUESTION_COUNT
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`Daily question API failed: ${response.status}`);
+  }
+
+  const payload = await response.json();
+  return Array.isArray(payload.questions)
+    ? payload.questions.map(normalizeQuestionText).filter(isDailyMathsScienceQuestion)
+    : [];
+}
+
+function getLocalDailyQuestions(selectedClass, studentId, dateKey) {
+  const questionBank = DAILY_QUESTION_BANK[selectedClass] || DAILY_QUESTION_BANK["8"];
+  const seed = getDailyQuestionSeed(`${selectedClass}|${studentId}|${dateKey}`);
+  return shuffleWithSeed(questionBank, seed).slice(0, DAILY_QUESTION_COUNT);
+}
+
+function getDailyQuestionSeed(value) {
+  return String(value).split("").reduce((hash, character) => {
+    return ((hash << 5) - hash + character.charCodeAt(0)) >>> 0;
+  }, 2166136261);
+}
+
+function shuffleWithSeed(items, seed) {
+  const shuffled = [...items];
+  let currentSeed = seed || 1;
+
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    currentSeed = (currentSeed * 1664525 + 1013904223) >>> 0;
+    const swapIndex = currentSeed % (index + 1);
+    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+  }
+
+  return shuffled;
+}
+
+function normalizeQuestionText(question) {
+  if (typeof question === "string") {
+    return question.trim();
+  }
+
+  if (question && typeof question.question === "string") {
+    return question.question.trim();
+  }
+
+  return "";
+}
+
+function isDailyMathsScienceQuestion(question) {
+  return /^(maths|science):/i.test(String(question || "").trim());
+}
+
+function buildDailyQuestionsHtml(questions, selectedClass, dateKey, sourceLabel) {
+  const questionItems = questions
+    .map((question, index) => `<li><span>${index + 1}</span>${escapeHtml(question)}</li>`)
+    .join("");
+
+  return `
+    <div class="daily-question-meta">
+      <strong>Class ${escapeHtml(selectedClass)}</strong>
+      <span>${escapeHtml(dateKey)}</span>
+      <span>${escapeHtml(sourceLabel)}</span>
+    </div>
+    <ol class="daily-question-list">${questionItems}</ol>
+    <button type="button" class="secondary-btn compact-btn" onclick="loadStudentData({ openModalAfterLoad: false, showFeeReminder: false })">Refresh</button>
+  `;
 }
 
 function refreshStudentDataViewIfNeeded() {
@@ -1364,6 +1626,7 @@ async function loadStudentData(options = {}) {
   const requestedId = loginStudentId.value.trim();
   const studentRecordForLogin = students.find((student) => isSameStudentId(student.id, requestedId));
   const id = studentRecordForLogin?.id || requestedId;
+  renderDailyQuestionsForStudent(id);
   
   if (id && isFirebaseReady()) {
     await loadAttendanceHistoryForStudent(id).catch(error => {
@@ -1436,6 +1699,7 @@ async function loadStudentData(options = {}) {
           <div class="box">
             <img class="profile-avatar record-photo" src="${displayStudent.photoUrl || DEFAULT_STUDENT_PHOTO}" alt="${displayStudent.name} photo">
             <strong>Name:</strong> ${displayStudent.name}<br>
+            <strong>Class:</strong> ${formatStudentClass(displayStudent)}<br>
             <strong>Class Date:</strong> ${schedule.date}<br>
             <strong>Class Time:</strong> <span style="color: #0f766e; font-weight: bold;">${schedule.time ? formatTime12Hour(schedule.time) : "Holiday (No Class)"}</span><br>
             ${countdownMarkup}
@@ -1477,6 +1741,7 @@ async function loadStudentData(options = {}) {
           <img class="profile-avatar record-photo" src="${studentRecord.photoUrl || DEFAULT_STUDENT_PHOTO}" alt="${studentRecord.name} photo">
           <strong>Name:</strong> ${studentRecord.name}<br>
           <strong>ID:</strong> ${studentRecord.id}<br>
+          <strong>Class:</strong> ${formatStudentClass(studentRecord)}<br>
           <strong>Fee Status:</strong> ${formatFeeStatusHtml(studentRecord)}<br>
           <button class="secondary-btn compact-btn" onclick="toggleStudentRating(this)" style="margin-top: 10px; width: 100%;">Show More</button>
           <div class="rating-details hidden" style="margin-top: 10px; padding: 12px; background: rgba(15, 118, 110, 0.1); border-radius: 10px; border-left: 4px solid #0f766e;">
@@ -2248,6 +2513,7 @@ function resetStudentForm() {
   editingStudentIndex = null;
   studentId.value = "";
   studentName.value = "";
+  studentClassInput.value = DEFAULT_STUDENT_CLASS;
   studentFeeAmount.value = "";
   studentPhotoFile.value = "";
   studentCycleStartDay.value = "";
@@ -2305,6 +2571,7 @@ function buildStudentRecordPayload(student) {
   const payload = {
     id: student.id,
     name: student.name,
+    classLevel: getStudentClassLevel(student),
     feePending: Boolean(student.feePending),
     feeAmount: normalizeFeeAmount(student.feeAmount),
     feeHistory: student.feeHistory || {},
