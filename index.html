@@ -387,6 +387,16 @@
           <button type="button" class="secondary-btn compact-btn forgot-id-btn" onclick="openTeacherWhatsApp('Sir i forget mt student ID')">Forgot ID?</button>
         </section>
 
+        <section class="panel-card wide-card">
+          <div class="section-head">
+            <h3>Today's Science & Maths Practice</h3>
+            <span class="badge">Daily Shuffle</span>
+          </div>
+          <div id="dailyQuestionsPanel" class="daily-question-card">
+            Enter your student ID and class to see today's questions.
+          </div>
+        </section>
+
         <section class="panel-card">
           <h3>Send Message to Teacher</h3>
           <p class="section-note">You can type message here.</p>
@@ -403,23 +413,7 @@
           </div>
         </section>
 
-        <section class="panel-card wide-card">
-          <div class="section-head">
-            <h3>Today's Science & Maths Practice</h3>
-            <span class="badge">Daily Shuffle</span>
-          </div>
-          <div id="dailyQuestionsPanel" class="daily-question-card">
-            Enter your student ID and class to see today's questions.
-          </div>
-        </section>
-
-        <section class="panel-card wide-card">
-          <div class="section-head">
-            <h3>My Records</h3>
-            <span class="badge">Student View</span>
-          </div>
-          <div id="studentData" class="stack-list"></div>
-        </section>
+        <div id="studentData" class="stack-list" hidden></div>
 
       </div>
     </div>
