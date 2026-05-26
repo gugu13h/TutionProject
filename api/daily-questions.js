@@ -1,9 +1,22 @@
 const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
 const DEFAULT_MODEL = "gpt-4.1-mini";
+const QUESTION_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    questions: {
+      type: "array",
+      items: {
+        type: "string"
+      }
+    }
+  },
+  required: ["questions"]
+};
 
 module.exports = async function handler(request, response) {
   response.setHeader("Access-Control-Allow-Origin", "*");
-  response.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  response.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   response.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
   if (request.method === "OPTIONS") {
@@ -11,7 +24,7 @@ module.exports = async function handler(request, response) {
     return;
   }
 
-  if (request.method !== "POST") {
+  if (!["GET", "POST"].includes(request.method)) {
     response.status(405).json({ error: "Method not allowed" });
     return;
   }
@@ -22,7 +35,7 @@ module.exports = async function handler(request, response) {
   }
 
   try {
-    const body = typeof request.body === "string" ? JSON.parse(request.body || "{}") : request.body || {};
+    const body = getRequestData(request);
     const className = sanitizeClassName(body.className);
     const studentId = String(body.studentId || "").trim().slice(0, 40);
     const date = String(body.date || "").trim().slice(0, 20);
@@ -36,8 +49,18 @@ module.exports = async function handler(request, response) {
       },
       body: JSON.stringify({
         model: process.env.OPENAI_MODEL || DEFAULT_MODEL,
+        instructions: buildInstructions(),
         input: buildPrompt({ className, studentId, date, count }),
-        temperature: 0.8
+        text: {
+          format: {
+            type: "json_schema",
+            name: "daily_practice_questions",
+            strict: true,
+            schema: QUESTION_SCHEMA
+          }
+        },
+        temperature: 0.9,
+        max_output_tokens: 700
       })
     });
 
@@ -51,10 +74,16 @@ module.exports = async function handler(request, response) {
     }
 
     const questions = parseQuestions(extractResponseText(payload)).slice(0, count);
+
+    if (questions.length < count) {
+      response.status(502).json({ error: "ChatGPT returned too few valid questions" });
+      return;
+    }
+
     response.status(200).json({
       className,
       date,
-      source: "openai",
+      source: "chatgpt",
       questions
     });
   } catch (error) {
@@ -64,22 +93,41 @@ module.exports = async function handler(request, response) {
   }
 };
 
+function getRequestData(request) {
+  if (request.method === "GET") {
+    return request.query || {};
+  }
+
+  return typeof request.body === "string" ? JSON.parse(request.body || "{}") : request.body || {};
+}
+
 function sanitizeClassName(value) {
   const className = String(value || "8").replace(/[^0-9]/g, "");
   return ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"].includes(className) ? className : "8";
 }
 
-function buildPrompt({ className, studentId, date, count }) {
+function buildInstructions() {
   return [
-    "Generate daily Maths and Science practice questions for a tuition student.",
+    "You are a helpful tuition teacher creating fresh daily practice.",
+    "Generate age-appropriate Maths and Science questions only.",
+    "Avoid repeated, generic, or copied-looking questions.",
+    "Return only the requested structured JSON."
+  ].join(" ");
+}
+
+function buildPrompt({ className, studentId, date, count }) {
+  const daySeed = `${className}-${studentId || "guest"}-${date || new Date().toISOString().slice(0, 10)}`;
+
+  return [
+    "Generate today's fresh Maths and Science practice questions for a tuition student.",
     `Class: ${className}`,
-    `Student ID seed: ${studentId}`,
-    `Date seed: ${date}`,
+    `Daily uniqueness seed: ${daySeed}`,
+    `Date: ${date}`,
     `Number of questions: ${count}`,
     "Use only Maths and Science. Do not include English, GK, Social Studies, EVS-only, writing, or reasoning questions.",
     "Every question must start with either 'Maths:' or 'Science:'.",
-    "Questions must be short, clear, exam-practice style, and different for the date seed.",
-    "Return only valid JSON in this exact shape: {\"questions\":[\"question 1\",\"question 2\"]}"
+    "Include a balanced mix of calculation, concept, short-answer, and application questions.",
+    "Questions must be short, clear, exam-practice style, and different for this daily seed."
   ].join("\n");
 }
 

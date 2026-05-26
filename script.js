@@ -71,6 +71,10 @@ const teacherNoticeInputs = [
   document.getElementById("teacherNoticeInput2"),
   document.getElementById("teacherNoticeInput3")
 ];
+const teacherSettingsBtn = document.getElementById("teacherSettingsBtn");
+const teacherSettingsBtnText = document.getElementById("teacherSettingsBtnText");
+const teacherSettingsPanel = document.getElementById("teacherSettingsPanel");
+const teacherSettingsCloseBtn = document.getElementById("teacherSettingsCloseBtn");
 const homeNoticeText = document.getElementById("homeNoticeText");
 const ranchiTemperature = document.getElementById("ranchiTemperature");
 const ranchiWeatherText = document.getElementById("ranchiWeatherText");
@@ -89,6 +93,8 @@ const newScheduleBtnText = document.getElementById("newScheduleBtnText");
 const scheduleCloseBtn = document.getElementById("scheduleCloseBtn");
 const scheduleSubmitBtn = document.getElementById("scheduleSubmitBtn");
 const scheduleCancelBtn = document.getElementById("scheduleCancelBtn");
+const teacherGenerateQuestionsBtn = document.getElementById("teacherGenerateQuestionsBtn");
+const teacherQuestionStatus = document.getElementById("teacherQuestionStatus");
 const ratingModal = document.getElementById("ratingModal");
 const ratingModalTitle = document.getElementById("ratingModalTitle");
 const currentRatingDisplay = document.getElementById("currentRatingDisplay");
@@ -110,6 +116,13 @@ const CLASS_TIMER_DURATION_MS = 60 * 60 * 1000;
 const ATTENDANCE_RETENTION_MONTHS = 2;
 const NOTICE_ROTATION_INTERVAL_MS = 5000;
 const NOTICE_COLOR_CLASSES = ["notice-color-1", "notice-color-2", "notice-color-3"];
+const CLICK_RIPPLE_COLORS = [
+  "rgba(56, 189, 248, 0.78)",
+  "rgba(34, 197, 94, 0.72)",
+  "rgba(250, 204, 21, 0.76)",
+  "rgba(251, 113, 133, 0.72)",
+  "rgba(139, 92, 246, 0.72)"
+];
 const DEFAULT_HOME_NOTICE = "No notice yet.";
 const DAILY_QUESTION_COUNT = 5;
 const DAILY_QUESTION_API_URL = "/api/daily-questions";
@@ -247,6 +260,7 @@ window.sendWhatsApp = sendWhatsApp;
 window.openTeacherWhatsApp = openTeacherWhatsApp;
 window.uploadTeacherPhoto = uploadTeacherPhoto;
 window.saveTeacherNotice = saveTeacherNotice;
+window.generateTeacherDailyQuestions = generateTeacherDailyQuestions;
 window.setStudentRating = setStudentRating;
 window.submitStudentRating = submitStudentRating;
 window.setRating = setRating;
@@ -261,11 +275,13 @@ window.toggleAttendanceMonth = toggleAttendanceMonth;
 window.setAttendanceFromCalendar = setAttendanceFromCalendar;
 
 initializeThemeMode();
+initializeClickAnimations();
 initializeScheduleDefaults();
 initializeStudentModal();
 initializeFeeReminderModal();
 initializeStudentRegisterForm();
 initializeScheduleForm();
+initializeTeacherSettingsPanel();
 initializeDailyQuestions();
 initializeAboutTeacherButton();
 startScheduleCleanupLoop();
@@ -308,8 +324,9 @@ function initializeThemeMode() {
   }
 }
 
-function toggleThemeMode() {
+function toggleThemeMode(event) {
   const nextMode = document.body.classList.contains("theme-night") ? "day" : "night";
+  playThemeColorBurst(event);
   applyThemeMode(nextMode);
 }
 
@@ -321,6 +338,46 @@ function applyThemeMode(mode) {
   if (themeToggleBtn) {
     themeToggleBtn.setAttribute("aria-label", isNight ? "Switch to day mode" : "Switch to night mode");
   }
+}
+
+function initializeClickAnimations() {
+  document.addEventListener("click", (event) => {
+    const clickable = event.target.closest("button, a.secondary-btn, .about-teacher-btn");
+
+    if (!clickable || clickable.disabled || clickable.classList.contains("is-disabled")) {
+      return;
+    }
+
+    playClickRipple(clickable, event);
+  });
+}
+
+function playClickRipple(element, event) {
+  const rect = element.getBoundingClientRect();
+  const ripple = document.createElement("span");
+  const colorIndex = Math.floor(Math.random() * CLICK_RIPPLE_COLORS.length);
+
+  ripple.className = "click-ripple";
+  ripple.style.setProperty("--ripple-x", `${event.clientX - rect.left}px`);
+  ripple.style.setProperty("--ripple-y", `${event.clientY - rect.top}px`);
+  ripple.style.setProperty("--ripple-color", CLICK_RIPPLE_COLORS[colorIndex]);
+
+  element.querySelectorAll(".click-ripple").forEach((oldRipple) => oldRipple.remove());
+  element.appendChild(ripple);
+  ripple.addEventListener("animationend", () => ripple.remove(), { once: true });
+}
+
+function playThemeColorBurst(event) {
+  if (!event) {
+    return;
+  }
+
+  document.body.style.setProperty("--theme-burst-x", `${event.clientX}px`);
+  document.body.style.setProperty("--theme-burst-y", `${event.clientY}px`);
+  document.body.classList.remove("theme-color-pop");
+  void document.body.offsetWidth;
+  document.body.classList.add("theme-color-pop");
+  window.setTimeout(() => document.body.classList.remove("theme-color-pop"), 760);
 }
 
 function showPage(id) {
@@ -917,27 +974,48 @@ async function renderDailyQuestionsForStudent(studentId) {
     return;
   }
 
+  if (isFirebaseReady()) {
+    try {
+      teacherProfile = await getTeacherProfile();
+      updateTeacherQuestionStatus();
+    } catch (error) {
+      console.warn("Unable to refresh teacher daily questions.", error);
+    }
+  }
+
   const todayKey = formatDateKey(new Date());
   const loadedFor = `${cleanStudentId}|${selectedClass}|${todayKey}`;
   dailyQuestionsPanel.dataset.loadedFor = loadedFor;
-  dailyQuestionsPanel.innerHTML = `<div class="daily-question-loading">Preparing today's questions...</div>`;
+  dailyQuestionsPanel.innerHTML = `<div class="daily-question-loading">Asking ChatGPT for today's questions...</div>`;
 
   const fallbackQuestions = getLocalDailyQuestions(selectedClass, cleanStudentId, todayKey);
+  const teacherQuestions = getTeacherDailyQuestionsForClass(selectedClass, todayKey);
   let questionSet = {
     source: "Local Daily Set",
     questions: fallbackQuestions
   };
 
-  try {
-    const aiQuestions = await fetchDailyAiQuestions(selectedClass, cleanStudentId, todayKey);
-    if (Array.isArray(aiQuestions) && aiQuestions.length >= DAILY_QUESTION_COUNT) {
+  if (teacherQuestions.length >= DAILY_QUESTION_COUNT) {
+    questionSet = {
+      source: "Teacher Set",
+      questions: teacherQuestions.slice(0, DAILY_QUESTION_COUNT)
+    };
+  } else {
+    try {
+      const aiQuestions = await fetchDailyAiQuestions(selectedClass, cleanStudentId, todayKey);
+      if (Array.isArray(aiQuestions) && aiQuestions.length >= DAILY_QUESTION_COUNT) {
+        questionSet = {
+          source: "ChatGPT Daily",
+          questions: aiQuestions.slice(0, DAILY_QUESTION_COUNT)
+        };
+      }
+    } catch (error) {
+      console.warn("Daily AI questions unavailable; using local set.", error);
       questionSet = {
-        source: "AI Generated",
-        questions: aiQuestions.slice(0, DAILY_QUESTION_COUNT)
+        source: "Local Fresh Set",
+        questions: getFreshLocalTeacherQuestions(selectedClass, `${todayKey}|${cleanStudentId}`)
       };
     }
-  } catch (error) {
-    console.warn("Daily AI questions unavailable; using local set.", error);
   }
 
   if (dailyQuestionsPanel.dataset.loadedFor !== loadedFor) {
@@ -945,6 +1023,19 @@ async function renderDailyQuestionsForStudent(studentId) {
   }
 
   dailyQuestionsPanel.innerHTML = buildDailyQuestionsHtml(questionSet.questions, selectedClass, todayKey, questionSet.source);
+}
+
+function getTeacherDailyQuestionsForClass(selectedClass, dateKey) {
+  const set = teacherProfile?.dailyQuestionSet;
+
+  if (!set || set.date !== dateKey || !set.classQuestions) {
+    return [];
+  }
+
+  const questions = set.classQuestions[String(selectedClass)] || [];
+  return Array.isArray(questions)
+    ? questions.map(normalizeQuestionText).filter(isDailyMathsScienceQuestion)
+    : [];
 }
 
 function getSelectedStudentClass() {
@@ -956,7 +1047,7 @@ function getStudentClassForQuestions(studentId) {
   const selectedClass = studentRecord ? getStudentClassLevel(studentRecord) : normalizeStudentClass(getSelectedStudentClass());
 
   if (studentClassSelect) {
-    studentClassSelect.value = selectedClass;
+    studentClassSelect.value = `Class ${selectedClass}`;
   }
 
   return selectedClass;
@@ -967,27 +1058,54 @@ async function fetchDailyAiQuestions(selectedClass, studentId, dateKey) {
     return [];
   }
 
-  const response = await fetch(DAILY_QUESTION_API_URL, {
+  const requestPayload = {
+    className: selectedClass,
+    studentId,
+    date: dateKey,
+    count: DAILY_QUESTION_COUNT
+  };
+
+  let response = await fetch(DAILY_QUESTION_API_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
     },
-    body: JSON.stringify({
-      className: selectedClass,
-      studentId,
-      date: dateKey,
-      count: DAILY_QUESTION_COUNT
-    })
+    body: JSON.stringify(requestPayload)
   });
 
+  if (response.status === 405) {
+    response = await fetch(buildDailyQuestionApiUrl(requestPayload));
+  }
+
   if (!response.ok) {
-    throw new Error(`Daily question API failed: ${response.status}`);
+    throw new Error(await getDailyQuestionApiError(response));
+  }
+
+  if (!response.headers.get("content-type")?.includes("application/json")) {
+    throw new Error("Daily question API route is not running. Use the deployed app or a serverless dev server.");
   }
 
   const payload = await response.json();
   return Array.isArray(payload.questions)
     ? payload.questions.map(normalizeQuestionText).filter(isDailyMathsScienceQuestion)
     : [];
+}
+
+function buildDailyQuestionApiUrl(payload) {
+  const params = new URLSearchParams();
+  Object.entries(payload).forEach(([key, value]) => {
+    params.set(key, String(value));
+  });
+  return `${DAILY_QUESTION_API_URL}?${params.toString()}`;
+}
+
+async function getDailyQuestionApiError(response) {
+  try {
+    const payload = await response.clone().json();
+    return payload?.error || `Daily question API failed: ${response.status}`;
+  } catch (error) {
+    return `Daily question API failed: ${response.status}`;
+  }
 }
 
 function getLocalDailyQuestions(selectedClass, studentId, dateKey) {
@@ -1000,6 +1118,56 @@ function getDailyQuestionSeed(value) {
   return String(value).split("").reduce((hash, character) => {
     return ((hash << 5) - hash + character.charCodeAt(0)) >>> 0;
   }, 2166136261);
+}
+
+function getRegisteredClassLevels() {
+  const classSet = new Set(
+    students
+      .map((student) => getStudentClassLevel(student))
+      .filter(Boolean)
+  );
+
+  if (classSet.size === 0) {
+    classSet.add(DEFAULT_STUDENT_CLASS);
+  }
+
+  return Array.from(classSet).sort((first, second) => Number(first) - Number(second));
+}
+
+function getFreshLocalTeacherQuestions(selectedClass, seedValue) {
+  const classLevel = Number(normalizeStudentClass(selectedClass));
+  const seed = getDailyQuestionSeed(seedValue);
+  const first = 2 + (seed % 18);
+  const second = 3 + ((seed >>> 4) % 15);
+  const third = 4 + ((seed >>> 8) % 12);
+
+  if (classLevel <= 5) {
+    return [
+      `Maths: What is ${first} + ${second}?`,
+      `Maths: Write the table of ${2 + (seed % 8)} up to 10 steps.`,
+      `Maths: A box has ${first} pencils and ${third} more are added. How many pencils are there?`,
+      `Science: Name two things plants need to grow.`,
+      `Science: Why should we drink clean water?`
+    ];
+  }
+
+  if (classLevel <= 8) {
+    return [
+      `Maths: Solve ${first}x = ${first * second}.`,
+      `Maths: Find the perimeter of a rectangle with length ${first} cm and breadth ${second} cm.`,
+      `Maths: Simplify ${first}^2 - ${third}.`,
+      `Science: Explain one difference between physical and chemical change.`,
+      `Science: Why do metals generally conduct electricity?`
+    ];
+  }
+
+  return [
+    `Maths: Solve the equation x^2 - ${first + second}x + ${first * second} = 0.`,
+    `Maths: Find the value of sin 30° + cos 60°.`,
+    `Maths: A train covers ${first * 10} km in ${second} hours. Find its average speed.`,
+    `Science: Write the balanced chemical equation for photosynthesis.`,
+    `Science: State Newton's second law and give one daily-life example.`
+  ];
 }
 
 function shuffleWithSeed(items, seed) {
@@ -2776,6 +2944,48 @@ function initializeScheduleForm() {
   }
 }
 
+function initializeTeacherSettingsPanel() {
+  updateTeacherSettingsPanelState();
+
+  if (teacherSettingsBtn) {
+    teacherSettingsBtn.addEventListener("click", toggleTeacherSettingsPanel);
+  }
+
+  if (teacherSettingsCloseBtn) {
+    teacherSettingsCloseBtn.addEventListener("click", closeTeacherSettingsPanel);
+  }
+}
+
+function toggleTeacherSettingsPanel() {
+  if (!teacherSettingsPanel) {
+    return;
+  }
+
+  teacherSettingsPanel.classList.toggle("active");
+  updateTeacherSettingsPanelState();
+}
+
+function closeTeacherSettingsPanel() {
+  if (!teacherSettingsPanel) {
+    return;
+  }
+
+  teacherSettingsPanel.classList.remove("active");
+  updateTeacherSettingsPanelState();
+}
+
+function updateTeacherSettingsPanelState() {
+  const isOpen = teacherSettingsPanel?.classList.contains("active");
+
+  if (teacherSettingsBtnText) {
+    teacherSettingsBtnText.textContent = isOpen ? "Close Settings" : "Open Settings";
+  }
+
+  if (teacherSettingsBtn) {
+    teacherSettingsBtn.classList.toggle("is-open", Boolean(isOpen));
+  }
+}
+
 function openStudentModal() {
   studentRecordModal.classList.add("active");
   studentRecordModal.setAttribute("aria-hidden", "false");
@@ -2972,6 +3182,89 @@ async function saveTeacherNotice() {
   }
 }
 
+async function generateTeacherDailyQuestions() {
+  if (!teacherGenerateQuestionsBtn || !teacherQuestionStatus) {
+    return;
+  }
+
+  if (!isTeacherLoggedIn) {
+    alert("Please login as teacher first.");
+    return;
+  }
+
+  if (!isFirebaseReady()) {
+    alert("Firebase is not ready, so questions cannot be shared to all dashboards.");
+    return;
+  }
+
+  const todayKey = formatDateKey(new Date());
+  const classLevels = getRegisteredClassLevels();
+  const previousButtonText = teacherGenerateQuestionsBtn.textContent;
+  const classQuestions = {};
+
+  teacherGenerateQuestionsBtn.disabled = true;
+  teacherGenerateQuestionsBtn.textContent = "Generating...";
+  teacherQuestionStatus.textContent = `Creating fresh questions for ${classLevels.length} class group${classLevels.length > 1 ? "s" : ""}...`;
+
+  try {
+    for (const classLevel of classLevels) {
+      teacherQuestionStatus.textContent = `Generating Class ${classLevel} questions...`;
+      let questions = [];
+
+      try {
+        questions = await fetchDailyAiQuestions(classLevel, `teacher-${classLevel}`, `${todayKey}-${Date.now()}`);
+      } catch (error) {
+        console.warn(`ChatGPT questions unavailable for Class ${classLevel}; using local fresh set.`, error);
+        teacherQuestionStatus.textContent = `API unavailable. Creating Class ${classLevel} local questions...`;
+      }
+
+      if (!Array.isArray(questions) || questions.length < DAILY_QUESTION_COUNT) {
+        questions = getFreshLocalTeacherQuestions(classLevel, `${todayKey}|${classLevel}|${Date.now()}`);
+      }
+
+      classQuestions[classLevel] = questions.slice(0, DAILY_QUESTION_COUNT);
+    }
+
+    teacherProfile = {
+      ...(teacherProfile || {}),
+      dailyQuestionSet: {
+        date: todayKey,
+        generatedAt: new Date().toISOString(),
+        generatedBy: "teacher",
+        classQuestions
+      }
+    };
+
+    await updateTeacherProfile(teacherProfile);
+    updateTeacherQuestionStatus();
+    refreshStudentDataViewIfNeeded();
+    alert("New questions are now live on student dashboards.");
+  } catch (error) {
+    console.error(error);
+    teacherQuestionStatus.textContent = "Unable to generate questions. Check OpenAI API setup and try again.";
+    alert(error.message || "Unable to generate questions.");
+  } finally {
+    teacherGenerateQuestionsBtn.disabled = false;
+    teacherGenerateQuestionsBtn.textContent = previousButtonText || "Generate New Questions";
+  }
+}
+
+function updateTeacherQuestionStatus() {
+  if (!teacherQuestionStatus) {
+    return;
+  }
+
+  const set = teacherProfile?.dailyQuestionSet;
+
+  if (!set?.date || !set.classQuestions) {
+    teacherQuestionStatus.textContent = "No teacher-generated set yet.";
+    return;
+  }
+
+  const classCount = Object.keys(set.classQuestions).length;
+  teacherQuestionStatus.textContent = `Live for ${set.date}: ${classCount} class group${classCount === 1 ? "" : "s"}.`;
+}
+
 async function loadTeacherProfile() {
   teacherProfile = await getTeacherProfile();
   applyTeacherProfile();
@@ -2994,6 +3287,7 @@ function applyTeacherProfile() {
       input.value = notices[index] === DEFAULT_HOME_NOTICE ? "" : notices[index] || "";
     }
   });
+  updateTeacherQuestionStatus();
 }
 
 function getTeacherNoticeInputs() {

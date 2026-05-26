@@ -144,23 +144,55 @@
 
       <div class="dashboard-grid">
         <section class="panel-card">
-          <h3>Teacher Profile Photo</h3>
-          <div class="profile-upload-card">
-            <img id="teacherDashboardPhoto" class="profile-avatar xl-avatar"
-              src="https://res.cloudinary.com/den0tn3tb/image/upload/v1/defaults/teacher-avatar" alt="Teacher profile">
-            <div class="field-group">
-              <label for="teacherPhotoFile">Upload Photo</label>
-              <input id="teacherPhotoFile" type="file" accept="image/*">
+          <div class="section-head register-section-head">
+            <div>
+              <h3>Settings</h3>
+              <p class="section-note register-note">Profile photo and home notices.</p>
             </div>
-            <button onclick="uploadTeacherPhoto()">Save Photo</button>
-            <div class="field-group teacher-notice-field">
-              <label for="teacherNoticeInput1">Home Notices</label>
-              <textarea id="teacherNoticeInput1" placeholder="Write notice 1 for students"></textarea>
-              <textarea id="teacherNoticeInput2" placeholder="Write notice 2 for students"></textarea>
-              <textarea id="teacherNoticeInput3" placeholder="Write notice 3 for students"></textarea>
-            </div>
-            <button class="secondary-btn" onclick="saveTeacherNotice()">Save Notice</button>
+            <button id="teacherSettingsBtn" type="button" class="secondary-btn compact-btn new-register-btn">
+              <span class="new-register-icon" aria-hidden="true">S</span>
+              <span id="teacherSettingsBtnText">Open Settings</span>
+            </button>
           </div>
+
+          <div id="teacherSettingsPanel" class="register-form-panel teacher-settings-panel">
+            <div class="register-form-top">
+              <span class="badge">Teacher Settings</span>
+              <button id="teacherSettingsCloseBtn" type="button" class="ghost-btn register-close-btn">Close</button>
+            </div>
+
+            <div class="profile-upload-card">
+              <h4>Teacher Profile Photo</h4>
+              <img id="teacherDashboardPhoto" class="profile-avatar xl-avatar"
+                src="https://res.cloudinary.com/den0tn3tb/image/upload/v1/defaults/teacher-avatar" alt="Teacher profile">
+              <div class="field-group">
+                <label for="teacherPhotoFile">Upload Photo</label>
+                <input id="teacherPhotoFile" type="file" accept="image/*">
+              </div>
+              <button onclick="uploadTeacherPhoto()">Save Photo</button>
+              <div class="field-group teacher-notice-field">
+                <label for="teacherNoticeInput1">Home Notices</label>
+                <textarea id="teacherNoticeInput1" placeholder="Write notice 1 for students"></textarea>
+                <textarea id="teacherNoticeInput2" placeholder="Write notice 2 for students"></textarea>
+                <textarea id="teacherNoticeInput3" placeholder="Write notice 3 for students"></textarea>
+              </div>
+              <button class="secondary-btn" onclick="saveTeacherNotice()">Save Notice</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel-card teacher-question-card">
+          <div class="section-head">
+            <div>
+              <h3>Daily Questions</h3>
+              <p class="section-note">Generate fresh Maths & Science questions for student dashboards.</p>
+            </div>
+            <span class="badge">ChatGPT</span>
+          </div>
+          <button id="teacherGenerateQuestionsBtn" type="button" class="secondary-btn" onclick="generateTeacherDailyQuestions()">
+            Generate New Questions
+          </button>
+          <div id="teacherQuestionStatus" class="teacher-question-status">No teacher-generated set yet.</div>
         </section>
 
         <div class="register-schedule-wrapper">
@@ -370,18 +402,7 @@
           </div>
           <div class="field-group">
             <label for="studentClassSelect">Class</label>
-            <select id="studentClassSelect">
-              <option value="1">Class 1</option>
-              <option value="2">Class 2</option>
-              <option value="3">Class 3</option>
-              <option value="4">Class 4</option>
-              <option value="5">Class 5</option>
-              <option value="6">Class 6</option>
-              <option value="7">Class 7</option>
-              <option value="8" selected>Class 8</option>
-              <option value="9">Class 9</option>
-              <option value="10">Class 10</option>
-            </select>
+            <input id="studentClassSelect" value="Class 8" readonly>
           </div>
           <button onclick="loadStudentData()">Show My Details</button>
           <button type="button" class="secondary-btn compact-btn forgot-id-btn" onclick="openTeacherWhatsApp('Sir i forget mt student ID')">Forgot ID?</button>
@@ -390,7 +411,7 @@
         <section class="panel-card wide-card">
           <div class="section-head">
             <h3>Today's Science & Maths Practice</h3>
-            <span class="badge">Daily Shuffle</span>
+            <span class="badge">ChatGPT Daily</span>
           </div>
           <div id="dailyQuestionsPanel" class="daily-question-card">
             Enter your student ID and class to see today's questions.
