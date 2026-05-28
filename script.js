@@ -1008,12 +1008,17 @@ async function renderDailyQuestionsForStudent(studentId) {
           source: "ChatGPT Daily",
           questions: aiQuestions.slice(0, DAILY_QUESTION_COUNT)
         };
+      } else {
+        questionSet = {
+          source: "Local Fresh Set",
+          questions: fallbackQuestions
+        };
       }
     } catch (error) {
       console.warn("Daily AI questions unavailable; using local set.", error);
       questionSet = {
         source: "Local Fresh Set",
-        questions: getFreshLocalTeacherQuestions(selectedClass, `${todayKey}|${cleanStudentId}`)
+        questions: fallbackQuestions
       };
     }
   }
@@ -1111,7 +1116,9 @@ async function getDailyQuestionApiError(response) {
 function getLocalDailyQuestions(selectedClass, studentId, dateKey) {
   const questionBank = DAILY_QUESTION_BANK[selectedClass] || DAILY_QUESTION_BANK["8"];
   const seed = getDailyQuestionSeed(`${selectedClass}|${studentId}|${dateKey}`);
-  return shuffleWithSeed(questionBank, seed).slice(0, DAILY_QUESTION_COUNT);
+  const generatedQuestions = getFreshLocalTeacherQuestions(selectedClass, `${dateKey}|${studentId}|daily-local`);
+  const bankQuestions = shuffleWithSeed(questionBank, seed).slice(0, 2);
+  return shuffleWithSeed([...generatedQuestions, ...bankQuestions], seed).slice(0, DAILY_QUESTION_COUNT);
 }
 
 function getDailyQuestionSeed(value) {
@@ -1137,36 +1144,62 @@ function getRegisteredClassLevels() {
 function getFreshLocalTeacherQuestions(selectedClass, seedValue) {
   const classLevel = Number(normalizeStudentClass(selectedClass));
   const seed = getDailyQuestionSeed(seedValue);
-  const first = 2 + (seed % 18);
-  const second = 3 + ((seed >>> 4) % 15);
-  const third = 4 + ((seed >>> 8) % 12);
+  const first = 6 + (seed % 27);
+  const second = 4 + ((seed >>> 4) % 23);
+  const third = 5 + ((seed >>> 8) % 19);
+  const fourth = 2 + ((seed >>> 12) % 9);
+  const fifth = 3 + ((seed >>> 16) % 8);
 
   if (classLevel <= 5) {
+    const scienceQuestions = shuffleWithSeed([
+      `Science: Explain why a shadow changes size during the day.`,
+      `Science: Give two reasons why plants kept in a dark room become weak.`,
+      `Science: Why does ice melt faster in sunlight than inside a room?`,
+      `Science: Name one solid, one liquid, and one gas found at home, and tell one property of each.`,
+      `Science: Why should drinking water be filtered or boiled before use?`,
+      `Science: A plant is not watered for ${fourth} days. What changes will you observe and why?`
+    ], seed).slice(0, 2);
+
     return [
-      `Maths: What is ${first} + ${second}?`,
-      `Maths: Write the table of ${2 + (seed % 8)} up to 10 steps.`,
-      `Maths: A box has ${first} pencils and ${third} more are added. How many pencils are there?`,
-      `Science: Name two things plants need to grow.`,
-      `Science: Why should we drink clean water?`
+      `Maths: A shopkeeper has ${first} pencils, sells ${fourth}, and buys ${second} more. How many pencils are left?`,
+      `Maths: Find ${fifth} times ${second}, then subtract ${third}.`,
+      `Maths: A ribbon of ${first + second} cm is cut into ${fourth} equal parts. How long is each part?`,
+      ...scienceQuestions
     ];
   }
 
   if (classLevel <= 8) {
+    const scienceQuestions = shuffleWithSeed([
+      `Science: A metal spoon feels colder than a wooden spoon at the same temperature. Explain why.`,
+      `Science: Compare physical and chemical change using one observation that proves your answer.`,
+      `Science: Why does an iron nail rust faster in moist air than in dry air?`,
+      `Science: Explain how photosynthesis depends on sunlight and chlorophyll.`,
+      `Science: A ball rolling on the floor slows down after some time. Which force is responsible and how?`,
+      `Science: Why are electric wires usually made of copper but covered with plastic?`
+    ], seed).slice(0, 2);
+
     return [
-      `Maths: Solve ${first}x = ${first * second}.`,
-      `Maths: Find the perimeter of a rectangle with length ${first} cm and breadth ${second} cm.`,
-      `Maths: Simplify ${first}^2 - ${third}.`,
-      `Science: Explain one difference between physical and chemical change.`,
-      `Science: Why do metals generally conduct electricity?`
+      `Maths: Solve ${fourth}x + ${second} = ${fourth * first + second}.`,
+      `Maths: A rectangle has area ${first * second} sq cm and length ${first} cm. Find its breadth and perimeter.`,
+      `Maths: Simplify (${first}^2 - ${third}) / ${fourth}, leaving the answer as a mixed fraction if needed.`,
+      ...scienceQuestions
     ];
   }
+
+  const scienceQuestions = shuffleWithSeed([
+    `Science: Balance the reaction and identify the reaction type: Fe + H2O -> Fe3O4 + H2.`,
+    `Science: A body of mass ${fifth} kg accelerates at ${fourth} m/s^2. Find the force and state the law used.`,
+    `Science: Explain why resistance increases when the length of a wire is increased.`,
+    `Science: A convex lens forms a real image at 2F. Where is the object placed and what is the image size?`,
+    `Science: Why does an acid conduct electricity in water but dry HCl gas does not?`,
+    `Science: Compare aerobic and anaerobic respiration with one equation or example.`
+  ], seed).slice(0, 2);
 
   return [
     `Maths: Solve the equation x^2 - ${first + second}x + ${first * second} = 0.`,
     `Maths: Find the value of sin 30° + cos 60°.`,
-    `Maths: A train covers ${first * 10} km in ${second} hours. Find its average speed.`,
-    `Science: Write the balanced chemical equation for photosynthesis.`,
-    `Science: State Newton's second law and give one daily-life example.`
+    `Maths: A train covers ${first * 12} km in ${fourth} hours and then ${second * 10} km in ${fifth} hours. Find its average speed.`,
+    ...scienceQuestions
   ];
 }
 

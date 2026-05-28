@@ -109,8 +109,8 @@ function sanitizeClassName(value) {
 function buildInstructions() {
   return [
     "You are a helpful tuition teacher creating fresh daily practice.",
-    "Generate age-appropriate Maths and Science questions only.",
-    "Avoid repeated, generic, or copied-looking questions.",
+    "Generate age-appropriate but slightly challenging Maths and Science questions only.",
+    "Avoid repeated, generic, one-step, or copied-looking questions.",
     "Return only the requested structured JSON."
   ].join(" ");
 }
@@ -126,7 +126,8 @@ function buildPrompt({ className, studentId, date, count }) {
     `Number of questions: ${count}`,
     "Use only Maths and Science. Do not include English, GK, Social Studies, EVS-only, writing, or reasoning questions.",
     "Every question must start with either 'Maths:' or 'Science:'.",
-    "Include a balanced mix of calculation, concept, short-answer, and application questions.",
+    "Include a balanced mix of multi-step calculation, concept, short-answer, and application questions.",
+    "Make questions harder than basic textbook recall but still solvable for the class level.",
     "Questions must be short, clear, exam-practice style, and different for this daily seed."
   ].join("\n");
 }
