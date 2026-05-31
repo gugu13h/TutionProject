@@ -899,6 +899,19 @@ function isScheduleExpired(schedule, now = new Date()) {
   return now.getTime() >= expiresAt;
 }
 
+function hasClassStartTimePassed(schedule, now = new Date()) {
+  const scheduleDateTime = getScheduleDateTime(schedule);
+  if (!scheduleDateTime) {
+    return false;
+  }
+
+  return now.getTime() >= scheduleDateTime.getTime();
+}
+
+function canStudentMarkAttendance(schedule, now = new Date()) {
+  return !hasClassStartTimePassed(schedule, now);
+}
+
 function getHolidayStudentAutoDeleteTime(schedule) {
   const scheduleDate = parseScheduleDate(schedule?.date);
   if (!scheduleDate) {
@@ -1886,14 +1899,17 @@ async function loadStudentData(options = {}) {
           ? `<strong>Reason:</strong> <span style="color:#dc2626; font-weight:700;">${escapeHtml(attendanceReason)}</span><br>`
           : "";
         
-        const absenceReasonHtml = buildAbsenceReasonPickerHtml(schedule.firestoreId, student.id);
+        const studentCanMarkAttendance = canStudentMarkAttendance(schedule);
+        const absenceReasonHtml = studentCanMarkAttendance ? buildAbsenceReasonPickerHtml(schedule.firestoreId, student.id) : "";
         const attendanceButtonsHtml = isHoliday ? 
           `<div style="margin-top: 10px; padding: 8px; background: #fef3c7; border-radius: 5px; color: #f59e0b; font-weight: bold;">Holiday marked by teacher</div>` :
-          `<div class="attendance-actions" style="display:flex; gap:10px; flex-wrap:wrap; margin-top: 10px;">
-            <button class="secondary-btn compact-btn" style="flex:1; min-width: 160px;" onclick="studentAttendance('${schedule.firestoreId}','${student.id}','coming','student')">I will come</button>
-            <button class="secondary-btn compact-btn" style="flex:1; min-width: 160px; background:#dc2626; color:#fff;" onclick="showAbsenceReasonPicker(this)">I will not come today</button>
-          </div>
-          ${absenceReasonHtml}`;
+          studentCanMarkAttendance
+            ? `<div class="attendance-actions" style="display:flex; gap:10px; flex-wrap:wrap; margin-top: 10px;">
+                <button class="secondary-btn compact-btn" style="flex:1; min-width: 160px;" onclick="studentAttendance('${schedule.firestoreId}','${student.id}','coming','student')">I will come</button>
+                <button class="secondary-btn compact-btn" style="flex:1; min-width: 160px; background:#dc2626; color:#fff;" onclick="showAbsenceReasonPicker(this)">I will not come today</button>
+              </div>
+              ${absenceReasonHtml}`
+            : `<div style="margin-top: 10px; padding: 8px; background: #fee2e2; border-radius: 5px; color: #b91c1c; font-weight: bold;">Attendance time is closed.</div>`;
         const countdownMarkup = getCountdownMarkup(schedule, classDateTime, isHoliday);
         
         const studentRecordHtml = `
@@ -2426,6 +2442,12 @@ async function studentAttendance(scheduleId, studentId, status, source = "teache
   const student = schedule.students.find(s => isSameStudentId(s.id, studentId));
   if (!student) {
     alert("Student not found in schedule");
+    return;
+  }
+
+  if (source === "student" && !canStudentMarkAttendance(schedule)) {
+    alert("Attendance time is closed.");
+    refreshStudentDataViewIfNeeded();
     return;
   }
 
