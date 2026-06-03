@@ -1154,7 +1154,7 @@ function getRegisteredClassLevels() {
   return Array.from(classSet).sort((first, second) => Number(first) - Number(second));
 }
 
-function getFreshLocalTeacherQuestions(selectedClass, seedValue) {
+function getLegacyLocalTeacherQuestions(selectedClass, seedValue) {
   const classLevel = Number(normalizeStudentClass(selectedClass));
   const seed = getDailyQuestionSeed(seedValue);
   const first = 6 + (seed % 27);
@@ -1214,6 +1214,87 @@ function getFreshLocalTeacherQuestions(selectedClass, seedValue) {
     `Maths: A train covers ${first * 12} km in ${fourth} hours and then ${second * 10} km in ${fifth} hours. Find its average speed.`,
     ...scienceQuestions
   ];
+}
+
+function getFreshLocalTeacherQuestions(selectedClass, seedValue) {
+  const classLevel = Number(normalizeStudentClass(selectedClass));
+  const seed = getDailyQuestionSeed(seedValue);
+  const first = 6 + (seed % 27);
+  const second = 4 + ((seed >>> 4) % 23);
+  const third = 5 + ((seed >>> 8) % 19);
+  const fourth = 2 + ((seed >>> 12) % 9);
+  const fifth = 3 + ((seed >>> 16) % 8);
+  const sixth = 2 + ((seed >>> 20) % 7);
+
+  if (classLevel <= 5) {
+    const mathsQuestions = [
+      `Maths: A shopkeeper has ${first} pencils, sells ${fourth}, and buys ${second} more. How many pencils are left?`,
+      `Maths: Find ${fifth} times ${second}, then subtract ${third}.`,
+      `Maths: A ribbon of ${first + second} cm is cut into ${fourth} equal parts. How long is each part?`
+    ];
+    const scienceQuestions = [
+      `Science: A plant is kept without sunlight for ${fourth} days. What two changes will you observe and why?`,
+      `Science: Why will ${first} ice cubes melt faster near a sunny window than inside a cupboard?`,
+      `Science: Name one solid, one liquid, and one gas from your kitchen, then write one property of each.`,
+      `Science: If a shadow becomes longer in the evening, what does it tell you about the Sun's position?`,
+      `Science: Why should muddy water be filtered before drinking even if it looks clear after some time?`,
+      `Science: A wet cloth dries in ${fifth} hours on a hot day but takes longer on a cold day. Give the reason.`,
+      `Science: Why do leaves of a plant become weak if it is not watered for ${sixth} days?`,
+      `Science: Give two differences between a seed and a grown plant using examples.`
+    ];
+
+    return buildBalancedDailyQuestionSet(mathsQuestions, scienceQuestions, seed);
+  }
+
+  if (classLevel <= 8) {
+    const mathsQuestions = [
+      `Maths: Solve ${fourth}x + ${second} = ${fourth * first + second}.`,
+      `Maths: A rectangle has area ${first * second} sq cm and length ${first} cm. Find its breadth and perimeter.`,
+      `Maths: Simplify (${first}^2 - ${third}) / ${fourth}, leaving the answer as a mixed fraction if needed.`
+    ];
+    const scienceQuestions = [
+      `Science: A ${first} cm metal spoon and a wooden spoon are in the same room. Why does the metal spoon feel colder?`,
+      `Science: An iron nail is kept in moist air for ${fourth} days. Explain why rust forms faster than in dry air.`,
+      `Science: A ball rolling on the floor slows down after ${second} m. Which force acts on it and in which direction?`,
+      `Science: Why are copper wires used for electricity but covered with plastic? Mention one property of each material.`,
+      `Science: Compare burning paper and tearing paper. Which one is chemical change and why?`,
+      `Science: A plant with green leaves is kept in darkness for ${fifth} days. How will photosynthesis be affected?`,
+      `Science: Why does a hot cup of tea cool faster when it is stirred with a metal spoon?`,
+      `Science: If a bulb glows dimly in a circuit, give two possible reasons related to current or resistance.`,
+      `Science: Explain why water changes to vapour faster on a windy day than on a still day.`,
+      `Science: A magnet attracts an iron pin from ${sixth} cm away. What does this show about magnetic force?`
+    ];
+
+    return buildBalancedDailyQuestionSet(mathsQuestions, scienceQuestions, seed);
+  }
+
+  const mathsQuestions = [
+    `Maths: Solve the equation x^2 - ${first + second}x + ${first * second} = 0.`,
+    `Maths: Find the value of sin 30 degrees + cos 60 degrees.`,
+    `Maths: A train covers ${first * 12} km in ${fourth} hours and then ${second * 10} km in ${fifth} hours. Find its average speed.`
+  ];
+  const scienceQuestions = [
+    `Science: Balance the reaction and identify the reaction type: Fe + H2O -> Fe3O4 + H2.`,
+    `Science: A body of mass ${fifth} kg accelerates at ${fourth} m/s^2. Find the force and state the law used.`,
+    `Science: A wire length is doubled but material and area stay same. Explain how resistance changes.`,
+    `Science: A convex lens forms a real image at 2F. Where is the object placed and what is the image size?`,
+    `Science: Why does an acid conduct electricity in water but dry HCl gas does not?`,
+    `Science: Compare aerobic and anaerobic respiration with one equation or example.`,
+    `Science: A ${second} ohm resistor carries ${fourth} A current. Find the potential difference and name the law used.`,
+    `Science: Why is ${first}% salt solution a mixture and not a compound? Give one reason.`,
+    `Science: A metal carbonate reacts with acid and releases a gas. Name the gas and one test for it.`,
+    `Science: Explain why stars appear to twinkle but planets usually do not.`,
+    `Science: A student moves an object from F to 2F in front of a convex lens. How does the image position change?`,
+    `Science: Why does increasing temperature usually increase the rate of a chemical reaction?`
+  ];
+
+  return buildBalancedDailyQuestionSet(mathsQuestions, scienceQuestions, seed);
+}
+
+function buildBalancedDailyQuestionSet(mathsQuestions, scienceQuestions, seed) {
+  const mathsSet = shuffleWithSeed(mathsQuestions, seed).slice(0, 2);
+  const scienceSet = shuffleWithSeed(scienceQuestions, seed ^ 0x9e3779b9).slice(0, 3);
+  return shuffleWithSeed([...mathsSet, ...scienceSet], seed ^ 0x85ebca6b).slice(0, DAILY_QUESTION_COUNT);
 }
 
 function shuffleWithSeed(items, seed) {
