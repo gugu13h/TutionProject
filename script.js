@@ -199,8 +199,8 @@ const DAILY_QUESTION_BANK = {
   ]
 };
 const REQUESTED_FEE_CYCLE_FIXES = {
-  "75": { feeCycleStartDay: 11, feeCycleEndDay: 12 },
-  "76": { feeCycleStartDay: 11, feeCycleEndDay: 12 },
+  "75": { feeCycleStartDay: 10, feeCycleEndDay: 11 },
+  "76": { feeCycleStartDay: 10, feeCycleEndDay: 11 },
   "7": { feeCycleStartDay: 15, feeCycleEndDay: 16 }
 };
 const ABSENCE_REASON_OPTIONS = [
