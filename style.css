@@ -2240,6 +2240,40 @@ body.theme-night .dashboard-page .box {
   margin-bottom: 22px;
 }
 
+.dashboard-header-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.teacher-message-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: auto;
+}
+
+.message-count-badge {
+  display: inline-flex;
+  min-width: 22px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(100, 116, 139, 0.18);
+  color: #334155;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.teacher-message-btn.has-messages .message-count-badge {
+  background: #dc2626;
+  color: #fff;
+}
+
 .dashboard-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2485,6 +2519,118 @@ a.secondary-btn {
 .absence-other-message {
   min-height: 74px;
   resize: vertical;
+}
+
+.schedule-suggestion-panel {
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid rgba(15, 118, 110, 0.18);
+  border-radius: 10px;
+  background: rgba(236, 253, 245, 0.86);
+}
+
+.schedule-suggestion-label {
+  display: block;
+  margin-bottom: 6px;
+  color: #115e59;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.schedule-suggestion-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.schedule-suggestion-message {
+  min-height: 68px;
+  margin-top: 10px;
+  resize: vertical;
+}
+
+.schedule-suggestion-status {
+  margin-top: 10px;
+  color: #0f766e;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.teacher-schedule-suggestion {
+  margin: 6px 0 0 18px;
+  padding: 8px 10px;
+  border-left: 4px solid #0f766e;
+  border-radius: 8px;
+  background: rgba(236, 253, 245, 0.88);
+  color: #115e59;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.teacher-messages-card {
+  width: min(520px, 100%);
+}
+
+.teacher-message-item {
+  display: grid;
+  gap: 7px;
+}
+
+.teacher-message-item.is-unread {
+  border-color: rgba(220, 38, 38, 0.38);
+  box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.18), 0 14px 30px rgba(220, 38, 38, 0.08);
+}
+
+.teacher-message-title {
+  color: #0f766e;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.teacher-message-title span {
+  color: #64748b;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.teacher-message-text {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(15, 118, 110, 0.1);
+  color: #115e59;
+  font-weight: 600;
+}
+
+.teacher-message-empty {
+  color: #64748b;
+  font-weight: 700;
+}
+
+body.theme-night .schedule-suggestion-panel,
+body.theme-night .teacher-schedule-suggestion {
+  background: rgba(20, 184, 166, 0.12);
+  border-color: rgba(45, 212, 191, 0.24);
+  color: #ccfbf1;
+}
+
+body.theme-night .message-count-badge {
+  background: rgba(148, 163, 184, 0.22);
+  color: #e2e8f0;
+}
+
+body.theme-night .teacher-message-item.is-unread {
+  border-color: rgba(248, 113, 113, 0.42);
+  box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.2), 0 14px 30px rgba(248, 113, 113, 0.1);
+}
+
+body.theme-night .teacher-message-title,
+body.theme-night .teacher-message-text {
+  color: #ccfbf1;
+}
+
+body.theme-night .teacher-message-text {
+  background: rgba(20, 184, 166, 0.14);
 }
 
 .compact-btn {
@@ -3706,6 +3852,15 @@ body.theme-night .status-due-soon {
 
   .dashboard-header {
     flex-direction: column;
+  }
+
+  .dashboard-header-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .dashboard-header-actions .compact-btn {
+    flex: 1;
   }
 
   .compact-btn {

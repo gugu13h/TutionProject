@@ -75,6 +75,10 @@ const teacherSettingsBtn = document.getElementById("teacherSettingsBtn");
 const teacherSettingsBtnText = document.getElementById("teacherSettingsBtnText");
 const teacherSettingsPanel = document.getElementById("teacherSettingsPanel");
 const teacherSettingsCloseBtn = document.getElementById("teacherSettingsCloseBtn");
+const teacherMessagesBtn = document.getElementById("teacherMessagesBtn");
+const teacherMessagesCount = document.getElementById("teacherMessagesCount");
+const teacherMessagesModal = document.getElementById("teacherMessagesModal");
+const teacherMessagesBody = document.getElementById("teacherMessagesBody");
 const homeNoticeText = document.getElementById("homeNoticeText");
 const ranchiTemperature = document.getElementById("ranchiTemperature");
 const ranchiWeatherText = document.getElementById("ranchiWeatherText");
@@ -110,6 +114,8 @@ const TEACHER_WHATSAPP_NUMBER = "8864022272";
 const TEACHER_WHATSAPP_COUNTRY_CODE = "91";
 const SCHEDULE_AUTO_DELETE_AFTER_HOURS = 3;
 const HOLIDAY_STUDENT_AUTO_DELETE_HOUR = 20;
+const SCHEDULE_SUGGESTION_AUTO_DELETE_AFTER_MS = 12 * 60 * 60 * 1000;
+const TEACHER_SEEN_MESSAGE_KEYS_STORAGE_KEY = "teacherSeenScheduleSuggestionKeys";
 const SCHEDULE_CLEANUP_INTERVAL_MS = 60 * 1000;
 const ATTENDANCE_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
 const CLASS_TIMER_DURATION_MS = 60 * 60 * 1000;
@@ -250,10 +256,13 @@ window.deleteSchedule = deleteSchedule;
 window.loadStudentData = loadStudentData;
 window.closeStudentModal = closeStudentModal;
 window.closeFeeReminderModal = closeFeeReminderModal;
+window.openTeacherMessagesModal = openTeacherMessagesModal;
+window.closeTeacherMessagesModal = closeTeacherMessagesModal;
 window.studentAttendance = studentAttendance;
 window.showAbsenceReasonPicker = showAbsenceReasonPicker;
 window.handleAbsenceReasonChange = handleAbsenceReasonChange;
 window.sendStudentOtherAbsenceReason = sendStudentOtherAbsenceReason;
+window.submitStudentScheduleSuggestion = submitStudentScheduleSuggestion;
 window.stopClassTimer = stopClassTimer;
 window.removeStudentFromSchedule = removeStudentFromSchedule;
 window.sendWhatsApp = sendWhatsApp;
@@ -279,6 +288,7 @@ initializeClickAnimations();
 initializeScheduleDefaults();
 initializeStudentModal();
 initializeFeeReminderModal();
+initializeTeacherMessagesModal();
 initializeStudentRegisterForm();
 initializeScheduleForm();
 initializeTeacherSettingsPanel();
@@ -820,7 +830,10 @@ async function saveSchedule() {
       selectedStudents.push({
         ...student,
         attendanceStatus: isHoliday ? "holiday" : preservedAttendanceStatus === "holiday" ? "pending" : preservedAttendanceStatus,
-        attendanceReason: isHoliday ? attendanceReason : preservedAttendanceReason
+        attendanceReason: isHoliday ? attendanceReason : preservedAttendanceReason,
+        suggestedClassTime: existingScheduleStudent?.suggestedClassTime || "",
+        scheduleSuggestionMessage: existingScheduleStudent?.scheduleSuggestionMessage || "",
+        scheduleSuggestionUpdatedAt: existingScheduleStudent?.scheduleSuggestionUpdatedAt || ""
       });
     }
   }
@@ -910,6 +923,62 @@ function hasClassStartTimePassed(schedule, now = new Date()) {
 
 function canStudentMarkAttendance(schedule, now = new Date()) {
   return !hasClassStartTimePassed(schedule, now);
+}
+
+function getScheduleSuggestionTime(student) {
+  const timestamp = Date.parse(student?.scheduleSuggestionUpdatedAt || "");
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
+function hasScheduleSuggestion(student) {
+  return Boolean(student?.suggestedClassTime || student?.scheduleSuggestionMessage);
+}
+
+function isScheduleSuggestionExpired(student, now = new Date()) {
+  if (!hasScheduleSuggestion(student)) {
+    return false;
+  }
+
+  const updatedAt = getScheduleSuggestionTime(student);
+  return Boolean(updatedAt && now.getTime() - updatedAt >= SCHEDULE_SUGGESTION_AUTO_DELETE_AFTER_MS);
+}
+
+function isScheduleSuggestionUnread(student) {
+  if (!hasScheduleSuggestion(student)) {
+    return false;
+  }
+
+  const updatedAt = getScheduleSuggestionTime(student);
+  const seenAt = Date.parse(student?.scheduleSuggestionSeenAt || "");
+  return !seenAt || Number.isNaN(seenAt) || seenAt < updatedAt;
+}
+
+function clearScheduleSuggestion(student) {
+  const {
+    suggestedClassTime,
+    scheduleSuggestionMessage,
+    scheduleSuggestionUpdatedAt,
+    scheduleSuggestionSeenAt,
+    ...studentWithoutSuggestion
+  } = student;
+
+  return studentWithoutSuggestion;
+}
+
+function buildSchedulePayload(schedule, studentsForSchedule = schedule.students || []) {
+  return {
+    date: schedule.date,
+    time: schedule.time,
+    day: schedule.day,
+    classStoppedAt: schedule.classStoppedAt || null,
+    students: studentsForSchedule
+  };
+}
+
+function getGeneralScheduleSuggestionHtml(student) {
+  return buildScheduleSuggestionHtml("student-record", student.id, student, {
+    label: "Request Class Time"
+  });
 }
 
 function getHolidayStudentAutoDeleteTime(schedule) {
@@ -1474,13 +1543,79 @@ async function removeExpiredSchedules(options = {}) {
   }
 }
 
+async function cleanupExpiredScheduleSuggestions(options = {}) {
+  const { refreshViews = true, now = new Date() } = options;
+
+  if (!isFirebaseReady() || (schedules.length === 0 && students.length === 0)) {
+    return 0;
+  }
+
+  let updatedCount = 0;
+
+  for (let index = 0; index < students.length; index += 1) {
+    const student = students[index];
+    if (!isScheduleSuggestionExpired(student, now)) {
+      continue;
+    }
+
+    const updatedStudent = clearScheduleSuggestion(student);
+
+    try {
+      await updateStudentRecord(student.firestoreId, buildStudentRecordPayload(updatedStudent));
+      students[index] = { firestoreId: student.firestoreId, ...updatedStudent };
+      updatedCount += 1;
+    } catch (error) {
+      console.error("Unable to auto-delete old student message:", error);
+    }
+  }
+
+  for (let index = 0; index < schedules.length; index += 1) {
+    const schedule = schedules[index];
+    const scheduleStudents = schedule.students || [];
+    const studentsWithActiveSuggestions = scheduleStudents.map((student) =>
+      isScheduleSuggestionExpired(student, now) ? clearScheduleSuggestion(student) : student
+    );
+
+    const hasExpiredSuggestion = studentsWithActiveSuggestions.some((student, studentIndex) =>
+      student !== scheduleStudents[studentIndex]
+    );
+
+    if (!hasExpiredSuggestion) {
+      continue;
+    }
+
+    const updatedSchedule = buildSchedulePayload(schedule, studentsWithActiveSuggestions);
+
+    try {
+      await updateScheduleRecord(schedule.firestoreId, updatedSchedule);
+      schedules[index] = { firestoreId: schedule.firestoreId, ...updatedSchedule };
+      updatedCount += 1;
+    } catch (error) {
+      console.error("Unable to auto-delete old student message:", error);
+    }
+  }
+
+  if (updatedCount > 0 && refreshViews) {
+    loadSchedules();
+    refreshStudentDataViewIfNeeded();
+    if (teacherMessagesModal?.classList.contains("active")) {
+      renderTeacherMessages();
+    }
+  }
+
+  return updatedCount;
+}
+
 function startScheduleCleanupLoop() {
   if (scheduleCleanupTimerId !== null) {
     return;
   }
 
   scheduleCleanupTimerId = window.setInterval(() => {
-    void removeExpiredSchedules();
+    void (async () => {
+      await removeExpiredSchedules();
+      await cleanupExpiredScheduleSuggestions();
+    })();
   }, SCHEDULE_CLEANUP_INTERVAL_MS);
 }
 
@@ -1653,6 +1788,7 @@ function loadSchedules() {
     `;
   });
   updateClassTimers();
+  updateTeacherMessagesButton();
   restoreUiPositionState(uiPositionState);
 }
 
@@ -1982,6 +2118,9 @@ async function loadStudentData(options = {}) {
         
         const studentCanMarkAttendance = canStudentMarkAttendance(schedule);
         const absenceReasonHtml = studentCanMarkAttendance ? buildAbsenceReasonPickerHtml(schedule.firestoreId, student.id) : "";
+        const scheduleSuggestionHtml = studentCanMarkAttendance
+          ? buildScheduleSuggestionHtml(schedule.firestoreId, student.id, student)
+          : buildScheduleSuggestionStatusHtml(student);
         const attendanceButtonsHtml = isHoliday ? 
           `<div style="margin-top: 10px; padding: 8px; background: #fef3c7; border-radius: 5px; color: #f59e0b; font-weight: bold;">Holiday marked by teacher</div>` :
           studentCanMarkAttendance
@@ -2006,6 +2145,7 @@ async function loadStudentData(options = {}) {
             <strong>Attendance:</strong> ${getAttendanceStatusText(student)}<br>
             ${attendanceReasonHtml}
             ${attendanceButtonsHtml}
+            ${scheduleSuggestionHtml}
             <button class="secondary-btn compact-btn" onclick="toggleStudentRating(this)" style="margin-top: 10px; width: 100%;">Show More</button>
             <div class="rating-details hidden" style="margin-top: 10px; padding: 12px; background: rgba(15, 118, 110, 0.1); border-radius: 10px; border-left: 4px solid #0f766e;">
               <strong>📐 Maths Rating:</strong> ${mathsText}<br>
@@ -2041,6 +2181,7 @@ async function loadStudentData(options = {}) {
           <strong>ID:</strong> ${studentRecord.id}<br>
           <strong>Class:</strong> ${formatStudentClass(studentRecord)}<br>
           <strong>Fee Status:</strong> ${formatFeeStatusHtml(studentRecord)}<br>
+          ${getGeneralScheduleSuggestionHtml(studentRecord)}
           <button class="secondary-btn compact-btn" onclick="toggleStudentRating(this)" style="margin-top: 10px; width: 100%;">Show More</button>
           <div class="rating-details hidden" style="margin-top: 10px; padding: 12px; background: rgba(15, 118, 110, 0.1); border-radius: 10px; border-left: 4px solid #0f766e;">
             <strong>📐 Maths Rating:</strong> ${mathsText}<br>
@@ -2442,6 +2583,153 @@ function buildAbsenceReasonPickerHtml(scheduleId, studentId) {
   `;
 }
 
+function buildScheduleSuggestionHtml(scheduleId, studentId, student, options = {}) {
+  const { label = "Suggest Class Time" } = options;
+  const requestedTime = student.suggestedClassTime || "";
+  const requestedMessage = student.scheduleSuggestionMessage || "";
+  const sentMarkup = buildScheduleSuggestionStatusHtml(student);
+
+  return `
+    <div class="schedule-suggestion-panel">
+      <label class="schedule-suggestion-label">${escapeHtml(label)}</label>
+      <div class="schedule-suggestion-grid">
+        <input class="schedule-suggestion-time" type="time" value="${escapeHtml(requestedTime)}">
+        <button type="button" class="secondary-btn compact-btn" onclick="submitStudentScheduleSuggestion(this, '${scheduleId}', '${studentId}')">Send</button>
+      </div>
+      <textarea class="schedule-suggestion-message" placeholder="Message for teacher">${escapeHtml(requestedMessage)}</textarea>
+      ${sentMarkup}
+    </div>
+  `;
+}
+
+function buildScheduleSuggestionStatusHtml(student) {
+  if (!student.suggestedClassTime && !student.scheduleSuggestionMessage) {
+    return "";
+  }
+
+  const timeText = student.suggestedClassTime ? formatTime12Hour(student.suggestedClassTime) : "No time selected";
+  const messageText = student.scheduleSuggestionMessage
+    ? ` Message: ${escapeHtml(student.scheduleSuggestionMessage)}`
+    : "";
+
+  return `<div class="schedule-suggestion-status">Sent to teacher: ${escapeHtml(timeText)}.${messageText}</div>`;
+}
+
+async function submitStudentScheduleSuggestion(button, scheduleId, studentId) {
+  const panel = button.closest(".schedule-suggestion-panel");
+  const timeInput = panel?.querySelector(".schedule-suggestion-time");
+  const messageInput = panel?.querySelector(".schedule-suggestion-message");
+  const suggestedClassTime = timeInput?.value.trim() || "";
+  const scheduleSuggestionMessage = messageInput?.value.trim() || "";
+
+  if (!suggestedClassTime && !scheduleSuggestionMessage) {
+    alert("Select time or write message");
+    return;
+  }
+
+  if (scheduleId === "student-record") {
+    await updateStudentGeneralScheduleSuggestion(studentId, {
+      suggestedClassTime,
+      scheduleSuggestionMessage
+    });
+    return;
+  }
+
+  await updateStudentScheduleSuggestion(scheduleId, studentId, {
+    suggestedClassTime,
+    scheduleSuggestionMessage
+  });
+}
+
+async function updateStudentGeneralScheduleSuggestion(studentId, suggestion) {
+  if (!isFirebaseReady()) {
+    alert(FIREBASE_WARNING);
+    return;
+  }
+
+  const studentIndex = students.findIndex((student) => isSameStudentId(student.id, studentId));
+  if (studentIndex === -1) {
+    alert("Student not found");
+    return;
+  }
+
+  const currentStudent = students[studentIndex];
+  const updatedStudent = {
+    ...currentStudent,
+    suggestedClassTime: suggestion.suggestedClassTime,
+    scheduleSuggestionMessage: suggestion.scheduleSuggestionMessage,
+    scheduleSuggestionUpdatedAt: new Date().toISOString(),
+    scheduleSuggestionSeenAt: ""
+  };
+
+  try {
+    await updateStudentRecord(currentStudent.firestoreId, buildStudentRecordPayload(updatedStudent));
+    students[studentIndex] = updatedStudent;
+    loadSchedules();
+    if (teacherMessagesModal?.classList.contains("active")) {
+      renderTeacherMessages();
+    }
+    refreshStudentDataViewIfNeeded();
+    alert("Time request sent to teacher");
+  } catch (error) {
+    console.error(error);
+    alert("Unable to send time request");
+  }
+}
+
+async function updateStudentScheduleSuggestion(scheduleId, studentId, suggestion) {
+  if (!isFirebaseReady()) {
+    alert(FIREBASE_WARNING);
+    return;
+  }
+
+  const scheduleIndex = schedules.findIndex((schedule) => schedule.firestoreId === scheduleId);
+  if (scheduleIndex === -1) {
+    alert("Schedule not found");
+    return;
+  }
+
+  const schedule = schedules[scheduleIndex];
+  const studentIndex = schedule.students.findIndex((student) => isSameStudentId(student.id, studentId));
+  if (studentIndex === -1) {
+    alert("Student not found in schedule");
+    return;
+  }
+
+  if (!canStudentMarkAttendance(schedule)) {
+    alert("Request time is closed.");
+    refreshStudentDataViewIfNeeded();
+    return;
+  }
+
+  const updatedStudent = {
+    ...schedule.students[studentIndex],
+    suggestedClassTime: suggestion.suggestedClassTime,
+    scheduleSuggestionMessage: suggestion.scheduleSuggestionMessage,
+    scheduleSuggestionUpdatedAt: new Date().toISOString(),
+    scheduleSuggestionSeenAt: ""
+  };
+
+  const updatedSchedule = buildSchedulePayload(
+    schedule,
+    schedule.students.map((student, index) => (index === studentIndex ? updatedStudent : student))
+  );
+
+  try {
+    await updateScheduleRecord(schedule.firestoreId, updatedSchedule);
+    schedules[scheduleIndex] = { firestoreId: schedule.firestoreId, ...updatedSchedule };
+    loadSchedules();
+    if (teacherMessagesModal?.classList.contains("active")) {
+      renderTeacherMessages();
+    }
+    refreshStudentDataViewIfNeeded();
+    alert("Time request sent to teacher");
+  } catch (error) {
+    console.error(error);
+    alert("Unable to send time request");
+  }
+}
+
 function showAbsenceReasonPicker(button) {
   const panel = button.closest(".box")?.querySelector(".absence-reason-panel");
   if (!panel) {
@@ -2642,6 +2930,7 @@ function getAttendanceStatusText(student) {
 
 function getScheduleAttendanceHtml(student, scheduleId) {
   const reasonMarkup = student.attendanceReason ? `<div style="margin-left: 18px; color:#dc2626;">Reason: ${escapeHtml(student.attendanceReason)}</div>` : "";
+  const suggestionMarkup = getTeacherScheduleSuggestionHtml(student);
   const feeMarkup = student.feePending ? " (Pending)" : "";
   const attendanceButtons = `
     <div style="margin-left: 18px; margin-top: 5px; display: flex; gap: 5px; flex-wrap: wrap;">
@@ -2651,7 +2940,209 @@ function getScheduleAttendanceHtml(student, scheduleId) {
       <button class="secondary-btn compact-btn" style="font-size: 11px; padding: 3px 8px; background:#b91c1c; color:#fff;" onclick="removeStudentFromSchedule('${scheduleId}', '${student.id}')">Remove</button>
     </div>
   `;
-  return `- ${student.name} (${student.id})${feeMarkup} - ${getAttendanceStatusText(student)} ${reasonMarkup}${attendanceButtons}`;
+  return `- ${student.name} (${student.id})${feeMarkup} - ${getAttendanceStatusText(student)} ${reasonMarkup}${suggestionMarkup}${attendanceButtons}`;
+}
+
+function getTeacherScheduleSuggestionHtml(student) {
+  if (!student.suggestedClassTime && !student.scheduleSuggestionMessage) {
+    return "";
+  }
+
+  const timeText = student.suggestedClassTime ? formatTime12Hour(student.suggestedClassTime) : "No time selected";
+  const messageMarkup = student.scheduleSuggestionMessage
+    ? `<div>Message: ${escapeHtml(student.scheduleSuggestionMessage)}</div>`
+    : "";
+
+  return `
+    <div class="teacher-schedule-suggestion">
+      <strong>Time Request:</strong> ${escapeHtml(timeText)}
+      ${messageMarkup}
+    </div>
+  `;
+}
+
+function getTeacherScheduleSuggestions() {
+  const requests = [];
+  const now = new Date();
+
+  students.forEach((student) => {
+    if (!hasScheduleSuggestion(student) || isScheduleSuggestionExpired(student, now)) {
+      return;
+    }
+
+    requests.push({
+      scheduleId: "student-record",
+      studentName: student.name || "Student",
+      studentId: student.id || "",
+      classDate: "Not scheduled",
+      classDay: "",
+      classTime: "",
+      suggestedClassTime: student.suggestedClassTime || "",
+      message: student.scheduleSuggestionMessage || "",
+      updatedAt: student.scheduleSuggestionUpdatedAt || "",
+      seenAt: student.scheduleSuggestionSeenAt || "",
+      unread: isScheduleSuggestionUnread(student)
+    });
+  });
+
+  getVisibleSchedules().forEach((schedule) => {
+    (schedule.students || []).forEach((student) => {
+      if (!hasScheduleSuggestion(student) || isScheduleSuggestionExpired(student, now)) {
+        return;
+      }
+
+      requests.push({
+        scheduleId: schedule.firestoreId,
+        studentName: student.name || "Student",
+        studentId: student.id || "",
+        classDate: schedule.date || "",
+        classDay: schedule.day || "",
+        classTime: schedule.time || "",
+        suggestedClassTime: student.suggestedClassTime || "",
+        message: student.scheduleSuggestionMessage || "",
+        updatedAt: student.scheduleSuggestionUpdatedAt || "",
+        seenAt: student.scheduleSuggestionSeenAt || "",
+        unread: isScheduleSuggestionUnread(student)
+      });
+    });
+  });
+
+  return requests.sort((firstRequest, secondRequest) =>
+    String(secondRequest.updatedAt || "").localeCompare(String(firstRequest.updatedAt || ""))
+  );
+}
+
+function updateTeacherMessagesButton() {
+  const requestCount = getTeacherScheduleSuggestions().filter((request) => request.unread).length;
+
+  if (teacherMessagesCount) {
+    teacherMessagesCount.textContent = String(requestCount);
+  }
+
+  if (teacherMessagesBtn) {
+    teacherMessagesBtn.classList.toggle("has-messages", requestCount > 0);
+    teacherMessagesBtn.setAttribute("aria-label", `${requestCount} student time request${requestCount === 1 ? "" : "s"}`);
+  }
+}
+
+async function openTeacherMessagesModal() {
+  await cleanupExpiredScheduleSuggestions({ refreshViews: false });
+  renderTeacherMessages();
+
+  if (!teacherMessagesModal) {
+    return;
+  }
+
+  teacherMessagesModal.classList.add("active");
+  teacherMessagesModal.setAttribute("aria-hidden", "false");
+  await markTeacherScheduleSuggestionsSeen();
+}
+
+function closeTeacherMessagesModal() {
+  if (!teacherMessagesModal) {
+    return;
+  }
+
+  teacherMessagesModal.classList.remove("active");
+  teacherMessagesModal.setAttribute("aria-hidden", "true");
+}
+
+function renderTeacherMessages() {
+  if (!teacherMessagesBody) {
+    return;
+  }
+
+  const requests = getTeacherScheduleSuggestions();
+
+  if (requests.length === 0) {
+    teacherMessagesBody.innerHTML = `<div class="box teacher-message-empty">No time request yet.</div>`;
+    return;
+  }
+
+  teacherMessagesBody.innerHTML = requests.map((request) => {
+    const classTimeText = request.classTime ? formatTime12Hour(request.classTime) : "Holiday (No Class)";
+    const classMarkup = request.scheduleId === "student-record"
+      ? `<div><strong>Class:</strong> Not scheduled yet</div>`
+      : `<div><strong>Class:</strong> ${escapeHtml(request.classDate)} ${escapeHtml(request.classDay)} at ${escapeHtml(classTimeText)}</div>`;
+    const requestedTimeText = request.suggestedClassTime ? formatTime12Hour(request.suggestedClassTime) : "No time selected";
+    const messageMarkup = request.message
+      ? `<div class="teacher-message-text">${escapeHtml(request.message)}</div>`
+      : "";
+
+    return `
+      <div class="box teacher-message-item${request.unread ? " is-unread" : ""}">
+        <div class="teacher-message-title">${escapeHtml(request.studentName)} <span>ID: ${escapeHtml(request.studentId)}</span></div>
+        ${classMarkup}
+        <div><strong>Requested Time:</strong> ${escapeHtml(requestedTimeText)}</div>
+        ${messageMarkup}
+      </div>
+    `;
+  }).join("");
+}
+
+async function markTeacherScheduleSuggestionsSeen() {
+  const seenAt = new Date().toISOString();
+  let updatedCount = 0;
+
+  for (let studentIndex = 0; studentIndex < students.length; studentIndex += 1) {
+    const student = students[studentIndex];
+    if (!hasScheduleSuggestion(student) || isScheduleSuggestionExpired(student) || !isScheduleSuggestionUnread(student)) {
+      continue;
+    }
+
+    const updatedStudent = {
+      ...student,
+      scheduleSuggestionSeenAt: seenAt
+    };
+
+    try {
+      await updateStudentRecord(student.firestoreId, buildStudentRecordPayload(updatedStudent));
+      students[studentIndex] = updatedStudent;
+      updatedCount += 1;
+    } catch (error) {
+      console.error("Unable to mark student message as seen:", error);
+    }
+  }
+
+  for (let scheduleIndex = 0; scheduleIndex < schedules.length; scheduleIndex += 1) {
+    const schedule = schedules[scheduleIndex];
+    const scheduleStudents = schedule.students || [];
+    const updatedStudents = scheduleStudents.map((student) => {
+      if (!hasScheduleSuggestion(student) || isScheduleSuggestionExpired(student) || !isScheduleSuggestionUnread(student)) {
+        return student;
+      }
+
+      return {
+        ...student,
+        scheduleSuggestionSeenAt: seenAt
+      };
+    });
+
+    const hasUnreadMessage = updatedStudents.some((student, studentIndex) =>
+      student !== scheduleStudents[studentIndex]
+    );
+
+    if (!hasUnreadMessage) {
+      continue;
+    }
+
+    const updatedSchedule = buildSchedulePayload(schedule, updatedStudents);
+
+    try {
+      await updateScheduleRecord(schedule.firestoreId, updatedSchedule);
+      schedules[scheduleIndex] = { firestoreId: schedule.firestoreId, ...updatedSchedule };
+      updatedCount += 1;
+    } catch (error) {
+      console.error("Unable to mark student message as seen:", error);
+    }
+  }
+
+  if (updatedCount > 0) {
+    updateTeacherMessagesButton();
+    if (teacherMessagesModal?.classList.contains("active")) {
+      renderTeacherMessages();
+    }
+  }
 }
 
 async function removeStudentFromSchedule(scheduleId, studentId) {
@@ -2743,6 +3234,7 @@ async function refreshFirestoreData() {
   await applyRequestedFeeCycleFixes();
   await Promise.all(students.map((student) => loadAttendanceHistoryForStudent(student.id)));
   await removeExpiredSchedules({ refreshViews: false });
+  await cleanupExpiredScheduleSuggestions({ refreshViews: false });
   showStudents();
   showStudentCheckList();
   loadSchedules();
@@ -2880,7 +3372,11 @@ function buildStudentRecordPayload(student) {
     feeAmount: normalizeFeeAmount(student.feeAmount),
     feeHistory: student.feeHistory || {},
     photoUrl: student.photoUrl || "",
-    subjectRatings: student.subjectRatings || { maths: 0, science: 0 }
+    subjectRatings: student.subjectRatings || { maths: 0, science: 0 },
+    suggestedClassTime: student.suggestedClassTime || "",
+    scheduleSuggestionMessage: student.scheduleSuggestionMessage || "",
+    scheduleSuggestionUpdatedAt: student.scheduleSuggestionUpdatedAt || "",
+    scheduleSuggestionSeenAt: student.scheduleSuggestionSeenAt || ""
   };
   const feeCycleStartDay = getFeeCycleDayOrNull(student.feeCycleStartDay);
   const feeCycleEndDay = getFeeCycleDayOrNull(student.feeCycleEndDay);
@@ -3042,6 +3538,18 @@ function initializeFeeReminderModal() {
   feeReminderModal.addEventListener("click", (event) => {
     if (event.target === feeReminderModal) {
       closeFeeReminderModal();
+    }
+  });
+}
+
+function initializeTeacherMessagesModal() {
+  if (!teacherMessagesModal) {
+    return;
+  }
+
+  teacherMessagesModal.addEventListener("click", (event) => {
+    if (event.target === teacherMessagesModal) {
+      closeTeacherMessagesModal();
     }
   });
 }

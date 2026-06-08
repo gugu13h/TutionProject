@@ -139,7 +139,12 @@
           <h2>Teacher Dashboard</h2>
           <p class="section-note">Add students, build schedules, and keep every class organized.</p>
         </div>
-        <button class="secondary-btn compact-btn" onclick="logout()">Logout</button>
+        <div class="dashboard-header-actions">
+          <button id="teacherMessagesBtn" class="secondary-btn compact-btn teacher-message-btn" type="button" onclick="openTeacherMessagesModal()">
+            Messages <span id="teacherMessagesCount" class="message-count-badge">0</span>
+          </button>
+          <button class="secondary-btn compact-btn" onclick="logout()">Logout</button>
+        </div>
       </div>
 
       <div class="dashboard-grid">
@@ -450,6 +455,19 @@
         <button type="button" class="ghost-btn modal-close-btn" onclick="closeStudentModal()">Close</button>
       </div>
       <div id="studentModalBody" class="modal-body"></div>
+    </div>
+  </div>
+
+  <div id="teacherMessagesModal" class="modal-overlay teacher-messages-overlay" aria-hidden="true">
+    <div class="modal-card teacher-messages-card">
+      <div class="modal-head">
+        <div>
+          <span class="eyebrow">Student Messages</span>
+          <h3>Time Requests</h3>
+        </div>
+        <button type="button" class="ghost-btn modal-close-btn" onclick="closeTeacherMessagesModal()">Close</button>
+      </div>
+      <div id="teacherMessagesBody" class="modal-body"></div>
     </div>
   </div>
 
