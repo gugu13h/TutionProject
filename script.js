@@ -115,10 +115,11 @@ const TEACHER_WHATSAPP_COUNTRY_CODE = "91";
 const SCHEDULE_AUTO_DELETE_AFTER_HOURS = 3;
 const HOLIDAY_STUDENT_AUTO_DELETE_HOUR = 20;
 const SCHEDULE_SUGGESTION_AUTO_DELETE_AFTER_MS = 12 * 60 * 60 * 1000;
+const CLASS_STOP_POPUP_STORAGE_PREFIX = "classStopPopupSeen";
 const TEACHER_SEEN_MESSAGE_KEYS_STORAGE_KEY = "teacherSeenScheduleSuggestionKeys";
 const SCHEDULE_CLEANUP_INTERVAL_MS = 60 * 1000;
 const ATTENDANCE_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
-const CLASS_TIMER_DURATION_MS = 60 * 60 * 1000;
+const CLASS_TIMER_DURATION_MS = 75 * 60 * 1000;
 const ATTENDANCE_RETENTION_MONTHS = 2;
 const NOTICE_ROTATION_INTERVAL_MS = 5000;
 const NOTICE_COLOR_CLASSES = ["notice-color-1", "notice-color-2", "notice-color-3"];
@@ -264,6 +265,7 @@ window.handleAbsenceReasonChange = handleAbsenceReasonChange;
 window.sendStudentOtherAbsenceReason = sendStudentOtherAbsenceReason;
 window.submitStudentScheduleSuggestion = submitStudentScheduleSuggestion;
 window.stopClassTimer = stopClassTimer;
+window.cancelClassWithReason = cancelClassWithReason;
 window.removeStudentFromSchedule = removeStudentFromSchedule;
 window.sendWhatsApp = sendWhatsApp;
 window.openTeacherWhatsApp = openTeacherWhatsApp;
@@ -857,6 +859,8 @@ async function saveSchedule() {
     time: time || "", // Use empty string if no time provided
     day,
     classStoppedAt: editingSchedule?.classStoppedAt || null,
+    classStoppedReason: editingSchedule?.classStoppedReason || "",
+    classStopStatus: editingSchedule?.classStopStatus || "",
     students: selectedStudents.map(({ firestoreId, ...student }) => ({
       ...student
     }))
@@ -922,6 +926,10 @@ function hasClassStartTimePassed(schedule, now = new Date()) {
 }
 
 function canStudentMarkAttendance(schedule, now = new Date()) {
+  if (isClassStoppedOrCancelled(schedule)) {
+    return false;
+  }
+
   return !hasClassStartTimePassed(schedule, now);
 }
 
@@ -971,6 +979,8 @@ function buildSchedulePayload(schedule, studentsForSchedule = schedule.students 
     time: schedule.time,
     day: schedule.day,
     classStoppedAt: schedule.classStoppedAt || null,
+    classStoppedReason: schedule.classStoppedReason || "",
+    classStopStatus: schedule.classStopStatus || "",
     students: studentsForSchedule
   };
 }
@@ -1515,6 +1525,8 @@ async function removeExpiredSchedules(options = {}) {
           time: schedule.time,
           day: schedule.day,
           classStoppedAt: schedule.classStoppedAt || null,
+          classStoppedReason: schedule.classStoppedReason || "",
+          classStopStatus: schedule.classStopStatus || "",
           students: remainingStudents
         };
         await updateScheduleRecord(schedule.firestoreId, updatedSchedule);
@@ -1681,6 +1693,75 @@ function getStoppedClassSeconds(schedule, classDateTime) {
   return Math.max(0, Math.floor((classStoppedAt - classDateTime.getTime()) / 1000));
 }
 
+function isClassStoppedOrCancelled(schedule) {
+  return Boolean(schedule?.classStoppedAt);
+}
+
+function getClassStopStatus(schedule) {
+  if (!isClassStoppedOrCancelled(schedule)) {
+    return "";
+  }
+
+  if (schedule.classStopStatus === "cancelled" || schedule.classStopStatus === "stopped") {
+    return schedule.classStopStatus;
+  }
+
+  const scheduleDateTime = getScheduleDateTime(schedule);
+  const classStoppedAt = Number(schedule.classStoppedAt);
+  if (scheduleDateTime && Number.isFinite(classStoppedAt) && classStoppedAt < scheduleDateTime.getTime()) {
+    return "cancelled";
+  }
+
+  return "stopped";
+}
+
+function getClassStopTitle(schedule) {
+  return getClassStopStatus(schedule) === "cancelled" ? "Class Cancelled" : "Class Stopped";
+}
+
+function getClassStopStudentMessage(schedule) {
+  const title = getClassStopTitle(schedule);
+  const reason = String(schedule?.classStoppedReason || "").trim();
+  return reason ? `${title}. Reason: ${reason}` : `${title}.`;
+}
+
+function getClassStopNoticeHtml(schedule) {
+  if (!isClassStoppedOrCancelled(schedule)) {
+    return "";
+  }
+
+  const title = getClassStopTitle(schedule);
+  const reason = String(schedule?.classStoppedReason || "").trim();
+  const reasonMarkup = reason
+    ? `<div class="class-stop-reason"><strong>Reason:</strong> ${escapeHtml(reason)}</div>`
+    : "";
+
+  return `
+    <div class="class-stop-notice" role="alert">
+      <strong>${escapeHtml(title)}</strong>
+      ${reasonMarkup}
+    </div>
+  `;
+}
+
+function showClassStopPopupIfNeeded(studentId, schedule) {
+  if (!studentId || !isClassStoppedOrCancelled(schedule)) {
+    return;
+  }
+
+  const popupKey = `${CLASS_STOP_POPUP_STORAGE_PREFIX}:${studentId}:${schedule.firestoreId || schedule.date}:${schedule.classStoppedAt}`;
+  try {
+    if (sessionStorage.getItem(popupKey)) {
+      return;
+    }
+    sessionStorage.setItem(popupKey, "1");
+  } catch (error) {
+    console.warn("Unable to save class stop popup state:", error);
+  }
+
+  alert(getClassStopStudentMessage(schedule));
+}
+
 function getCountdownMarkup(schedule, classDateTime, isHoliday) {
   if (isHoliday || !schedule.time || !(classDateTime instanceof Date) || Number.isNaN(classDateTime.getTime())) {
     return "";
@@ -1688,12 +1769,23 @@ function getCountdownMarkup(schedule, classDateTime, isHoliday) {
 
   const stoppedSeconds = getStoppedClassSeconds(schedule, classDateTime);
   if (stoppedSeconds !== null) {
+    const title = getClassStopTitle(schedule);
+    const reason = String(schedule.classStoppedReason || "").trim();
+    const status = getClassStopStatus(schedule);
+    const timeText = status === "cancelled"
+      ? "Class will not happen"
+      : `${escapeHtml(title)}: ${formatLiveClassDuration(stoppedSeconds)}`;
+    const reasonMarkup = reason
+      ? `<span class="class-countdown-reason">Reason: ${escapeHtml(reason)}</span>`
+      : "";
+
     return `
       <div class="class-countdown-panel class-countdown-stopped">
         <span class="class-countdown-title">Class Timer</span>
         <span class="class-countdown-static is-stopped" aria-live="polite">
-          Class stopped: ${formatLiveClassDuration(stoppedSeconds)}
+          ${timeText}
         </span>
+        ${reasonMarkup}
       </div>
     `;
   }
@@ -1805,7 +1897,7 @@ function toggleScheduleDetails(detailsId, toggleButton) {
 
 function isClassRunning(schedule, now = new Date()) {
   const scheduleDateTime = getScheduleDateTime(schedule);
-  if (!scheduleDateTime || schedule.classStoppedAt) {
+  if (!scheduleDateTime || isClassStoppedOrCancelled(schedule)) {
     return false;
   }
 
@@ -1815,12 +1907,22 @@ function isClassRunning(schedule, now = new Date()) {
   return nowTime >= classStartTime && nowTime < classEndTime;
 }
 
+function canTeacherStopOrCancelClass(schedule, now = new Date()) {
+  const scheduleDateTime = getScheduleDateTime(schedule);
+  if (!scheduleDateTime || isClassStoppedOrCancelled(schedule)) {
+    return false;
+  }
+
+  const classEndTime = scheduleDateTime.getTime() + CLASS_TIMER_DURATION_MS;
+  return now.getTime() < classEndTime;
+}
+
 function getScheduleActionsHtml(schedule) {
-  const stopTimerButton = isClassRunning(schedule)
-    ? `<button class="secondary-btn compact-btn stop-timer-btn" onclick="stopClassTimer('${schedule.firestoreId}')">Stop Timer</button>`
+  const stopTimerButton = canTeacherStopOrCancelClass(schedule)
+    ? `<button class="secondary-btn compact-btn stop-timer-btn" onclick="cancelClassWithReason('${schedule.firestoreId}')">Stop / Cancel Class</button>`
     : "";
   const stoppedText = schedule.classStoppedAt
-    ? `<span class="class-stopped-label">Timer stopped</span>`
+    ? `<span class="class-stopped-label">${escapeHtml(getClassStopTitle(schedule))}</span>`
     : "";
 
   return `
@@ -1876,6 +1978,10 @@ function cancelScheduleEdit() {
 }
 
 async function stopClassTimer(scheduleIdentifier) {
+  await cancelClassWithReason(scheduleIdentifier);
+}
+
+async function cancelClassWithReason(scheduleIdentifier) {
   if (!isFirebaseReady()) {
     alert(FIREBASE_WARNING);
     return;
@@ -1894,15 +2000,25 @@ async function stopClassTimer(scheduleIdentifier) {
   }
 
   if (schedule.classStoppedAt) {
-    alert("Class timer already stopped");
+    alert("Class already stopped or cancelled");
     return;
   }
 
+  const status = isClassRunning(schedule) ? "stopped" : "cancelled";
+  const statusText = status === "cancelled" ? "cancel" : "stop";
+  const reasonInput = prompt(`Enter reason to ${statusText} this class`);
+  if (reasonInput === null) {
+    return;
+  }
+
+  const classStoppedReason = reasonInput.trim() || `Class ${status} by teacher`;
   const updatedSchedule = {
     date: schedule.date,
     time: schedule.time,
     day: schedule.day,
     classStoppedAt: Date.now(),
+    classStoppedReason,
+    classStopStatus: status,
     students: schedule.students
   };
 
@@ -1912,10 +2028,10 @@ async function stopClassTimer(scheduleIdentifier) {
     loadSchedules();
     showStudents();
     refreshStudentDataViewIfNeeded();
-    alert("Class timer stopped");
+    alert(status === "cancelled" ? "Class cancelled" : "Class stopped");
   } catch (error) {
     console.error(error);
-    alert("Unable to stop class timer");
+    alert("Unable to stop or cancel class");
   }
 }
 
@@ -2121,7 +2237,10 @@ async function loadStudentData(options = {}) {
         const scheduleSuggestionHtml = studentCanMarkAttendance
           ? buildScheduleSuggestionHtml(schedule.firestoreId, student.id, student)
           : buildScheduleSuggestionStatusHtml(student);
-        const attendanceButtonsHtml = isHoliday ? 
+        const classStopNoticeHtml = getClassStopNoticeHtml(schedule);
+        const attendanceButtonsHtml = isClassStoppedOrCancelled(schedule)
+          ? `<div class="class-stop-student-message">${escapeHtml(getClassStopStudentMessage(schedule))}</div>`
+          : isHoliday ?
           `<div style="margin-top: 10px; padding: 8px; background: #fef3c7; border-radius: 5px; color: #f59e0b; font-weight: bold;">Holiday marked by teacher</div>` :
           studentCanMarkAttendance
             ? `<div class="attendance-actions" style="display:flex; gap:10px; flex-wrap:wrap; margin-top: 10px;">
@@ -2140,6 +2259,7 @@ async function loadStudentData(options = {}) {
             <strong>Class Date:</strong> ${schedule.date}<br>
             <strong>Class Time:</strong> <span style="color: #0f766e; font-weight: bold;">${schedule.time ? formatTime12Hour(schedule.time) : "Holiday (No Class)"}</span><br>
             ${countdownMarkup}
+            ${classStopNoticeHtml}
             <strong>Day:</strong> ${schedule.day}<br>
             <strong>Fee Status:</strong> ${formatFeeStatusHtml(displayStudent)}<br>
             <strong>Attendance:</strong> ${getAttendanceStatusText(student)}<br>
@@ -2156,6 +2276,7 @@ async function loadStudentData(options = {}) {
             </div>
           </div>
         `;
+        showClassStopPopupIfNeeded(id, schedule);
         matchedRecords.push({ html: studentRecordHtml, dateTime: classDateTime });
       }
     });
@@ -2882,6 +3003,8 @@ async function updateStudentAttendance(scheduleId, studentId, status, reason) {
     time: schedule.time,
     day: schedule.day,
     classStoppedAt: schedule.classStoppedAt || null,
+    classStoppedReason: schedule.classStoppedReason || "",
+    classStopStatus: schedule.classStopStatus || "",
     students: schedule.students.map((student, index) => (index === studentIndex ? updatedStudent : student))
   };
 
@@ -3184,6 +3307,8 @@ async function removeStudentFromSchedule(scheduleId, studentId) {
         time: schedule.time,
         day: schedule.day,
         classStoppedAt: schedule.classStoppedAt || null,
+        classStoppedReason: schedule.classStoppedReason || "",
+        classStopStatus: schedule.classStopStatus || "",
         students: remainingStudents
       };
       await updateScheduleRecord(schedule.firestoreId, updatedSchedule);
@@ -3438,6 +3563,8 @@ async function syncStudentInSchedules(previousStudentId, updatedStudent) {
       time: schedule.time,
       day: schedule.day,
       classStoppedAt: schedule.classStoppedAt || null,
+      classStoppedReason: schedule.classStoppedReason || "",
+      classStopStatus: schedule.classStopStatus || "",
       students: updatedScheduleStudents
     };
 
