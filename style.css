@@ -2676,6 +2676,46 @@ body.theme-night .class-countdown-reason {
   flex: 1;
 }
 
+.test-link-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.test-link-content {
+  min-width: 0;
+}
+
+.test-link-content strong,
+.test-link-content p,
+.test-link-meta {
+  overflow-wrap: anywhere;
+}
+
+.test-link-content p {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+}
+
+.test-link-meta {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+
+.test-link-actions {
+  flex: 0 0 auto;
+  margin-top: 0;
+}
+
+.test-link-actions a,
+.test-link-open-btn {
+  text-align: center;
+  text-decoration: none;
+}
+
 .ghost-btn {
   background: #ffffff;
   color: var(--text-main);
@@ -3902,6 +3942,15 @@ body.theme-night .status-due-soon {
   }
 
   .compact-btn {
+    width: 100%;
+  }
+
+  .test-link-card,
+  .test-link-actions {
+    flex-direction: column;
+  }
+
+  .test-link-actions {
     width: 100%;
   }
 }

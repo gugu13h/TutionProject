@@ -200,6 +200,41 @@
           <div id="teacherQuestionStatus" class="teacher-question-status">No teacher-generated set yet.</div>
         </section>
 
+        <section class="panel-card">
+          <div class="section-head">
+            <div>
+              <h3>Test Links</h3>
+              <p class="section-note">Add a test link for one student ID.</p>
+            </div>
+            <span class="badge">Student Wise</span>
+          </div>
+          <div class="worksheet-form">
+            <div class="field-group">
+              <label for="worksheetStudentId">Student</label>
+              <select id="worksheetStudentId">
+                <option value="">Select student</option>
+              </select>
+            </div>
+            <div class="field-group">
+              <label for="worksheetTitle">Test Title</label>
+              <input id="worksheetTitle" placeholder="Example: Maths test 1">
+            </div>
+            <div class="field-group">
+              <label for="worksheetDescription">Details</label>
+              <textarea id="worksheetDescription" placeholder="Instructions or topic"></textarea>
+            </div>
+            <div class="field-group">
+              <label for="worksheetLink">Test Link</label>
+              <input id="worksheetLink" placeholder="Paste Google Form, quiz, or test link">
+            </div>
+            <div class="field-group">
+              <label for="worksheetDueDate">Due Date</label>
+              <input id="worksheetDueDate" type="date">
+            </div>
+            <button type="button" onclick="assignWorksheet()">Add Test Link</button>
+          </div>
+        </section>
+
         <div class="register-schedule-wrapper">
           <section class="panel-card">
             <div class="section-head register-section-head">
@@ -346,6 +381,14 @@
           <div id="studentList" class="stack-list"></div>
         </section>
 
+        <section class="panel-card wide-card">
+          <div class="section-head">
+            <h3>Assigned Test Links</h3>
+            <span class="badge">By Student ID</span>
+          </div>
+          <div id="teacherWorksheetList" class="stack-list"></div>
+        </section>
+
       </div>
     </div>
 
@@ -436,6 +479,16 @@
               Send WhatsApp
             </button>
             <a class="secondary-btn compact-btn phone-call-btn" href="tel:8789507019" title="Call Teacher">📞 Call</a>
+          </div>
+        </section>
+
+        <section class="panel-card wide-card">
+          <div class="section-head">
+            <h3>My Test Links</h3>
+            <span class="badge">Student ID</span>
+          </div>
+          <div id="studentWorksheetList" class="stack-list">
+            Enter your student ID and click Show My Details.
           </div>
         </section>
 
@@ -544,7 +597,7 @@
     </div>
   </div>
 
-  <script type="module" src="script.js?v=notice-rotation-1"></script>
+  <script type="module" src="script.js?v=test-links-2"></script>
 </body>
 
 </html>
