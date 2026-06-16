@@ -33,8 +33,7 @@ const COLLECTIONS = {
   schedules: "schedules",
   teacherProfiles: "teacherProfiles",
   attendanceHistory: "attendanceHistory",
-  homework: "homework",
-  worksheets: "worksheets"
+  homework: "homework"
 };
 
 const isConfigured = Object.values(firebaseConfig).every(
@@ -313,47 +312,6 @@ export async function updateHomeworkRecord(firestoreId, homework) {
 export async function deleteHomeworkRecord(firestoreId) {
   ensureConfigured();
   await deleteDoc(doc(db, COLLECTIONS.homework, firestoreId));
-}
-
-// Worksheet Functions
-export async function addWorksheetRecord(worksheet) {
-  ensureConfigured();
-  const studentId = String(worksheet.studentId || "").trim();
-  const docRef = await addDoc(collection(db, COLLECTIONS.worksheets), {
-    ...worksheet,
-    studentId,
-    studentIdNormalized: studentId.toLowerCase(),
-    createdAt: serverTimestamp()
-  });
-  return docRef.id;
-}
-
-export async function getWorksheetsByStudent(studentId) {
-  ensureConfigured();
-  const normalizedStudentId = String(studentId || "").trim().toLowerCase();
-  const worksheetQuery = query(
-    collection(db, COLLECTIONS.worksheets),
-    where("studentIdNormalized", "==", normalizedStudentId)
-  );
-  const snapshot = await getDocs(worksheetQuery);
-  return sortByCreatedAtDesc(snapshot.docs.map((doc) => ({
-    firestoreId: doc.id,
-    ...doc.data()
-  })));
-}
-
-export async function getAllWorksheets() {
-  ensureConfigured();
-  const snapshot = await getDocs(collection(db, COLLECTIONS.worksheets));
-  return sortByCreatedAtDesc(snapshot.docs.map((doc) => ({
-    firestoreId: doc.id,
-    ...doc.data()
-  })));
-}
-
-export async function deleteWorksheetRecord(firestoreId) {
-  ensureConfigured();
-  await deleteDoc(doc(db, COLLECTIONS.worksheets, firestoreId));
 }
 
 function sortByCreatedAtAsc(records) {

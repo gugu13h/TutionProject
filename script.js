@@ -15,17 +15,12 @@ import {
   updateStudentRecord,
   watchTeacherAuthState,
   setAttendanceRecordForDate,
-  getAttendanceHistory,
-  addWorksheetRecord,
-  getAllWorksheets,
-  getWorksheetsByStudent,
-  deleteWorksheetRecord
+  getAttendanceHistory
 } from "./firebase-api.js";
 import { uploadImageToCloudinary } from "./cloudinary-api.js";
 
 let students = [];
 let schedules = [];
-let testLinks = [];
 let attendanceHistoryCache = {}; // Cache for attendance history: { studentId: [attendance records] }
 let editingStudentIndex = null;
 let editingScheduleId = null;
@@ -104,13 +99,6 @@ const scheduleSubmitBtn = document.getElementById("scheduleSubmitBtn");
 const scheduleCancelBtn = document.getElementById("scheduleCancelBtn");
 const teacherGenerateQuestionsBtn = document.getElementById("teacherGenerateQuestionsBtn");
 const teacherQuestionStatus = document.getElementById("teacherQuestionStatus");
-const worksheetStudentId = document.getElementById("worksheetStudentId");
-const worksheetTitle = document.getElementById("worksheetTitle");
-const worksheetDescription = document.getElementById("worksheetDescription");
-const worksheetLink = document.getElementById("worksheetLink");
-const worksheetDueDate = document.getElementById("worksheetDueDate");
-const teacherWorksheetList = document.getElementById("teacherWorksheetList");
-const studentWorksheetList = document.getElementById("studentWorksheetList");
 const ratingModal = document.getElementById("ratingModal");
 const ratingModalTitle = document.getElementById("ratingModalTitle");
 const currentRatingDisplay = document.getElementById("currentRatingDisplay");
@@ -284,8 +272,6 @@ window.openTeacherWhatsApp = openTeacherWhatsApp;
 window.uploadTeacherPhoto = uploadTeacherPhoto;
 window.saveTeacherNotice = saveTeacherNotice;
 window.generateTeacherDailyQuestions = generateTeacherDailyQuestions;
-window.assignWorksheet = assignWorksheet;
-window.deleteTestLink = deleteTestLink;
 window.setStudentRating = setStudentRating;
 window.submitStudentRating = submitStudentRating;
 window.setRating = setRating;
@@ -323,11 +309,8 @@ async function initializeAppData() {
     // Fallback: populate UI with initial in-memory students so app remains usable
     students = INITIAL_STUDENTS.map((s) => ({ ...s }));
     schedules = [];
-    testLinks = [];
     showStudents();
     showStudentCheckList();
-    renderTeacherTestLinks();
-    renderStudentTestLinks(loginStudentId?.value || "");
     loadSchedules();
     applyTeacherProfile();
     return;
@@ -537,7 +520,6 @@ async function teacherLogin() {
 function showStudentPage() {
   showPage("studentPage");
   renderDailyQuestionsForStudent(loginStudentId.value.trim());
-  renderStudentTestLinks(loginStudentId.value.trim());
 }
 
 function logout() {
@@ -640,7 +622,6 @@ async function addStudent() {
 
     showStudents();
     showStudentCheckList();
-    populateTestLinkStudentOptions();
     resetStudentForm();
     alert("Saved");
   } catch (error) {
@@ -698,7 +679,6 @@ function showStudents() {
     `;
   });
   restoreUiPositionState(uiPositionState);
-  populateTestLinkStudentOptions();
 }
 
 function toggleTeacherStudentDetails(index) {
@@ -730,7 +710,6 @@ async function deleteStudent(index) {
 
   try {
     await deleteStudentRecord(students[index].firestoreId);
-    const removedStudentId = students[index].id;
     students.splice(index, 1);
     if (editingStudentIndex === index) {
       resetStudentForm();
@@ -739,9 +718,6 @@ async function deleteStudent(index) {
     }
     showStudents();
     showStudentCheckList();
-    if (isSameStudentId(loginStudentId?.value, removedStudentId)) {
-      renderStudentTestLinks(removedStudentId);
-    }
   } catch (error) {
     console.error(error);
     alert("Unable to delete student from Firestore");
@@ -763,228 +739,6 @@ function showStudentCheckList() {
       </div>
     `;
   });
-}
-
-async function assignWorksheet() {
-  if (!requireTeacherLogin("add test link")) {
-    return;
-  }
-
-  if (!isFirebaseReady()) {
-    alert(FIREBASE_WARNING);
-    return;
-  }
-
-  const studentIdValue = worksheetStudentId?.value.trim() || "";
-  const title = worksheetTitle?.value.trim() || "";
-  const description = worksheetDescription?.value.trim() || "";
-  const link = normalizeExternalLink(worksheetLink?.value || "");
-  const dueDate = worksheetDueDate?.value || "";
-
-  if (!studentIdValue || !title || !link) {
-    alert("Select student, enter test title, and paste test link");
-    return;
-  }
-
-  if (!isValidHttpUrl(link)) {
-    alert("Enter a valid test link starting with http:// or https://");
-    return;
-  }
-
-  const student = students.find((item) => isSameStudentId(item.id, studentIdValue));
-  if (!student) {
-    alert("Student not found");
-    return;
-  }
-
-  const testLinkPayload = {
-    studentId: student.id,
-    studentName: student.name || "",
-    title,
-    description,
-    link,
-    dueDate,
-    type: "test-link"
-  };
-
-  try {
-    const firestoreId = await addWorksheetRecord(testLinkPayload);
-    testLinks.unshift({ firestoreId, ...testLinkPayload, createdAt: new Date() });
-    resetTestLinkForm();
-    renderTeacherTestLinks();
-    renderStudentTestLinks(loginStudentId?.value || "");
-    alert("Test link added");
-  } catch (error) {
-    console.error(error);
-    alert("Unable to save test link to Firestore");
-  }
-}
-
-async function deleteTestLink(firestoreId) {
-  if (!requireTeacherLogin("delete test link")) {
-    return;
-  }
-
-  if (!isFirebaseReady()) {
-    alert(FIREBASE_WARNING);
-    return;
-  }
-
-  if (!confirm("Delete this test link?")) {
-    return;
-  }
-
-  try {
-    await deleteWorksheetRecord(firestoreId);
-    testLinks = testLinks.filter((testLink) => testLink.firestoreId !== firestoreId);
-    renderTeacherTestLinks();
-    renderStudentTestLinks(loginStudentId?.value || "");
-  } catch (error) {
-    console.error(error);
-    alert("Unable to delete test link");
-  }
-}
-
-function resetTestLinkForm() {
-  if (worksheetStudentId) {
-    worksheetStudentId.value = "";
-  }
-  if (worksheetTitle) {
-    worksheetTitle.value = "";
-  }
-  if (worksheetDescription) {
-    worksheetDescription.value = "";
-  }
-  if (worksheetLink) {
-    worksheetLink.value = "";
-  }
-  if (worksheetDueDate) {
-    worksheetDueDate.value = "";
-  }
-}
-
-function renderTeacherTestLinks() {
-  if (!teacherWorksheetList) {
-    return;
-  }
-
-  if (!testLinks.length) {
-    teacherWorksheetList.innerHTML = `<div class="box">No test link added yet.</div>`;
-    return;
-  }
-
-  teacherWorksheetList.innerHTML = testLinks.map((testLink) => {
-    const studentLabel = getTestLinkStudentLabel(testLink);
-    const dueDateHtml = testLink.dueDate ? `<span class="test-link-meta">Due: ${escapeHtml(testLink.dueDate)}</span>` : "";
-    return `
-      <div class="box test-link-card">
-        <div class="test-link-content">
-          <strong>${escapeHtml(testLink.title || "Test Link")}</strong>
-          <span class="test-link-meta">${escapeHtml(studentLabel)}</span>
-          ${dueDateHtml}
-          ${testLink.description ? `<p>${escapeHtml(testLink.description)}</p>` : ""}
-        </div>
-        <div class="box-actions test-link-actions">
-          <a class="secondary-btn compact-btn" href="${escapeHtml(testLink.link)}" target="_blank" rel="noopener noreferrer">Open Test</a>
-          <button class="delete" type="button" onclick="deleteTestLink('${escapeHtml(testLink.firestoreId)}')">Delete</button>
-        </div>
-      </div>
-    `;
-  }).join("");
-}
-
-async function loadTestLinksForStudent(studentIdValue) {
-  const cleanStudentId = String(studentIdValue || "").trim();
-  if (!cleanStudentId || !isFirebaseReady()) {
-    return;
-  }
-
-  try {
-    const studentLinks = await getWorksheetsByStudent(cleanStudentId);
-    const existingById = new Map(testLinks.map((testLink) => [testLink.firestoreId, testLink]));
-    studentLinks.forEach((testLink) => {
-      existingById.set(testLink.firestoreId, testLink);
-    });
-    testLinks = Array.from(existingById.values()).sort((firstLink, secondLink) =>
-      getRecordCreatedAtMillis(secondLink) - getRecordCreatedAtMillis(firstLink)
-    );
-  } catch (error) {
-    console.error("Unable to load student test links:", error);
-  }
-}
-
-function renderStudentTestLinks(studentIdValue) {
-  if (!studentWorksheetList) {
-    return;
-  }
-
-  const cleanStudentId = String(studentIdValue || "").trim();
-  if (!cleanStudentId) {
-    studentWorksheetList.innerHTML = "Enter your student ID and click Show My Details.";
-    return;
-  }
-
-  const normalizedStudentId = normalizeStudentId(cleanStudentId);
-  const studentTestLinks = testLinks.filter((testLink) =>
-    isSameStudentId(testLink.studentId, cleanStudentId) ||
-    normalizeStudentId(testLink.studentIdNormalized) === normalizedStudentId
-  );
-  if (!studentTestLinks.length) {
-    studentWorksheetList.innerHTML = `<div class="box">No test link assigned yet.</div>`;
-    return;
-  }
-
-  studentWorksheetList.innerHTML = studentTestLinks.map((testLink) => {
-    const dueDateHtml = testLink.dueDate ? `<span class="test-link-meta">Due: ${escapeHtml(testLink.dueDate)}</span>` : "";
-    return `
-      <div class="box test-link-card">
-        <div class="test-link-content">
-          <strong>${escapeHtml(testLink.title || "Test Link")}</strong>
-          ${dueDateHtml}
-          ${testLink.description ? `<p>${escapeHtml(testLink.description)}</p>` : ""}
-        </div>
-        <a class="secondary-btn compact-btn test-link-open-btn" href="${escapeHtml(testLink.link)}" target="_blank" rel="noopener noreferrer">Start Test</a>
-      </div>
-    `;
-  }).join("");
-}
-
-function getTestLinkStudentLabel(testLink) {
-  const student = students.find((item) => isSameStudentId(item.id, testLink.studentId));
-  const name = student?.name || testLink.studentName || "Student";
-  return `${name} (ID: ${testLink.studentId || ""})`;
-}
-
-function getRecordCreatedAtMillis(record) {
-  const createdAt = record?.createdAt;
-  if (createdAt instanceof Date) {
-    return createdAt.getTime();
-  }
-  if (createdAt?.toMillis) {
-    return createdAt.toMillis();
-  }
-  if (createdAt?.seconds) {
-    return Number(createdAt.seconds) * 1000;
-  }
-  return 0;
-}
-
-function normalizeExternalLink(value) {
-  const link = String(value || "").trim();
-  if (!link) {
-    return "";
-  }
-
-  return /^https?:\/\//i.test(link) ? link : `https://${link}`;
-}
-
-function isValidHttpUrl(value) {
-  try {
-    const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
 }
 
 function editStudent(index) {
@@ -1288,8 +1042,6 @@ function initializeDailyQuestions() {
 
   if (loginStudentId) {
     loginStudentId.addEventListener("input", () => {
-      renderStudentTestLinks("");
-
       if (!dailyQuestionsPanel || !dailyQuestionsPanel.dataset.loadedFor) {
         return;
       }
@@ -2130,24 +1882,6 @@ function loadSchedules() {
   updateClassTimers();
   updateTeacherMessagesButton();
   restoreUiPositionState(uiPositionState);
-  populateTestLinkStudentOptions();
-}
-
-function populateTestLinkStudentOptions() {
-  if (!worksheetStudentId) {
-    return;
-  }
-
-  const selectedValue = worksheetStudentId.value;
-  worksheetStudentId.innerHTML = `<option value="">Select student</option>`;
-  students.forEach((student) => {
-    const option = document.createElement("option");
-    option.value = student.id;
-    option.textContent = `${student.name} (ID: ${student.id})`;
-    worksheetStudentId.appendChild(option);
-  });
-
-  worksheetStudentId.value = selectedValue;
 }
 
 function toggleScheduleDetails(detailsId, toggleButton) {
@@ -2440,8 +2174,6 @@ async function loadStudentData(options = {}) {
   const studentRecordForLogin = students.find((student) => isSameStudentId(student.id, requestedId));
   const id = studentRecordForLogin?.id || requestedId;
   renderDailyQuestionsForStudent(id);
-  await loadTestLinksForStudent(id);
-  renderStudentTestLinks(id);
   
   if (id && isFirebaseReady()) {
     await loadAttendanceHistoryForStudent(id).catch(error => {
@@ -3604,10 +3336,9 @@ function sendWhatsApp() {
 }
 
 async function refreshFirestoreData() {
-  const [studentsResult, schedulesResult, testLinksResult] = await Promise.allSettled([
+  const [studentsResult, schedulesResult] = await Promise.allSettled([
     getStudents(),
-    getSchedules(),
-    getAllWorksheets()
+    getSchedules()
   ]);
 
   if (studentsResult.status === "fulfilled") {
@@ -3624,13 +3355,6 @@ async function refreshFirestoreData() {
     schedules = [];
   }
 
-  if (testLinksResult.status === "fulfilled") {
-    testLinks = testLinksResult.value;
-  } else {
-    console.error("Unable to load test links:", testLinksResult.reason);
-    testLinks = [];
-  }
-
   await cleanupOldAttendanceHistory();
   await applyRequestedFeeCycleFixes();
   await Promise.all(students.map((student) => loadAttendanceHistoryForStudent(student.id)));
@@ -3638,8 +3362,6 @@ async function refreshFirestoreData() {
   await cleanupExpiredScheduleSuggestions({ refreshViews: false });
   showStudents();
   showStudentCheckList();
-  renderTeacherTestLinks();
-  renderStudentTestLinks(loginStudentId?.value || "");
   loadSchedules();
 }
 
@@ -4375,7 +4097,7 @@ function applyNoticeBoard(notices) {
   const displayNotices = activeNotices.length > 0 ? activeNotices.slice(0, 3) : [DEFAULT_HOME_NOTICE];
 
   currentNoticeIndex = 0;
-  homeNoticeText.textContent = displayNotices[currentNoticeIndex];
+  renderNoticeText(displayNotices[currentNoticeIndex]);
   setNoticeColor(noticeContent, currentNoticeIndex);
 
   if (noticeRotationTimerId !== null) {
@@ -4391,11 +4113,43 @@ function applyNoticeBoard(notices) {
     currentNoticeIndex = (currentNoticeIndex + 1) % displayNotices.length;
     homeNoticeText.classList.add("is-changing");
     window.setTimeout(() => {
-      homeNoticeText.textContent = displayNotices[currentNoticeIndex];
+      renderNoticeText(displayNotices[currentNoticeIndex]);
       setNoticeColor(noticeContent, currentNoticeIndex);
       homeNoticeText.classList.remove("is-changing");
     }, 280);
   }, NOTICE_ROTATION_INTERVAL_MS);
+}
+
+function renderNoticeText(notice) {
+  if (!homeNoticeText) {
+    return;
+  }
+
+  homeNoticeText.innerHTML = getNoticeHtml(notice);
+}
+
+function getNoticeHtml(notice) {
+  const noticeText = String(notice || DEFAULT_HOME_NOTICE);
+  const urlPattern = /(https?:\/\/[^\s]+|www\.[^\s]+)/gi;
+  let lastIndex = 0;
+  let html = "";
+  let match = urlPattern.exec(noticeText);
+
+  while (match) {
+    const urlText = match[0];
+    html += escapeHtml(noticeText.slice(lastIndex, match.index));
+    html += `<a class="notice-link" href="${escapeHtml(normalizeNoticeUrl(urlText))}">${escapeHtml(urlText)}</a>`;
+    lastIndex = match.index + urlText.length;
+    match = urlPattern.exec(noticeText);
+  }
+
+  html += escapeHtml(noticeText.slice(lastIndex));
+  return html.replaceAll("\n", "<br>");
+}
+
+function normalizeNoticeUrl(urlText) {
+  const url = String(urlText || "").trim();
+  return /^https?:\/\//i.test(url) ? url : `https://${url}`;
 }
 
 function setNoticeColor(noticeContent, noticeIndex) {
