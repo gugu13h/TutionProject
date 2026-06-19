@@ -35,6 +35,7 @@ let isCleaningExpiredSchedules = false;
 let studentCountdownTimerId = null;
 let teacherScheduleTimerId = null;
 let noticeRotationTimerId = null;
+let studentNotificationTimerId = null;
 let currentNoticeIndex = 0;
 
 const username = document.getElementById("username");
@@ -116,10 +117,14 @@ const SCHEDULE_AUTO_DELETE_AFTER_HOURS = 3;
 const HOLIDAY_STUDENT_AUTO_DELETE_HOUR = 20;
 const SCHEDULE_SUGGESTION_AUTO_DELETE_AFTER_MS = 12 * 60 * 60 * 1000;
 const CLASS_STOP_POPUP_STORAGE_PREFIX = "classStopPopupSeen";
+const STUDENT_SESSION_STORAGE_KEY = "tuitionLoggedInStudentId";
+const STUDENT_NOTIFICATION_SEEN_PREFIX = "tuitionStudentClassNotificationSeen";
 const TEACHER_SEEN_MESSAGE_KEYS_STORAGE_KEY = "teacherSeenScheduleSuggestionKeys";
 const SCHEDULE_CLEANUP_INTERVAL_MS = 60 * 1000;
 const ATTENDANCE_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
 const CLASS_TIMER_DURATION_MS = 75 * 60 * 1000;
+const CLASS_REMINDER_BEFORE_MS = 30 * 60 * 1000;
+const STUDENT_NOTIFICATION_CHECK_INTERVAL_MS = 30 * 1000;
 const ATTENDANCE_RETENTION_MONTHS = 2;
 const NOTICE_ROTATION_INTERVAL_MS = 5000;
 const NOTICE_COLOR_CLASSES = ["notice-color-1", "notice-color-2", "notice-color-3"];
@@ -313,6 +318,7 @@ async function initializeAppData() {
     showStudentCheckList();
     loadSchedules();
     applyTeacherProfile();
+    await restoreStudentSessionIfPossible();
     return;
   }
 
@@ -321,6 +327,7 @@ async function initializeAppData() {
     await loadTeacherProfile();
     await refreshFirestoreData();
     await seedInitialStudents();
+    await restoreStudentSessionIfPossible();
   } catch (error) {
     console.error(error);
     alert("Unable to load Firestore data. Check your Firebase config and Firestore rules.");
@@ -523,6 +530,17 @@ function showStudentPage() {
 }
 
 function logout() {
+  const activePage = document.querySelector(".page.active");
+  if (activePage?.id === "studentPage") {
+    clearStudentSession();
+    stopStudentNotificationLoop();
+    studentData.innerHTML = "";
+    studentModalBody.innerHTML = "";
+    loginStudentId.value = "";
+    showPage("loginPage");
+    return;
+  }
+
   if (!isFirebaseReady()) {
     isTeacherLoggedIn = false;
     showPage("loginPage");
@@ -537,6 +555,36 @@ function logout() {
       isTeacherLoggedIn = false;
       showPage("loginPage");
     });
+}
+
+function saveStudentSession(studentId) {
+  const normalizedId = String(studentId || "").trim();
+  if (!normalizedId) {
+    return;
+  }
+
+  try {
+    localStorage.setItem(STUDENT_SESSION_STORAGE_KEY, normalizedId);
+  } catch (error) {
+    console.warn("Unable to save student login session:", error);
+  }
+}
+
+function getSavedStudentSessionId() {
+  try {
+    return localStorage.getItem(STUDENT_SESSION_STORAGE_KEY) || "";
+  } catch (error) {
+    console.warn("Unable to read student login session:", error);
+    return "";
+  }
+}
+
+function clearStudentSession() {
+  try {
+    localStorage.removeItem(STUDENT_SESSION_STORAGE_KEY);
+  } catch (error) {
+    console.warn("Unable to clear student login session:", error);
+  }
 }
 
 function requireTeacherLogin(actionText = "make this change") {
@@ -1651,6 +1699,165 @@ function startStudentCountdownLoop() {
   }, 1000);
 }
 
+function startStudentNotificationLoop() {
+  if (studentNotificationTimerId !== null) {
+    return;
+  }
+
+  studentNotificationTimerId = window.setInterval(() => {
+    sendDueStudentClassNotifications();
+  }, STUDENT_NOTIFICATION_CHECK_INTERVAL_MS);
+  sendDueStudentClassNotifications();
+}
+
+function stopStudentNotificationLoop() {
+  if (studentNotificationTimerId === null) {
+    return;
+  }
+
+  window.clearInterval(studentNotificationTimerId);
+  studentNotificationTimerId = null;
+}
+
+async function requestStudentNotificationPermission() {
+  if (!("Notification" in window) || Notification.permission !== "default") {
+    return;
+  }
+
+  try {
+    await Notification.requestPermission();
+  } catch (error) {
+    console.warn("Unable to request notification permission:", error);
+  }
+}
+
+function getStudentNotificationKey(studentId, schedule, type, eventTime) {
+  const scheduleKey = schedule.firestoreId || `${schedule.date}-${schedule.time}`;
+  return `${STUDENT_NOTIFICATION_SEEN_PREFIX}:${normalizeStudentId(studentId)}:${scheduleKey}:${type}:${eventTime}`;
+}
+
+function hasStudentNotificationBeenSent(key) {
+  try {
+    return localStorage.getItem(key) === "1";
+  } catch (error) {
+    console.warn("Unable to read student notification state:", error);
+    return false;
+  }
+}
+
+function markStudentNotificationSent(key) {
+  try {
+    localStorage.setItem(key, "1");
+  } catch (error) {
+    console.warn("Unable to save student notification state:", error);
+  }
+}
+
+function showStudentClassNotification(title, body) {
+  if (!("Notification" in window) || Notification.permission !== "granted") {
+    return false;
+  }
+
+  try {
+    new Notification(title, {
+      body,
+      tag: `tuition-${title}-${body}`,
+      renotify: false
+    });
+    return true;
+  } catch (error) {
+    console.warn("Unable to show student notification:", error);
+    return false;
+  }
+}
+
+function getCurrentLoggedInStudentId() {
+  const visibleId = loginStudentId?.value?.trim();
+  return visibleId || getSavedStudentSessionId();
+}
+
+function getNotificationEventsForSchedule(schedule, classStartTime) {
+  return [
+    {
+      type: "ready",
+      time: classStartTime - CLASS_REMINDER_BEFORE_MS,
+      title: "Your class is in 30 min",
+      body: `Be ready. Class starts at ${formatTime12Hour(schedule.time)}.`
+    },
+    {
+      type: "started",
+      time: classStartTime,
+      title: "Your class is started",
+      body: `Class started at ${formatTime12Hour(schedule.time)}.`
+    },
+    {
+      type: "over",
+      time: classStartTime + CLASS_TIMER_DURATION_MS,
+      title: "Your class is over",
+      body: `Today's class is completed.`
+    }
+  ];
+}
+
+function sendDueStudentClassNotifications() {
+  const studentId = getCurrentLoggedInStudentId();
+  if (!studentId || !("Notification" in window) || Notification.permission !== "granted") {
+    return;
+  }
+
+  const now = Date.now();
+  const deliveryWindowMs = Math.max(STUDENT_NOTIFICATION_CHECK_INTERVAL_MS + 5000, 5 * 60 * 1000);
+
+  getVisibleSchedules(new Date(now)).forEach((schedule) => {
+    if (!schedule.time || isClassStoppedOrCancelled(schedule)) {
+      return;
+    }
+
+    const scheduleStudent = (schedule.students || []).find((student) => isSameStudentId(student.id, studentId));
+    if (!scheduleStudent || scheduleStudent.attendanceStatus === "holiday") {
+      return;
+    }
+
+    const classDateTime = getScheduleDateTime(schedule);
+    if (!classDateTime) {
+      return;
+    }
+
+    getNotificationEventsForSchedule(schedule, classDateTime.getTime()).forEach((event) => {
+      if (now < event.time || now - event.time > deliveryWindowMs) {
+        return;
+      }
+
+      const notificationKey = getStudentNotificationKey(studentId, schedule, event.type, event.time);
+      if (hasStudentNotificationBeenSent(notificationKey)) {
+        return;
+      }
+
+      if (showStudentClassNotification(event.title, event.body)) {
+        markStudentNotificationSent(notificationKey);
+      }
+    });
+  });
+}
+
+async function restoreStudentSessionIfPossible() {
+  const savedStudentId = getSavedStudentSessionId();
+  if (!savedStudentId) {
+    return;
+  }
+
+  const studentRecord = students.find((student) => isSameStudentId(student.id, savedStudentId));
+  if (!studentRecord) {
+    clearStudentSession();
+    return;
+  }
+
+  loginStudentId.value = studentRecord.id;
+  showStudentPage();
+  await loadStudentData({ openModalAfterLoad: false, showFeeReminder: true, persistSession: false });
+  startStudentNotificationLoop();
+}
+
 function startTeacherScheduleLoop() {
   if (teacherScheduleTimerId !== null) {
     return;
@@ -2169,11 +2376,17 @@ async function cleanupOldAttendanceHistory() {
 
 async function loadStudentData(options = {}) {
   const uiPositionState = captureUiPositionState();
-  const { openModalAfterLoad, showFeeReminder } = normalizeLoadStudentDataOptions(options);
+  const { openModalAfterLoad, showFeeReminder, persistSession = true } = normalizeLoadStudentDataOptions(options);
   const requestedId = loginStudentId.value.trim();
   const studentRecordForLogin = students.find((student) => isSameStudentId(student.id, requestedId));
   const id = studentRecordForLogin?.id || requestedId;
   renderDailyQuestionsForStudent(id);
+
+  if (studentRecordForLogin && persistSession) {
+    saveStudentSession(studentRecordForLogin.id);
+    await requestStudentNotificationPermission();
+    startStudentNotificationLoop();
+  }
   
   if (id && isFirebaseReady()) {
     await loadAttendanceHistoryForStudent(id).catch(error => {
@@ -3638,7 +3851,9 @@ function initializeTeacherAuth() {
     isTeacherLoggedIn = Boolean(user);
 
     if (user) {
-      showPage("teacherPage");
+      if (!getSavedStudentSessionId()) {
+        showPage("teacherPage");
+      }
       return;
     }
 
