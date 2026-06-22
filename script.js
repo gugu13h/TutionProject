@@ -36,6 +36,7 @@ let studentCountdownTimerId = null;
 let teacherScheduleTimerId = null;
 let noticeRotationTimerId = null;
 let studentNotificationTimerId = null;
+let isRefreshingStudentSchedules = false;
 let currentNoticeIndex = 0;
 
 const username = document.getElementById("username");
@@ -56,6 +57,7 @@ const scheduleList = document.getElementById("scheduleList");
 const loginStudentId = document.getElementById("loginStudentId");
 const studentClassSelect = document.getElementById("studentClassSelect");
 const studentData = document.getElementById("studentData");
+const studentNotificationList = document.getElementById("studentNotificationList");
 const dailyQuestionsPanel = document.getElementById("dailyQuestionsPanel");
 const studentRecordModal = document.getElementById("studentRecordModal");
 const studentModalBody = document.getElementById("studentModalBody");
@@ -119,6 +121,7 @@ const SCHEDULE_SUGGESTION_AUTO_DELETE_AFTER_MS = 12 * 60 * 60 * 1000;
 const CLASS_STOP_POPUP_STORAGE_PREFIX = "classStopPopupSeen";
 const STUDENT_SESSION_STORAGE_KEY = "tuitionLoggedInStudentId";
 const STUDENT_NOTIFICATION_SEEN_PREFIX = "tuitionStudentClassNotificationSeen";
+const STUDENT_SCHEDULE_UPDATE_PREFIX = "tuitionStudentScheduleUpdateSeen";
 const TEACHER_SEEN_MESSAGE_KEYS_STORAGE_KEY = "teacherSeenScheduleSuggestionKeys";
 const SCHEDULE_CLEANUP_INTERVAL_MS = 60 * 1000;
 const ATTENDANCE_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
@@ -260,6 +263,8 @@ window.editSchedule = editSchedule;
 window.cancelScheduleEdit = cancelScheduleEdit;
 window.deleteSchedule = deleteSchedule;
 window.loadStudentData = loadStudentData;
+window.enableStudentNotifications = enableStudentNotifications;
+window.sendTestStudentNotification = sendTestStudentNotification;
 window.closeStudentModal = closeStudentModal;
 window.closeFeeReminderModal = closeFeeReminderModal;
 window.openTeacherMessagesModal = openTeacherMessagesModal;
@@ -271,6 +276,7 @@ window.sendStudentOtherAbsenceReason = sendStudentOtherAbsenceReason;
 window.submitStudentScheduleSuggestion = submitStudentScheduleSuggestion;
 window.stopClassTimer = stopClassTimer;
 window.cancelClassWithReason = cancelClassWithReason;
+window.broadcastClassNotification = broadcastClassNotification;
 window.removeStudentFromSchedule = removeStudentFromSchedule;
 window.sendWhatsApp = sendWhatsApp;
 window.openTeacherWhatsApp = openTeacherWhatsApp;
@@ -527,6 +533,8 @@ async function teacherLogin() {
 function showStudentPage() {
   showPage("studentPage");
   renderDailyQuestionsForStudent(loginStudentId.value.trim());
+  renderStudentNotificationStatus();
+  void requestStudentNotificationPermission();
 }
 
 function logout() {
@@ -909,6 +917,9 @@ async function saveSchedule() {
     classStoppedAt: editingSchedule?.classStoppedAt || null,
     classStoppedReason: editingSchedule?.classStoppedReason || "",
     classStopStatus: editingSchedule?.classStopStatus || "",
+    classNotificationType: editingSchedule?.classNotificationType || "",
+    classNotificationSentAt: editingSchedule?.classNotificationSentAt || null,
+    classNotificationId: editingSchedule?.classNotificationId || "",
     students: selectedStudents.map(({ firestoreId, ...student }) => ({
       ...student
     }))
@@ -1029,6 +1040,9 @@ function buildSchedulePayload(schedule, studentsForSchedule = schedule.students 
     classStoppedAt: schedule.classStoppedAt || null,
     classStoppedReason: schedule.classStoppedReason || "",
     classStopStatus: schedule.classStopStatus || "",
+    classNotificationType: schedule.classNotificationType || "",
+    classNotificationSentAt: schedule.classNotificationSentAt || null,
+    classNotificationId: schedule.classNotificationId || "",
     students: studentsForSchedule
   };
 }
@@ -1705,9 +1719,9 @@ function startStudentNotificationLoop() {
   }
 
   studentNotificationTimerId = window.setInterval(() => {
-    sendDueStudentClassNotifications();
+    void checkStudentScheduleUpdates();
   }, STUDENT_NOTIFICATION_CHECK_INTERVAL_MS);
-  sendDueStudentClassNotifications();
+  void checkStudentScheduleUpdates();
 }
 
 function stopStudentNotificationLoop() {
@@ -1721,6 +1735,7 @@ function stopStudentNotificationLoop() {
 
 async function requestStudentNotificationPermission() {
   if (!("Notification" in window) || Notification.permission !== "default") {
+    renderStudentNotificationStatus();
     return;
   }
 
@@ -1728,7 +1743,57 @@ async function requestStudentNotificationPermission() {
     await Notification.requestPermission();
   } catch (error) {
     console.warn("Unable to request notification permission:", error);
+  } finally {
+    renderStudentNotificationStatus();
   }
+}
+
+async function enableStudentNotifications() {
+  await requestStudentNotificationPermission();
+  startStudentNotificationLoop();
+  void checkStudentScheduleUpdates();
+}
+
+function getStudentNotificationStatusMessage() {
+  if (!("Notification" in window)) {
+    return "This browser does not support notifications. Class updates will show here in the app.";
+  }
+
+  if (!window.isSecureContext) {
+    return "Browser notifications need HTTPS or localhost. Class updates will still show here in the app.";
+  }
+
+  if (Notification.permission === "granted") {
+    return "Notifications are on. Keep this student dashboard open for live class updates.";
+  }
+
+  if (Notification.permission === "denied") {
+    return "Notifications are blocked. Allow notifications from browser site settings, then reload this page.";
+  }
+
+  return "Click Enable Notifications, then allow permission in the browser popup.";
+}
+
+function renderStudentNotificationStatus() {
+  if (!studentNotificationList || studentNotificationList.querySelector(".student-notification-item")) {
+    return;
+  }
+
+  const canAskPermission = "Notification" in window && Notification.permission === "default";
+  const canTestPermission = "Notification" in window && Notification.permission === "granted";
+  studentNotificationList.innerHTML = `
+    <div class="student-notification-status">
+      <span>${escapeHtml(getStudentNotificationStatusMessage())}</span>
+      <span class="student-notification-status-actions">
+        ${canAskPermission ? `<button type="button" class="secondary-btn compact-btn" onclick="enableStudentNotifications()">Enable Notifications</button>` : ""}
+        ${canTestPermission ? `<button type="button" class="secondary-btn compact-btn" onclick="sendTestStudentNotification()">Test</button>` : ""}
+      </span>
+    </div>
+  `;
+}
+
+function sendTestStudentNotification() {
+  showStudentClassNotification("Test notification", "Tuition notifications are working on this device.");
 }
 
 function getStudentNotificationKey(studentId, schedule, type, eventTime) {
@@ -1753,7 +1818,32 @@ function markStudentNotificationSent(key) {
   }
 }
 
+function addStudentNotificationEntry(title, body) {
+  if (!studentNotificationList) {
+    return;
+  }
+
+  if (!studentNotificationList.querySelector(".student-notification-item")) {
+    studentNotificationList.innerHTML = "";
+  }
+
+  const item = document.createElement("div");
+  item.className = "student-notification-item";
+  item.innerHTML = `
+    <strong>${escapeHtml(title)}</strong>
+    <span>${escapeHtml(body)}</span>
+    <small>${escapeHtml(formatTime12Hour(formatTimeInputValue(new Date())))}</small>
+  `;
+  studentNotificationList.prepend(item);
+
+  while (studentNotificationList.children.length > 5) {
+    studentNotificationList.lastElementChild?.remove();
+  }
+}
+
 function showStudentClassNotification(title, body) {
+  addStudentNotificationEntry(title, body);
+
   if (!("Notification" in window) || Notification.permission !== "granted") {
     return false;
   }
@@ -1776,40 +1866,124 @@ function getCurrentLoggedInStudentId() {
   return visibleId || getSavedStudentSessionId();
 }
 
+function formatTimeInputValue(date) {
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+function formatDateTimeForNotification(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return `${date.toLocaleDateString("en-IN")} ${formatTime12Hour(formatTimeInputValue(date))}`;
+}
+
 function getNotificationEventsForSchedule(schedule, classStartTime) {
+  const classOverTime = classStartTime + CLASS_TIMER_DURATION_MS;
+  const classOverDate = new Date(classOverTime);
   return [
     {
       type: "ready",
       time: classStartTime - CLASS_REMINDER_BEFORE_MS,
+      expiresAt: classStartTime,
       title: "Your class is in 30 min",
       body: `Be ready. Class starts at ${formatTime12Hour(schedule.time)}.`
     },
     {
       type: "started",
       time: classStartTime,
+      expiresAt: classStartTime + 10 * 60 * 1000,
       title: "Your class is started",
       body: `Class started at ${formatTime12Hour(schedule.time)}.`
     },
     {
       type: "over",
-      time: classStartTime + CLASS_TIMER_DURATION_MS,
+      time: classOverTime,
+      expiresAt: classOverTime + 60 * 60 * 1000,
       title: "Your class is over",
-      body: `Today's class is completed.`
+      body: `Today's class completed at ${formatTime12Hour(formatTimeInputValue(classOverDate))}.`
     }
   ];
 }
 
+function getManualClassNotificationContent(schedule, type = schedule?.classNotificationType) {
+  const timeText = schedule?.time ? formatTime12Hour(schedule.time) : "Holiday (No Class)";
+  const classLabel = `${schedule?.date || ""} ${schedule?.day || ""}`.trim();
+  const sentAt = Number(schedule?.classNotificationSentAt);
+  const sentTimeText = Number.isFinite(sentAt)
+    ? formatDateTimeForNotification(new Date(sentAt))
+    : "";
+
+  if (type === "scheduled") {
+    return {
+      title: "Class scheduled",
+      body: `Your class is scheduled${classLabel ? ` on ${classLabel}` : ""} at ${timeText}.`
+    };
+  }
+
+  if (type === "reminder") {
+    return {
+      title: "Your class is in 30 min",
+      body: `Be ready. Class starts at ${timeText}.`
+    };
+  }
+
+  if (type === "over") {
+    return {
+      title: "Class over",
+      body: sentTimeText ? `Class over at ${sentTimeText}.` : "Class over."
+    };
+  }
+
+  return null;
+}
+
+function getManualClassNotificationKey(studentId, schedule) {
+  const notificationId = schedule?.classNotificationId || schedule?.classNotificationSentAt;
+  if (!notificationId) {
+    return "";
+  }
+
+  const scheduleKey = schedule.firestoreId || `${schedule.date}-${schedule.time}`;
+  return `${STUDENT_NOTIFICATION_SEEN_PREFIX}:${normalizeStudentId(studentId)}:${scheduleKey}:manual:${notificationId}`;
+}
+
+function sendManualClassNotificationIfDue(studentId, schedule, now = Date.now()) {
+  if (!studentId || !schedule?.classNotificationType || !schedule?.classNotificationSentAt) {
+    return false;
+  }
+
+  const sentAt = Number(schedule.classNotificationSentAt);
+  if (!Number.isFinite(sentAt) || now < sentAt || now - sentAt > 60 * 60 * 1000) {
+    return false;
+  }
+
+  const notificationKey = getManualClassNotificationKey(studentId, schedule);
+  if (!notificationKey || hasStudentNotificationBeenSent(notificationKey)) {
+    return false;
+  }
+
+  const content = getManualClassNotificationContent(schedule);
+  if (!content) {
+    return false;
+  }
+
+  showStudentClassNotification(content.title, content.body);
+  markStudentNotificationSent(notificationKey);
+  return true;
+}
+
 function sendDueStudentClassNotifications() {
   const studentId = getCurrentLoggedInStudentId();
-  if (!studentId || !("Notification" in window) || Notification.permission !== "granted") {
+  if (!studentId) {
     return;
   }
 
   const now = Date.now();
-  const deliveryWindowMs = Math.max(STUDENT_NOTIFICATION_CHECK_INTERVAL_MS + 5000, 5 * 60 * 1000);
+  const stoppedNotificationWindowMs = 60 * 60 * 1000;
 
   getVisibleSchedules(new Date(now)).forEach((schedule) => {
-    if (!schedule.time || isClassStoppedOrCancelled(schedule)) {
+    if (!schedule.time) {
       return;
     }
 
@@ -1818,13 +1992,37 @@ function sendDueStudentClassNotifications() {
       return;
     }
 
+    sendManualClassNotificationIfDue(studentId, schedule, now);
+
     const classDateTime = getScheduleDateTime(schedule);
     if (!classDateTime) {
       return;
     }
 
+    if (isClassStoppedOrCancelled(schedule)) {
+      const stoppedAt = Number(schedule.classStoppedAt);
+      const status = getClassStopStatus(schedule);
+      if (!Number.isFinite(stoppedAt) || now < stoppedAt || now - stoppedAt > stoppedNotificationWindowMs) {
+        return;
+      }
+
+      const notificationKey = getStudentNotificationKey(studentId, schedule, status, stoppedAt);
+      if (hasStudentNotificationBeenSent(notificationKey)) {
+        return;
+      }
+
+      const stoppedDate = new Date(stoppedAt);
+      const title = status === "cancelled" ? "Class cancelled" : "Class over";
+      const body = status === "cancelled"
+        ? getClassStopStudentMessage(schedule)
+        : `Class over at ${formatDateTimeForNotification(stoppedDate)}. ${String(schedule.classStoppedReason || "").trim()}`;
+      showStudentClassNotification(title, body.trim());
+      markStudentNotificationSent(notificationKey);
+      return;
+    }
+
     getNotificationEventsForSchedule(schedule, classDateTime.getTime()).forEach((event) => {
-      if (now < event.time || now - event.time > deliveryWindowMs) {
+      if (now < event.time || now > event.expiresAt) {
         return;
       }
 
@@ -1833,11 +2031,92 @@ function sendDueStudentClassNotifications() {
         return;
       }
 
-      if (showStudentClassNotification(event.title, event.body)) {
-        markStudentNotificationSent(notificationKey);
-      }
+      showStudentClassNotification(event.title, event.body);
+      markStudentNotificationSent(notificationKey);
     });
   });
+}
+
+function getStudentScheduleSignature(schedule, studentId) {
+  const scheduleStudent = (schedule?.students || []).find((student) => isSameStudentId(student.id, studentId));
+  if (!scheduleStudent) {
+    return "";
+  }
+
+  return [
+    schedule.date || "",
+    schedule.time || "",
+    schedule.day || "",
+    schedule.classStoppedAt || "",
+    schedule.classStoppedReason || "",
+    schedule.classStopStatus || "",
+    scheduleStudent.attendanceStatus || "pending"
+  ].join("|");
+}
+
+function getStudentScheduleUpdateKey(studentId, schedule, signature) {
+  const scheduleKey = schedule.firestoreId || `${schedule.date}-${schedule.time}`;
+  return `${STUDENT_SCHEDULE_UPDATE_PREFIX}:${normalizeStudentId(studentId)}:${scheduleKey}:${signature}`;
+}
+
+function notifyStudentScheduleChanges(studentId, previousSchedules, nextSchedules) {
+  if (!studentId) {
+    return;
+  }
+
+  const previousById = new Map(previousSchedules.map((schedule) => [schedule.firestoreId || `${schedule.date}-${schedule.time}`, schedule]));
+
+  nextSchedules.forEach((schedule) => {
+    const nextSignature = getStudentScheduleSignature(schedule, studentId);
+    if (!nextSignature) {
+      return;
+    }
+
+    const scheduleKey = schedule.firestoreId || `${schedule.date}-${schedule.time}`;
+    const previousSchedule = previousById.get(scheduleKey);
+    const previousSignature = getStudentScheduleSignature(previousSchedule, studentId);
+    if (previousSignature === nextSignature) {
+      return;
+    }
+
+    const notificationKey = getStudentScheduleUpdateKey(studentId, schedule, nextSignature);
+    if (hasStudentNotificationBeenSent(notificationKey)) {
+      return;
+    }
+
+    const timeText = schedule.time ? formatTime12Hour(schedule.time) : "Holiday (No Class)";
+    const title = previousSchedule ? "Class time updated" : "New class scheduled";
+    const body = previousSchedule
+      ? `New class time: ${schedule.date} ${schedule.day || ""} at ${timeText}.`
+      : `Your class is scheduled on ${schedule.date} ${schedule.day || ""} at ${timeText}.`;
+    showStudentClassNotification(title, body);
+    markStudentNotificationSent(notificationKey);
+  });
+}
+
+async function checkStudentScheduleUpdates() {
+  const studentId = getCurrentLoggedInStudentId();
+  if (!studentId || isRefreshingStudentSchedules) {
+    sendDueStudentClassNotifications();
+    return;
+  }
+
+  isRefreshingStudentSchedules = true;
+  try {
+    if (isFirebaseReady()) {
+      const previousSchedules = schedules.slice();
+      const nextSchedules = await getSchedules();
+      notifyStudentScheduleChanges(studentId, previousSchedules, nextSchedules);
+      schedules = nextSchedules;
+      refreshStudentDataViewIfNeeded();
+    }
+    sendDueStudentClassNotifications();
+  } catch (error) {
+    console.error("Unable to refresh student class notifications:", error);
+    sendDueStudentClassNotifications();
+  } finally {
+    isRefreshingStudentSchedules = false;
+  }
 }
 
 async function restoreStudentSessionIfPossible() {
@@ -1855,6 +2134,7 @@ async function restoreStudentSessionIfPossible() {
   loginStudentId.value = studentRecord.id;
   showStudentPage();
   await loadStudentData({ openModalAfterLoad: false, showFeeReminder: true, persistSession: false });
+  await requestStudentNotificationPermission();
   startStudentNotificationLoop();
 }
 
@@ -2131,9 +2411,17 @@ function getScheduleActionsHtml(schedule) {
   const stoppedText = schedule.classStoppedAt
     ? `<span class="class-stopped-label">${escapeHtml(getClassStopTitle(schedule))}</span>`
     : "";
+  const broadcastButtons = schedule.time
+    ? `
+      <button class="secondary-btn compact-btn notify-class-btn" onclick="broadcastClassNotification('${schedule.firestoreId}', 'scheduled')">Class Scheduled</button>
+      <button class="secondary-btn compact-btn notify-class-btn" onclick="broadcastClassNotification('${schedule.firestoreId}', 'reminder')">30 Min Reminder</button>
+      <button class="secondary-btn compact-btn notify-class-btn notify-class-over-btn" onclick="broadcastClassNotification('${schedule.firestoreId}', 'over')">Class Over</button>
+    `
+    : "";
 
   return `
     <div class="schedule-actions">
+      ${broadcastButtons}
       ${stopTimerButton}
       ${stoppedText}
       <button class="ghost-btn compact-btn" onclick="editSchedule('${schedule.firestoreId}')">Edit Class</button>
@@ -2182,6 +2470,64 @@ function editSchedule(scheduleIdentifier) {
 
 function cancelScheduleEdit() {
   resetScheduleForm();
+}
+
+async function broadcastClassNotification(scheduleIdentifier, type) {
+  if (!requireTeacherLogin("send class notification")) {
+    return;
+  }
+
+  if (!isFirebaseReady()) {
+    alert(FIREBASE_WARNING);
+    return;
+  }
+
+  const scheduleIndex = schedules.findIndex((schedule) => schedule.firestoreId === scheduleIdentifier);
+  if (scheduleIndex === -1) {
+    alert("Schedule not found");
+    return;
+  }
+
+  const schedule = schedules[scheduleIndex];
+  if (!schedule.time) {
+    alert("Notification can be sent only for scheduled classes with class time.");
+    return;
+  }
+
+  const notificationContent = getManualClassNotificationContent(schedule, type);
+  if (!notificationContent) {
+    alert("Notification type not found");
+    return;
+  }
+
+  const studentCount = (schedule.students || []).filter((student) => student.attendanceStatus !== "holiday").length;
+  if (studentCount === 0) {
+    alert("No active student found for this class");
+    return;
+  }
+
+  if (!confirm(`Send "${notificationContent.title}" notification to ${studentCount} student${studentCount === 1 ? "" : "s"}?`)) {
+    return;
+  }
+
+  const sentAt = Date.now();
+  const updatedSchedule = buildSchedulePayload({
+    ...schedule,
+    classNotificationType: type,
+    classNotificationSentAt: sentAt,
+    classNotificationId: `${type}-${sentAt}`
+  });
+
+  try {
+    await updateScheduleRecord(schedule.firestoreId, updatedSchedule);
+    schedules[scheduleIndex] = { firestoreId: schedule.firestoreId, ...updatedSchedule };
+    loadSchedules();
+    refreshStudentDataViewIfNeeded();
+    alert("Notification sent. Students will receive it when their dashboard is online.");
+  } catch (error) {
+    console.error(error);
+    alert("Unable to send class notification");
+  }
 }
 
 async function stopClassTimer(scheduleIdentifier) {

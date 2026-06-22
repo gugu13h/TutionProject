@@ -3087,6 +3087,60 @@ body.theme-night .teacher-student-id {
   font-weight: 600;
 }
 
+.student-notification-card {
+  align-self: start;
+}
+
+.student-notification-list {
+  display: grid;
+  gap: 10px;
+  min-height: 52px;
+  color: #475569;
+  font-size: 0.94rem;
+}
+
+.student-notification-item {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(20, 184, 166, 0.24);
+  background: rgba(240, 253, 250, 0.92);
+  color: #0f172a;
+}
+
+.student-notification-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px dashed rgba(15, 118, 110, 0.28);
+  background: rgba(255, 255, 255, 0.72);
+  color: #334155;
+}
+
+.student-notification-status-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.student-notification-item strong {
+  color: #0f766e;
+}
+
+.student-notification-item span {
+  overflow-wrap: anywhere;
+}
+
+.student-notification-item small {
+  color: #64748b;
+  font-weight: 600;
+}
+
 .schedule-actions {
   display: flex;
   align-items: center;
@@ -3099,6 +3153,16 @@ body.theme-night .teacher-student-id {
   background: linear-gradient(135deg, #f97316 0%, #ef4444 100%);
   color: #fff;
   box-shadow: 0 12px 20px rgba(249, 115, 22, 0.2);
+}
+
+.notify-class-btn {
+  background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%);
+  color: #fff;
+  box-shadow: 0 12px 20px rgba(20, 184, 166, 0.18);
+}
+
+.notify-class-over-btn {
+  background: linear-gradient(135deg, #334155 0%, #64748b 100%);
 }
 
 .delete {
