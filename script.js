@@ -313,6 +313,7 @@ startStudentCountdownLoop();
 startTeacherScheduleLoop();
 loadRanchiWeather();
 initializeAppData();
+startStudentNotificationLoop();
 
 async function initializeAppData() {
   if (!isFirebaseReady()) {
