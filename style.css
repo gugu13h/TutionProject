@@ -3253,6 +3253,132 @@ body.theme-night .modal-card .ghost-btn {
   width: min(460px, 100%);
 }
 
+.student-attendance-popup {
+  position: fixed;
+  inset: 0;
+  z-index: 14;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(15, 23, 42, 0.44);
+  backdrop-filter: blur(6px);
+}
+
+.student-attendance-popup-card {
+  position: relative;
+  width: min(380px, 100%);
+  padding: 24px 20px 20px;
+  border-radius: 16px;
+  text-align: center;
+  background: #ffffff;
+  color: #0f172a;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.26);
+}
+
+.student-attendance-popup-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 34px;
+  height: 34px;
+  min-height: 34px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(148, 163, 184, 0.16);
+  color: #334155;
+  font-size: 1.35rem;
+  line-height: 1;
+  box-shadow: none;
+}
+
+.student-attendance-popup-title {
+  margin-bottom: 8px;
+  color: #0f766e;
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+
+.student-attendance-popup-card p {
+  margin: 0;
+  color: #334155;
+  line-height: 1.55;
+  font-weight: 600;
+}
+
+.student-attendance-popup-meta {
+  margin: 12px 0 16px;
+  color: #64748b;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.student-attendance-popup-actions,
+.student-attendance-popup-reason {
+  display: grid;
+  gap: 10px;
+}
+
+.student-attendance-popup-action {
+  width: 100%;
+  min-height: 46px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%);
+  color: #ffffff;
+}
+
+.student-attendance-absent {
+  background: linear-gradient(135deg, #b91c1c 0%, #ef4444 100%);
+}
+
+.student-attendance-popup-reason {
+  margin-top: 12px;
+}
+
+.student-attendance-popup-reason.hidden,
+.student-attendance-popup-other.hidden {
+  display: none;
+}
+
+.student-attendance-popup-select,
+.student-attendance-popup-other {
+  width: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.36);
+  border-radius: 10px;
+  background: #ffffff;
+  color: #0f172a;
+  font: inherit;
+}
+
+.student-attendance-popup-select {
+  min-height: 44px;
+  padding: 0 12px;
+}
+
+.student-attendance-popup-other {
+  min-height: 76px;
+  padding: 10px 12px;
+  resize: vertical;
+}
+
+.student-attendance-popup-submit {
+  width: 100%;
+  min-height: 42px;
+  border-radius: 10px;
+  background: #334155;
+  color: #ffffff;
+}
+
+body.theme-night .student-attendance-popup-card {
+  background: #ffffff;
+  color: #0f172a;
+}
+
 .fee-reminder-body {
   display: grid;
   gap: 18px;

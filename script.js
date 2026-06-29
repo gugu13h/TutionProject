@@ -36,6 +36,7 @@ let studentCountdownTimerId = null;
 let teacherScheduleTimerId = null;
 let noticeRotationTimerId = null;
 let studentNotificationTimerId = null;
+let studentAttendancePopupTimerId = null;
 let isRefreshingStudentSchedules = false;
 let currentNoticeIndex = 0;
 
@@ -128,6 +129,7 @@ const ATTENDANCE_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
 const CLASS_TIMER_DURATION_MS = 75 * 60 * 1000;
 const CLASS_REMINDER_BEFORE_MS = 30 * 60 * 1000;
 const STUDENT_NOTIFICATION_CHECK_INTERVAL_MS = 30 * 1000;
+const STUDENT_ATTENDANCE_POPUP_DELAY_MS = 3000;
 const ATTENDANCE_RETENTION_MONTHS = 2;
 const NOTICE_ROTATION_INTERVAL_MS = 5000;
 const NOTICE_COLOR_CLASSES = ["notice-color-1", "notice-color-2", "notice-color-3"];
@@ -2745,6 +2747,7 @@ async function loadStudentData(options = {}) {
   studentModalBody.innerHTML = "";
   const now = new Date();
   let feeReminderStudent = null;
+  let attendancePopupSchedule = null;
 
   const matchedRecords = [];
 
@@ -2810,6 +2813,21 @@ async function loadStudentData(options = {}) {
               ${absenceReasonHtml}`
             : `<div style="margin-top: 10px; padding: 8px; background: #fee2e2; border-radius: 5px; color: #b91c1c; font-weight: bold;">Attendance time is closed.</div>`;
         const countdownMarkup = getCountdownMarkup(schedule, classDateTime, isHoliday);
+        if (
+          !attendancePopupSchedule &&
+          attendanceStatus === "pending" &&
+          studentCanMarkAttendance &&
+          !isClassStoppedOrCancelled(schedule) &&
+          !isHoliday
+        ) {
+          attendancePopupSchedule = {
+            scheduleId: schedule.firestoreId,
+            studentId: student.id,
+            studentName: displayStudent.name,
+            date: schedule.date,
+            time: schedule.time
+          };
+        }
         
         const studentRecordHtml = `
           <div class="box">
@@ -2879,6 +2897,7 @@ async function loadStudentData(options = {}) {
 
       studentData.innerHTML = studentInfoHtml;
       studentModalBody.innerHTML = studentInfoHtml;
+      clearStudentAttendancePopup();
       if (openModalAfterLoad) {
         openStudentModal();
       }
@@ -2897,6 +2916,7 @@ async function loadStudentData(options = {}) {
     `;
     studentData.innerHTML = notFoundHtml;
     studentModalBody.innerHTML = notFoundHtml;
+    clearStudentAttendancePopup();
     if (openModalAfterLoad) {
       openStudentModal();
     }
@@ -2915,7 +2935,119 @@ async function loadStudentData(options = {}) {
   if (showFeeReminder) {
     showFeeReminderIfNeeded(feeReminderStudent);
   }
+  scheduleStudentAttendancePopup(id, attendancePopupSchedule);
   restoreUiPositionState(uiPositionState);
+}
+
+function clearStudentAttendancePopup() {
+  if (studentAttendancePopupTimerId !== null) {
+    window.clearTimeout(studentAttendancePopupTimerId);
+    studentAttendancePopupTimerId = null;
+  }
+
+  document.querySelector(".student-attendance-popup")?.remove();
+}
+
+function scheduleStudentAttendancePopup(studentId, attendancePrompt) {
+  clearStudentAttendancePopup();
+
+  if (!attendancePrompt) {
+    return;
+  }
+
+  studentAttendancePopupTimerId = window.setTimeout(() => {
+    studentAttendancePopupTimerId = null;
+
+    if (!isSameStudentId(loginStudentId.value.trim(), studentId)) {
+      return;
+    }
+
+    const schedule = schedules.find((item) => item.firestoreId === attendancePrompt.scheduleId);
+    const scheduleStudent = schedule?.students?.find((student) => isSameStudentId(student.id, attendancePrompt.studentId));
+    if (
+      !schedule ||
+      !scheduleStudent ||
+      (scheduleStudent.attendanceStatus || "pending") !== "pending" ||
+      !canStudentMarkAttendance(schedule) ||
+      isClassStoppedOrCancelled(schedule)
+    ) {
+      return;
+    }
+
+    showStudentAttendancePopup(attendancePrompt);
+  }, STUDENT_ATTENDANCE_POPUP_DELAY_MS);
+}
+
+function showStudentAttendancePopup(attendancePrompt) {
+  clearStudentAttendancePopup();
+
+  const absenceOptions = ABSENCE_REASON_OPTIONS
+    .map((reason) => `<option value="${escapeHtml(reason)}">${escapeHtml(reason)}</option>`)
+    .join("");
+  const popup = document.createElement("div");
+  popup.className = "student-attendance-popup";
+  popup.setAttribute("role", "dialog");
+  popup.setAttribute("aria-modal", "true");
+  popup.innerHTML = `
+    <div class="student-attendance-popup-card">
+      <button type="button" class="student-attendance-popup-close" aria-label="Close attendance popup">&times;</button>
+      <div class="student-attendance-popup-title">Attendance</div>
+      <p>${escapeHtml(attendancePrompt.studentName || "Student")}, please mark today's attendance.</p>
+      <div class="student-attendance-popup-meta">
+        ${escapeHtml(attendancePrompt.date || "")}
+        ${attendancePrompt.time ? ` at ${escapeHtml(formatTime12Hour(attendancePrompt.time))}` : ""}
+      </div>
+      <div class="student-attendance-popup-actions">
+        <button type="button" class="student-attendance-popup-action student-attendance-present">I will come</button>
+        <button type="button" class="student-attendance-popup-action student-attendance-absent">I will not come today</button>
+      </div>
+      <div class="student-attendance-popup-reason hidden">
+        <select class="student-attendance-popup-select" aria-label="Select absence reason">
+          <option value="">Select one reason</option>
+          ${absenceOptions}
+          <option value="other">Other</option>
+        </select>
+        <textarea class="student-attendance-popup-other hidden" placeholder="I will not come due to -"></textarea>
+        <button type="button" class="student-attendance-popup-submit">Submit</button>
+      </div>
+    </div>
+  `;
+
+  const closePopup = () => popup.remove();
+  popup.querySelector(".student-attendance-popup-close")?.addEventListener("click", closePopup);
+  popup.querySelector(".student-attendance-present")?.addEventListener("click", () => {
+    closePopup();
+    void studentAttendance(attendancePrompt.scheduleId, attendancePrompt.studentId, "coming", "student");
+  });
+  popup.querySelector(".student-attendance-absent")?.addEventListener("click", () => {
+    const reasonPanel = popup.querySelector(".student-attendance-popup-reason");
+    reasonPanel?.classList.remove("hidden");
+    reasonPanel?.querySelector(".student-attendance-popup-select")?.focus();
+  });
+  popup.querySelector(".student-attendance-popup-select")?.addEventListener("change", (event) => {
+    const otherInput = popup.querySelector(".student-attendance-popup-other");
+    otherInput?.classList.toggle("hidden", event.target.value !== "other");
+    if (event.target.value === "other") {
+      otherInput?.focus();
+    }
+  });
+  popup.querySelector(".student-attendance-popup-submit")?.addEventListener("click", () => {
+    const reasonSelect = popup.querySelector(".student-attendance-popup-select");
+    const otherInput = popup.querySelector(".student-attendance-popup-other");
+    const selectedReason = reasonSelect?.value || "";
+    const reason = selectedReason === "other" ? otherInput?.value.trim() || "" : selectedReason;
+
+    if (!reason) {
+      alert(selectedReason === "other" ? "Write your reason" : "Select one reason");
+      return;
+    }
+
+    closePopup();
+    void studentAttendance(attendancePrompt.scheduleId, attendancePrompt.studentId, "not-coming", "student", reason, {
+      openWhatsApp: selectedReason === "other"
+    });
+  });
+  document.body.appendChild(popup);
 }
 
 function toggleStudentRating(button) {
