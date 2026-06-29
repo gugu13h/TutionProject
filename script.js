@@ -2999,7 +2999,7 @@ function showStudentAttendancePopup(attendancePrompt) {
       </div>
       <div class="student-attendance-popup-actions">
         <button type="button" class="student-attendance-popup-action student-attendance-present">I will come</button>
-        <button type="button" class="student-attendance-popup-action student-attendance-absent">I will not come today</button>
+        <button type="button" class="student-attendance-popup-action student-attendance-absent">Not come</button>
       </div>
       <div class="student-attendance-popup-reason hidden">
         <select class="student-attendance-popup-select" aria-label="Select absence reason">
