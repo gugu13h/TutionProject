@@ -126,7 +126,7 @@ const STUDENT_SCHEDULE_UPDATE_PREFIX = "tuitionStudentScheduleUpdateSeen";
 const TEACHER_SEEN_MESSAGE_KEYS_STORAGE_KEY = "teacherSeenScheduleSuggestionKeys";
 const SCHEDULE_CLEANUP_INTERVAL_MS = 60 * 1000;
 const ATTENDANCE_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
-const CLASS_TIMER_DURATION_MS = 75 * 60 * 1000;
+const CLASS_TIMER_DURATION_MS = 90 * 60 * 1000;
 const CLASS_REMINDER_BEFORE_MS = 30 * 60 * 1000;
 const STUDENT_NOTIFICATION_CHECK_INTERVAL_MS = 30 * 1000;
 const STUDENT_ATTENDANCE_POPUP_DELAY_MS = 3000;
@@ -2726,6 +2726,7 @@ async function cleanupOldAttendanceHistory() {
 async function loadStudentData(options = {}) {
   const uiPositionState = captureUiPositionState();
   const { openModalAfterLoad, showFeeReminder, persistSession = true } = normalizeLoadStudentDataOptions(options);
+  await applyAutomaticFeePendingUpdates();
   const requestedId = loginStudentId.value.trim();
   const studentRecordForLogin = students.find((student) => isSameStudentId(student.id, requestedId));
   const id = studentRecordForLogin?.id || requestedId;
@@ -4049,6 +4050,7 @@ async function refreshFirestoreData() {
 
   await cleanupOldAttendanceHistory();
   await applyRequestedFeeCycleFixes();
+  await applyAutomaticFeePendingUpdates();
   await Promise.all(students.map((student) => loadAttendanceHistoryForStudent(student.id)));
   await removeExpiredSchedules({ refreshViews: false });
   await cleanupExpiredScheduleSuggestions({ refreshViews: false });
@@ -4092,6 +4094,71 @@ async function applyRequestedFeeCycleFixes() {
       console.error(`Unable to update fee cycle for student ID ${student.id}:`, error);
     }
   }
+}
+
+async function applyAutomaticFeePendingUpdates(referenceDate = new Date()) {
+  if (!isFirebaseReady() || students.length === 0) {
+    return 0;
+  }
+
+  let updatedCount = 0;
+
+  for (let index = 0; index < students.length; index += 1) {
+    const student = students[index];
+    const updatedStudent = getStudentWithAutomaticFeePending(student, referenceDate);
+
+    if (updatedStudent === student) {
+      continue;
+    }
+
+    students[index] = updatedStudent;
+    updatedCount += 1;
+
+    if (!student.firestoreId) {
+      continue;
+    }
+
+    try {
+      await updateStudentRecord(student.firestoreId, buildStudentRecordPayload(updatedStudent));
+      await syncStudentInSchedules(student.id, updatedStudent);
+    } catch (error) {
+      console.error(`Unable to auto-update fee status for student ID ${student.id}:`, error);
+    }
+  }
+
+  return updatedCount;
+}
+
+function getStudentWithAutomaticFeePending(student, referenceDate = new Date()) {
+  if (!student || !hasFeeCycleCrossed(referenceDate, student)) {
+    return student;
+  }
+
+  const dueMonthKey = getFeeDueMonthKey(referenceDate, student);
+  const feeHistory = student.feeHistory || {};
+  const dueMonthRecord = feeHistory[dueMonthKey];
+
+  if (dueMonthRecord?.status === "paid") {
+    return student;
+  }
+
+  if (student.feePending && dueMonthRecord?.status === "pending") {
+    return student;
+  }
+
+  const pendingDate = formatDateInputValue(referenceDate);
+  return {
+    ...student,
+    feePending: true,
+    feeHistory: {
+      ...feeHistory,
+      [dueMonthKey]: {
+        ...dueMonthRecord,
+        status: "pending",
+        pendingDate: dueMonthRecord?.pendingDate || pendingDate
+      }
+    }
+  };
 }
 
 async function seedInitialStudents() {
@@ -5096,7 +5163,7 @@ function getInitialFeeHistory(feePendingValue) {
 }
 
 function getUpdatedFeeHistory(currentStudent, nextFeePending, date = new Date()) {
-  const monthKey = getPreviousFeeMonthKey(date);
+  const monthKey = getFeeDueMonthKey(date, currentStudent);
   const dateValue = formatDateInputValue(date);
   const existingHistory = currentStudent?.feeHistory || {};
   const existingMonthRecord = existingHistory[monthKey] || {};
@@ -5127,7 +5194,7 @@ function getUpdatedFeeHistory(currentStudent, nextFeePending, date = new Date())
 
 function getFeeMonthCalendarHtml(student, referenceDate = new Date(), options = {}) {
   const year = referenceDate.getFullYear();
-  const dueMonthKey = getPreviousFeeMonthKey(referenceDate);
+  const dueMonthKey = getFeeDueMonthKey(referenceDate, student);
   const currentMonthKey = getFeeMonthKey(referenceDate);
   const months = Array.from({ length: 12 }, (_, monthIndex) => {
     const monthDate = new Date(year, monthIndex, 1);
@@ -5135,7 +5202,7 @@ function getFeeMonthCalendarHtml(student, referenceDate = new Date(), options = 
     const monthLabel = monthDate.toLocaleString("en-US", { month: "short" });
     const feeRecord = getFeeMonthRecord(student, monthKey, dueMonthKey, currentMonthKey);
     const title = getFeeMonthTitle(feeRecord);
-    const controls = options.editable && monthKey !== currentMonthKey
+    const controls = options.editable && (monthKey !== currentMonthKey || monthKey === dueMonthKey)
       ? `
         <span class="fee-month-actions">
           <button type="button" class="fee-month-action is-paid" onclick="setStudentFeeMonthStatus(${options.studentIndex}, '${monthKey}', 'paid')" title="Set paid">G</button>
@@ -5201,7 +5268,7 @@ async function setStudentFeeMonthStatus(studentIndex, monthKey, status) {
     };
   }
 
-  const dueMonthKey = getPreviousFeeMonthKey(new Date());
+  const dueMonthKey = getFeeDueMonthKey(new Date(), currentStudent);
   const updatedStudent = {
     ...currentStudent,
     feePending: monthKey === dueMonthKey ? status === "pending" : currentStudent.feePending,
@@ -5227,7 +5294,7 @@ async function setStudentFeeMonthStatus(studentIndex, monthKey, status) {
 }
 
 function getFeeMonthRecord(student, monthKey, dueMonthKey, currentMonthKey) {
-  if (monthKey === currentMonthKey) {
+  if (monthKey === currentMonthKey && monthKey !== dueMonthKey) {
     return { status: "none" };
   }
 
@@ -5271,12 +5338,16 @@ function getPreviousFeeMonthKey(date) {
   return getFeeMonthKey(new Date(date.getFullYear(), date.getMonth() - 1, 1));
 }
 
+function getFeeDueMonthKey(date, student) {
+  return hasFeeCycleCrossed(date, student) ? getFeeMonthKey(date) : getPreviousFeeMonthKey(date);
+}
+
 function getFeeStatusText(student) {
   if (!student.feePending) {
     return "Clear";
   }
 
-  return `Pending - ${getPreviousFeeMonthLabel(new Date())}`;
+  return `Pending - ${getFeeDueMonthLabel(new Date(), student)}`;
 }
 
 function formatFeeStatusHtml(student) {
@@ -5289,7 +5360,9 @@ function formatFeeStatusHtml(student) {
 }
 
 function hasFeeCycleCrossed(date, student) {
-  return date.getDate() > getFeeCycleDay(student.feeCycleEndDay, DEFAULT_FEE_CYCLE_END_DAY);
+  const cycleEndDay = getFeeCycleDay(student.feeCycleEndDay, DEFAULT_FEE_CYCLE_END_DAY);
+  const lastDayOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  return date.getDate() > Math.min(cycleEndDay, lastDayOfMonth);
 }
 
 function getPendingMonthLabel(date) {
@@ -5301,4 +5374,8 @@ function getPendingMonthLabel(date) {
 
 function getPreviousFeeMonthLabel(date) {
   return getPendingMonthLabel(new Date(date.getFullYear(), date.getMonth() - 1, 1));
+}
+
+function getFeeDueMonthLabel(date, student) {
+  return hasFeeCycleCrossed(date, student) ? getPendingMonthLabel(date) : getPreviousFeeMonthLabel(date);
 }
