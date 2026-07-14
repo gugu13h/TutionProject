@@ -248,7 +248,6 @@ const INITIAL_STUDENTS = [
   { id: "101", name: "Anushak Kumari", classLevel: DEFAULT_STUDENT_CLASS, feePending: false, feeAmount: 0, feeHistory: {}, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY, subjectRatings: { maths: 0, science: 0 } },
   { id: "102", name: "Abhishek Francis", classLevel: DEFAULT_STUDENT_CLASS, feePending: false, feeAmount: 0, feeHistory: {}, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY, subjectRatings: { maths: 0, science: 0 } },
   { id: "81", name: "Saket Kumar", classLevel: DEFAULT_STUDENT_CLASS, feePending: false, feeAmount: 0, feeHistory: {}, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY, subjectRatings: { maths: 0, science: 0 } },
-  { id: "82", name: "Ashwin Kumar", classLevel: DEFAULT_STUDENT_CLASS, feePending: false, feeAmount: 0, feeHistory: {}, photoUrl: "", feeCycleStartDay: DEFAULT_FEE_CYCLE_START_DAY, feeCycleEndDay: DEFAULT_FEE_CYCLE_END_DAY, subjectRatings: { maths: 0, science: 0 } },
   { id: "7", name: "Arpit Kumar", classLevel: DEFAULT_STUDENT_CLASS, feePending: false, feeAmount: 0, feeHistory: {}, photoUrl: "", feeCycleStartDay: 15, feeCycleEndDay: 16, subjectRatings: { maths: 0, science: 0 } }
 ];
 
