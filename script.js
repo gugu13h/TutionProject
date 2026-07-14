@@ -691,7 +691,9 @@ async function addStudent() {
 function showStudents() {
   const uiPositionState = captureUiPositionState();
   studentList.innerHTML = "";
-  students.forEach((student, index) => {
+  const visibleStudents = students.filter((student) => !isSameStudentId(student.id, "82"));
+
+  visibleStudents.forEach((student, index) => {
     const ratings = student.subjectRatings || { maths: 0, science: 0 };
     const overallRating = Math.round((ratings.maths + ratings.science) / 2 * 10) / 10;
     const overallText = overallRating === 0 ? "Not Rated" : `${overallRating} / 10`;
