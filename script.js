@@ -693,11 +693,12 @@ function showStudents() {
   studentList.innerHTML = "";
   const visibleStudents = students.filter((student) => !isSameStudentId(student.id, "82"));
 
-  visibleStudents.forEach((student, index) => {
+  visibleStudents.forEach((student, visibleIndex) => {
+    const studentIndex = students.indexOf(student);
     const ratings = student.subjectRatings || { maths: 0, science: 0 };
     const overallRating = Math.round((ratings.maths + ratings.science) / 2 * 10) / 10;
     const overallText = overallRating === 0 ? "Not Rated" : `${overallRating} / 10`;
-    const studentDetailsId = `teacherStudentDetails_${index}`;
+    const studentDetailsId = `teacherStudentDetails_${visibleIndex}`;
     const studentKey = normalizeStudentId(student.id);
     
     studentList.innerHTML += `
@@ -708,7 +709,7 @@ function showStudents() {
             type="button"
             aria-expanded="false"
             aria-controls="${studentDetailsId}"
-            onclick="toggleTeacherStudentDetails(${index})"
+            onclick="toggleTeacherStudentDetails(${visibleIndex})"
           >
             ${escapeHtml(student.name)}
           </button>
@@ -726,13 +727,13 @@ function showStudents() {
             <button class="secondary-btn compact-btn student-more-btn" onclick="toggleStudentMore(this)">Show More</button>
             <div class="student-more-details hidden">
               ${getAttendanceCalendarHtml(student.id, new Date(), { editable: true })}
-              ${getFeeMonthCalendarHtml(student, new Date(), { editable: true, studentIndex: index })}
+              ${getFeeMonthCalendarHtml(student, new Date(), { editable: true, studentIndex: studentIndex })}
             </div>
           </div>
           <div class="box-actions">
-            <button class="ghost-btn" onclick="editStudent(${index})">Edit</button>
-            <button class="ghost-btn" onclick="setStudentRating(${index})">Rating</button>
-            <button class="delete" onclick="deleteStudent(${index})">Remove</button>
+            <button class="ghost-btn" onclick="editStudent(${studentIndex})">Edit</button>
+            <button class="ghost-btn" onclick="setStudentRating(${studentIndex})">Rating</button>
+            <button class="delete" onclick="deleteStudent(${studentIndex})">Remove</button>
           </div>
         </div>
       </div>
