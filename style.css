@@ -556,6 +556,150 @@ body.theme-night .language-toggle-btn {
   overflow-wrap: anywhere;
 }
 
+.online-test-btn {
+  position: fixed;
+  top: 18px;
+  right: 354px;
+  z-index: 20;
+  min-height: 48px;
+  padding: 0 17px;
+  border-radius: 999px;
+  background: #0f766e;
+  color: #fff;
+  border: 1px solid rgba(13, 148, 136, 0.6);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.14);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1.1;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+}
+
+.online-test-btn:hover {
+  background: #115e59;
+  box-shadow: 0 16px 28px rgba(15, 23, 42, 0.2);
+  transform: translateY(-1px);
+}
+
+/* Ganesh Puja celebration theme: shown on the home page and Student Login page. */
+.ganesh-puja-banner {
+  grid-column: 1 / -1;
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  min-height: 90px;
+  padding: 14px 28px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 244, 211, 0.82);
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 12% 25%, rgba(255, 222, 133, 0.42), transparent 18%),
+    radial-gradient(circle at 88% 72%, rgba(239, 112, 70, 0.25), transparent 22%),
+    linear-gradient(110deg, #8b2d17 0%, #c75222 48%, #f08a24 100%);
+  box-shadow: 0 18px 34px rgba(131, 48, 19, 0.26);
+  color: #fff9e9;
+  text-align: center;
+}
+
+.ganesh-puja-banner::before,
+.ganesh-puja-banner::after {
+  content: "✦";
+  position: absolute;
+  color: rgba(255, 246, 205, 0.72);
+  font-size: 1.35rem;
+  animation: ganeshSparkle 2.8s ease-in-out infinite;
+}
+
+.ganesh-puja-banner::before { left: 8%; top: 14px; }
+.ganesh-puja-banner::after { right: 8%; bottom: 12px; animation-delay: 1.2s; }
+
+.ganesh-puja-banner > div { position: relative; z-index: 1; }
+
+.ganesh-puja-kicker {
+  display: block;
+  margin-bottom: 1px;
+  color: #ffe6a1;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.ganesh-puja-banner strong {
+  display: block;
+  font-family: Georgia, serif;
+  color: #fff8df;
+  font-size: 1.22rem;
+  letter-spacing: 0.04em;
+}
+
+.ganesh-puja-banner p {
+  margin: 2px 0 0;
+  color: rgba(255, 249, 233, 0.92);
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.ganesh-puja-icon {
+  position: relative;
+  z-index: 1;
+  font-size: 2rem;
+  filter: drop-shadow(0 4px 4px rgba(83, 30, 11, 0.28));
+  animation: ganeshGlow 2.6s ease-in-out infinite;
+}
+
+#loginPage .student-auth-card {
+  background:
+    radial-gradient(circle at 88% 15%, rgba(255, 220, 126, 0.34), transparent 25%),
+    radial-gradient(circle at 12% 88%, rgba(239, 113, 51, 0.32), transparent 34%),
+    linear-gradient(145deg, #752713 0%, #bb421c 52%, #e87b20 100%);
+  box-shadow: 0 30px 50px rgba(143, 52, 16, 0.3);
+}
+
+#studentPage .dashboard-header {
+  background: linear-gradient(115deg, #8b2d17 0%, #c85220 50%, #ee8c25 100%);
+}
+
+#studentPage .panel-card {
+  border-color: rgba(219, 107, 35, 0.2);
+}
+
+#studentPage .panel-card:nth-child(2),
+#studentPage .wide-card {
+  background: linear-gradient(180deg, rgba(255, 251, 242, 0.93) 0%, rgba(255, 239, 207, 0.82) 100%);
+}
+
+body.theme-night #loginPage .student-auth-card {
+  background:
+    radial-gradient(circle at 88% 15%, rgba(255, 183, 77, 0.18), transparent 26%),
+    linear-gradient(145deg, #38150e 0%, #682615 55%, #8a421c 100%);
+}
+
+body.theme-night #studentPage .dashboard-header {
+  background: linear-gradient(115deg, #481b10 0%, #7c3018 55%, #9c4c1d 100%);
+}
+
+body.theme-night #studentPage .panel-card:nth-child(2),
+body.theme-night #studentPage .wide-card {
+  background: linear-gradient(180deg, rgba(58, 26, 18, 0.94) 0%, rgba(71, 35, 23, 0.9) 100%);
+}
+
+@keyframes ganeshGlow {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-3px) scale(1.06); }
+}
+
+@keyframes ganeshSparkle {
+  0%, 100% { opacity: 0.32; transform: scale(0.75) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1.15) rotate(25deg); }
+}
+
 body.theme-night .about-teacher-btn {
   background: rgba(15, 23, 42, 0.9);
   color: #edf2ff;
@@ -4154,6 +4298,14 @@ body.theme-night .status-due-soon {
     flex-basis: 32px;
   }
 
+  .online-test-btn {
+    top: 60px;
+    right: 110px;
+    min-height: 42px;
+    padding: 0 14px;
+    font-size: 0.72rem;
+  }
+
   .app-shell {
     width: min(100% - 20px, 100%);
     padding: 20px 0 28px;
@@ -4452,5 +4604,178 @@ body.theme-night .status-due-soon {
 
   body.theme-color-pop::after {
     animation: none;
+  }
+}
+
+/* Keep the festive palette above the weather-based card colour overrides. */
+#studentPage .dashboard-header {
+  background: linear-gradient(115deg, #8b2d17 0%, #c85220 50%, #ee8c25 100%);
+}
+
+#studentPage .panel-card {
+  border-color: rgba(219, 107, 35, 0.2);
+}
+
+#studentPage .panel-card:nth-child(2),
+#studentPage .wide-card {
+  background: linear-gradient(180deg, rgba(255, 251, 242, 0.93) 0%, rgba(255, 239, 207, 0.82) 100%);
+}
+
+body.theme-night #studentPage .dashboard-header {
+  background: linear-gradient(115deg, #481b10 0%, #7c3018 55%, #9c4c1d 100%);
+}
+
+body.theme-night #studentPage .panel-card:nth-child(2),
+body.theme-night #studentPage .wide-card {
+  background: linear-gradient(180deg, rgba(58, 26, 18, 0.94) 0%, rgba(71, 35, 23, 0.9) 100%);
+}
+
+@media (max-width: 640px) {
+  .ganesh-puja-banner {
+    gap: 9px;
+    min-height: 78px;
+    padding: 10px 14px;
+  }
+
+  .ganesh-puja-banner strong { font-size: 1rem; }
+  .ganesh-puja-banner p { font-size: 0.66rem; }
+  .ganesh-puja-icon { font-size: 1.5rem; }
+}
+
+/* Site-wide Ganesh Puja palette: front page, Teacher area and Student area. */
+body,
+body.weather-ready {
+  --primary: #b9471d;
+  --primary-dark: #842d16;
+  --accent: #d97706;
+  --bg-main: #fff4df;
+  --bg-soft: #ffead0;
+  --line: rgba(188, 74, 25, 0.22);
+  background:
+    radial-gradient(circle at 8% 10%, rgba(255, 208, 92, 0.56), transparent 27%),
+    radial-gradient(circle at 92% 15%, rgba(235, 111, 38, 0.3), transparent 28%),
+    radial-gradient(circle at 72% 90%, rgba(255, 177, 66, 0.32), transparent 32%),
+    linear-gradient(135deg, #fff7e8 0%, #ffecd1 48%, #ffdcae 100%);
+}
+
+.background-slideshow { background: #f8c06b; }
+.bg-slide { opacity: 0 !important; animation: none; }
+.background-overlay,
+body.weather-ready .background-overlay {
+  background:
+    radial-gradient(circle at 18% 18%, rgba(255, 235, 168, 0.58), transparent 25%),
+    radial-gradient(circle at 82% 82%, rgba(217, 85, 24, 0.18), transparent 28%),
+    linear-gradient(135deg, rgba(255, 247, 232, 0.92) 0%, rgba(255, 225, 183, 0.9) 100%);
+}
+
+#loginPage .login-layout,
+body.theme-night #loginPage .login-layout {
+  background: linear-gradient(140deg, rgba(255, 247, 232, 0.65) 0%, rgba(255, 204, 137, 0.42) 100%);
+  border-color: rgba(171, 61, 20, 0.22);
+  box-shadow: 0 28px 48px rgba(132, 45, 16, 0.2);
+}
+
+#loginPage .teacher-auth-card {
+  background: linear-gradient(155deg, rgba(255, 249, 237, 0.94) 0%, rgba(255, 223, 184, 0.88) 100%);
+}
+
+#teacherPage,
+#studentPage {
+  --bg-card: rgba(255, 250, 240, 0.9);
+  --bg-soft: rgba(255, 231, 199, 0.86);
+  --shadow: 0 18px 38px rgba(143, 52, 16, 0.16);
+  background:
+    radial-gradient(circle at 8% 8%, rgba(255, 211, 104, 0.42), transparent 27%),
+    radial-gradient(circle at 92% 12%, rgba(232, 104, 30, 0.24), transparent 30%),
+    linear-gradient(145deg, rgba(255, 245, 226, 0.96) 0%, rgba(255, 217, 166, 0.88) 100%);
+}
+
+.dashboard-page .dashboard-header,
+#teacherPage .dashboard-header,
+#studentPage .dashboard-header {
+  background: linear-gradient(115deg, #8b2d17 0%, #c85220 50%, #ee8c25 100%);
+  color: #fff8e7;
+}
+
+.dashboard-page .panel-card,
+#teacherPage .panel-card,
+#studentPage .panel-card,
+#studentPage .panel-card:nth-child(2),
+#studentPage .wide-card {
+  background: linear-gradient(180deg, rgba(255, 252, 245, 0.96) 0%, rgba(255, 232, 200, 0.86) 100%);
+  border-color: rgba(193, 75, 24, 0.2);
+}
+
+body.theme-night,
+body.theme-night.weather-ready {
+  background:
+    radial-gradient(circle at 8% 10%, rgba(208, 107, 30, 0.22), transparent 28%),
+    radial-gradient(circle at 90% 84%, rgba(255, 179, 63, 0.13), transparent 30%),
+    linear-gradient(135deg, #26120d 0%, #422016 50%, #5c2b16 100%);
+}
+
+body.theme-night .background-overlay,
+body.theme-night.weather-ready .background-overlay {
+  background: linear-gradient(135deg, rgba(38, 18, 13, 0.94) 0%, rgba(77, 34, 19, 0.92) 100%);
+}
+
+body.theme-night #teacherPage,
+body.theme-night #studentPage {
+  --bg-card: rgba(67, 30, 20, 0.92);
+  --bg-soft: rgba(86, 40, 22, 0.9);
+  background: linear-gradient(145deg, rgba(52, 24, 17, 0.96) 0%, rgba(98, 45, 22, 0.88) 100%);
+  border-color: rgba(255, 194, 121, 0.2);
+}
+
+body.theme-night .dashboard-page .panel-card,
+body.theme-night #teacherPage .panel-card,
+body.theme-night #studentPage .panel-card,
+body.theme-night #studentPage .panel-card:nth-child(2),
+body.theme-night #studentPage .wide-card {
+  background: linear-gradient(180deg, rgba(61, 28, 19, 0.96) 0%, rgba(84, 39, 22, 0.9) 100%);
+  border-color: rgba(255, 184, 105, 0.18);
+}
+
+/* Ganesh image for the "See your upcoming classes" Student Access card. */
+#loginPage .student-auth-card,
+body.weather-ready #loginPage .student-auth-card,
+body.theme-night #loginPage .student-auth-card {
+  background-image:
+    linear-gradient(110deg, rgba(34, 22, 12, 0.88) 0%, rgba(79, 39, 16, 0.64) 51%, rgba(100, 47, 15, 0.22) 100%),
+    url('assets/ganesh-student-login.jpeg');
+  background-position: center, center 56%;
+  background-size: cover, cover;
+  background-repeat: no-repeat;
+  box-shadow: 0 30px 50px rgba(91, 36, 14, 0.36);
+}
+
+/* Main background behind the Sun/Moon theme button. */
+.background-slideshow {
+  background-color: #ff9b05;
+  background-image: url('assets/ganesh-site-background.jpeg');
+  background-position: right center;
+  background-size: contain;
+  background-repeat: no-repeat;
+}
+
+.background-slideshow .sky-effects {
+  display: none;
+}
+
+.background-overlay,
+body.weather-ready .background-overlay {
+  background:
+    linear-gradient(90deg, rgba(255, 245, 220, 0.56) 0%, rgba(255, 223, 170, 0.35) 48%, rgba(255, 191, 92, 0.13) 100%);
+}
+
+body.theme-night .background-overlay,
+body.theme-night.weather-ready .background-overlay {
+  background: linear-gradient(90deg, rgba(43, 18, 10, 0.72) 0%, rgba(83, 34, 15, 0.55) 48%, rgba(90, 38, 14, 0.28) 100%);
+}
+
+@media (max-width: 640px) {
+  .background-slideshow {
+    background-position: center;
+    background-size: cover;
   }
 }
