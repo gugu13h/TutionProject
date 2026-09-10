@@ -558,8 +558,8 @@ body.theme-night .language-toggle-btn {
 
 .online-test-btn {
   position: fixed;
-  top: 18px;
-  right: 354px;
+  top: 76px;
+  right: 18px;
   z-index: 20;
   min-height: 48px;
   padding: 0 17px;
@@ -4300,7 +4300,7 @@ body.theme-night .status-due-soon {
 
   .online-test-btn {
     top: 60px;
-    right: 110px;
+    right: 10px;
     min-height: 42px;
     padding: 0 14px;
     font-size: 0.72rem;
