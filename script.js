@@ -107,6 +107,11 @@ const ratingModal = document.getElementById("ratingModal");
 const ratingModalTitle = document.getElementById("ratingModalTitle");
 const currentRatingDisplay = document.getElementById("currentRatingDisplay");
 const themeToggleBtn = document.getElementById("themeToggleBtn");
+const sideMenuToggle = document.getElementById("sideMenuToggle");
+const sideMenu = document.getElementById("sideMenu");
+const sideMenuClose = document.getElementById("sideMenuClose");
+const sideMenuBackdrop = document.getElementById("sideMenuBackdrop");
+const drawerThemeBtn = document.getElementById("drawerThemeBtn");
 
 const FIREBASE_WARNING = "Firebase config missing. Open firebase-api.js and paste your Firebase web app config.";
 const DEFAULT_TEACHER_PHOTO = "https://placehold.co/300x300/f2efe6/8b5e34?text=Teacher";
@@ -298,6 +303,7 @@ window.toggleAttendanceMonth = toggleAttendanceMonth;
 window.setAttendanceFromCalendar = setAttendanceFromCalendar;
 
 initializeThemeMode();
+initializeSideMenu();
 initializeClickAnimations();
 initializeScheduleDefaults();
 initializeStudentModal();
@@ -351,6 +357,35 @@ function initializeThemeMode() {
   }
 }
 
+function initializeSideMenu() {
+  sideMenuToggle?.addEventListener("click", () => setSideMenuOpen(true));
+  sideMenuClose?.addEventListener("click", () => setSideMenuOpen(false));
+  sideMenuBackdrop?.addEventListener("click", () => setSideMenuOpen(false));
+  drawerThemeBtn?.addEventListener("click", (event) => {
+    toggleThemeMode(event);
+    setSideMenuOpen(false);
+  });
+  sideMenu?.querySelectorAll("a").forEach((link) => link.addEventListener("click", () => setSideMenuOpen(false)));
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      setSideMenuOpen(false);
+    }
+  });
+}
+
+function setSideMenuOpen(isOpen) {
+  if (!sideMenu || !sideMenuToggle || !sideMenuBackdrop) {
+    return;
+  }
+
+  sideMenu.classList.toggle("is-open", isOpen);
+  sideMenuBackdrop.classList.toggle("is-open", isOpen);
+  sideMenu.setAttribute("aria-hidden", String(!isOpen));
+  sideMenuToggle.setAttribute("aria-expanded", String(isOpen));
+  sideMenuToggle.setAttribute("aria-label", isOpen ? "Close menu" : "Open menu");
+}
+
 function toggleThemeMode(event) {
   const nextMode = document.body.classList.contains("theme-night") ? "day" : "night";
   playThemeColorBurst(event);
@@ -364,6 +399,10 @@ function applyThemeMode(mode) {
 
   if (themeToggleBtn) {
     themeToggleBtn.setAttribute("aria-label", isNight ? "Switch to day mode" : "Switch to night mode");
+  }
+
+  if (drawerThemeBtn) {
+    drawerThemeBtn.textContent = isNight ? "Switch to Day Mode" : "Switch to Night Mode";
   }
 }
 
