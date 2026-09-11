@@ -3540,14 +3540,9 @@ body.theme-night .student-attendance-popup-card {
   line-height: 1.7;
 }
 
-.fee-reminder-qr {
+.fee-reminder-pay-btn {
   width: min(100%, 280px);
   margin: 0 auto;
-  display: block;
-  border-radius: 22px;
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  box-shadow: 0 18px 30px rgba(15, 23, 42, 0.18);
-  background: #101010;
 }
 
 .rating-container {

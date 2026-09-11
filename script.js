@@ -64,6 +64,7 @@ const studentRecordModal = document.getElementById("studentRecordModal");
 const studentModalBody = document.getElementById("studentModalBody");
 const feeReminderModal = document.getElementById("feeReminderModal");
 const feeReminderText = document.getElementById("feeReminderText");
+const feeReminderPayOnlineBtn = document.getElementById("feeReminderPayOnlineBtn");
 const teacherLoginPhoto = document.getElementById("teacherLoginPhoto");
 const teacherLoginBackgroundPhoto = document.getElementById("teacherLoginBackgroundPhoto");
 const teacherDashboardPhoto = document.getElementById("teacherDashboardPhoto");
@@ -458,20 +459,25 @@ function findFeePaymentStudent() {
 
 function redirectToOnlinePayment() {
   const studentId = feePaymentModal?.dataset.studentId;
+
+  if (!redirectStudentFeeToOnlinePayment(studentId)) {
+    feePaymentStatus.textContent = "Please find a student with a valid fee amount first.";
+    feePaymentDetails.hidden = true;
+  }
+}
+
+function redirectStudentFeeToOnlinePayment(studentId) {
   const student = students.find((record) => isSameStudentId(record.id, studentId));
   const amount = normalizeFeeAmount(student?.feeAmount);
 
-  if (!student || amount <= 0) {
-    feePaymentStatus.textContent = "Please find a student with a valid fee amount first.";
-    feePaymentDetails.hidden = true;
-    return;
-  }
+  if (!student || amount <= 0) return false;
 
   const paymentUrl = new URL("https://online-payment-ten.vercel.app/");
   paymentUrl.searchParams.set("amount", String(amount));
   paymentUrl.searchParams.set("studentId", student.id);
   paymentUrl.searchParams.set("studentName", student.name);
   window.location.assign(paymentUrl.toString());
+  return true;
 }
 
 function setSideMenuOpen(isOpen) {
@@ -4564,6 +4570,12 @@ function initializeFeeReminderModal() {
     return;
   }
 
+  feeReminderPayOnlineBtn?.addEventListener("click", () => {
+    if (!redirectStudentFeeToOnlinePayment(feeReminderModal.dataset.studentId)) {
+      feeReminderText.textContent = "Your fee amount is not set yet. Please contact the teacher.";
+    }
+  });
+
   feeReminderModal.addEventListener("click", (event) => {
     if (event.target === feeReminderModal) {
       closeFeeReminderModal();
@@ -4679,7 +4691,7 @@ function showFeeReminderIfNeeded(student) {
   const feeStatus = getFeeStatusText(student);
   const feeAmount = formatFeeAmount(student);
   const amountText = feeAmount === "Not set" ? "" : ` Amount: ${feeAmount}.`;
-  feeReminderText.textContent = `${student.name}, your fee is pending (${feeStatus}).${amountText} Scan the PhonePe QR below and complete the payment.`;
+  feeReminderText.textContent = `${student.name}, your fee is pending (${feeStatus}).${amountText} Use Pay Online to complete the payment.`;
   feeReminderModal.dataset.studentId = student.id || "";
   feeReminderModal.classList.add("active");
   feeReminderModal.setAttribute("aria-hidden", "false");
