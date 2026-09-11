@@ -112,6 +112,16 @@ const sideMenu = document.getElementById("sideMenu");
 const sideMenuClose = document.getElementById("sideMenuClose");
 const sideMenuBackdrop = document.getElementById("sideMenuBackdrop");
 const drawerThemeBtn = document.getElementById("drawerThemeBtn");
+const feePaymentMenuBtn = document.getElementById("feePaymentMenuBtn");
+const feePaymentModal = document.getElementById("feePaymentModal");
+const feePaymentCloseBtn = document.getElementById("feePaymentCloseBtn");
+const feePaymentStudentId = document.getElementById("feePaymentStudentId");
+const feePaymentFindBtn = document.getElementById("feePaymentFindBtn");
+const feePaymentStatus = document.getElementById("feePaymentStatus");
+const feePaymentDetails = document.getElementById("feePaymentDetails");
+const feePaymentStudentName = document.getElementById("feePaymentStudentName");
+const feePaymentAmount = document.getElementById("feePaymentAmount");
+const payOnlineBtn = document.getElementById("payOnlineBtn");
 
 const FIREBASE_WARNING = "Firebase config missing. Open firebase-api.js and paste your Firebase web app config.";
 const DEFAULT_TEACHER_PHOTO = "https://placehold.co/300x300/f2efe6/8b5e34?text=Teacher";
@@ -304,6 +314,7 @@ window.setAttendanceFromCalendar = setAttendanceFromCalendar;
 
 initializeThemeMode();
 initializeSideMenu();
+initializeFeePayment();
 initializeClickAnimations();
 initializeScheduleDefaults();
 initializeStudentModal();
@@ -370,8 +381,97 @@ function initializeSideMenu() {
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       setSideMenuOpen(false);
+      closeFeePaymentModal();
     }
   });
+}
+
+function initializeFeePayment() {
+  feePaymentMenuBtn?.addEventListener("click", openFeePaymentModal);
+  feePaymentCloseBtn?.addEventListener("click", closeFeePaymentModal);
+  feePaymentFindBtn?.addEventListener("click", findFeePaymentStudent);
+  payOnlineBtn?.addEventListener("click", redirectToOnlinePayment);
+
+  feePaymentStudentId?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      findFeePaymentStudent();
+    }
+  });
+
+  feePaymentModal?.addEventListener("click", (event) => {
+    if (event.target === feePaymentModal) {
+      closeFeePaymentModal();
+    }
+  });
+}
+
+function openFeePaymentModal() {
+  setSideMenuOpen(false);
+  if (!feePaymentModal) return;
+
+  feePaymentStudentId.value = "";
+  feePaymentStatus.textContent = "Enter your student ID to view the payable fee.";
+  feePaymentDetails.hidden = true;
+  delete feePaymentModal.dataset.studentId;
+  feePaymentModal.classList.add("active");
+  feePaymentModal.setAttribute("aria-hidden", "false");
+  setTimeout(() => feePaymentStudentId?.focus(), 0);
+}
+
+function closeFeePaymentModal() {
+  if (!feePaymentModal) return;
+  feePaymentModal.classList.remove("active");
+  feePaymentModal.setAttribute("aria-hidden", "true");
+}
+
+function findFeePaymentStudent() {
+  const requestedId = feePaymentStudentId?.value.trim();
+  const student = students.find((record) => isSameStudentId(record.id, requestedId));
+
+  feePaymentDetails.hidden = true;
+  delete feePaymentModal.dataset.studentId;
+
+  if (!requestedId) {
+    feePaymentStatus.textContent = "Please enter a student ID.";
+    feePaymentStudentId?.focus();
+    return;
+  }
+
+  if (!student) {
+    feePaymentStatus.textContent = "No student was found with this ID.";
+    return;
+  }
+
+  const amount = normalizeFeeAmount(student.feeAmount);
+  if (amount <= 0) {
+    feePaymentStatus.textContent = `${student.name}'s fee amount has not been set yet.`;
+    return;
+  }
+
+  feePaymentStudentName.textContent = student.name;
+  feePaymentAmount.textContent = formatFeeAmount(student);
+  feePaymentStatus.textContent = "Student found. Confirm the amount and continue to pay online.";
+  feePaymentModal.dataset.studentId = student.id;
+  feePaymentDetails.hidden = false;
+}
+
+function redirectToOnlinePayment() {
+  const studentId = feePaymentModal?.dataset.studentId;
+  const student = students.find((record) => isSameStudentId(record.id, studentId));
+  const amount = normalizeFeeAmount(student?.feeAmount);
+
+  if (!student || amount <= 0) {
+    feePaymentStatus.textContent = "Please find a student with a valid fee amount first.";
+    feePaymentDetails.hidden = true;
+    return;
+  }
+
+  const paymentUrl = new URL("https://online-payment-ten.vercel.app/");
+  paymentUrl.searchParams.set("amount", String(amount));
+  paymentUrl.searchParams.set("studentId", student.id);
+  paymentUrl.searchParams.set("studentName", student.name);
+  window.location.assign(paymentUrl.toString());
 }
 
 function setSideMenuOpen(isOpen) {

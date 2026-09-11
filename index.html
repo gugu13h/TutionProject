@@ -46,6 +46,7 @@
     </div>
     <nav class="side-menu-links">
       <a href="https://gp-online-exam-portal-pi.vercel.app/">Online Test</a>
+      <button id="feePaymentMenuBtn" type="button">Fee Payment</button>
       <button id="drawerThemeBtn" type="button">Switch to Night Mode</button>
       <a href="https://portfolionew-gauravprabhakar.vercel.app/">About Teacher</a>
       <div class="side-menu-support">
@@ -55,6 +56,32 @@
       </div>
     </nav>
   </aside>
+  <div id="feePaymentModal" class="modal-overlay fee-payment-overlay" aria-hidden="true">
+    <section class="modal-card fee-payment-card" role="dialog" aria-modal="true" aria-labelledby="feePaymentTitle">
+      <div class="modal-head">
+        <div>
+          <span class="eyebrow">Fee Payment</span>
+          <h3 id="feePaymentTitle">Pay Student Fee</h3>
+        </div>
+        <button id="feePaymentCloseBtn" type="button" class="ghost-btn modal-close-btn" aria-label="Close fee payment">Close</button>
+      </div>
+      <div class="fee-payment-body">
+        <label for="feePaymentStudentId">Student ID</label>
+        <div class="fee-payment-search">
+          <input id="feePaymentStudentId" inputmode="numeric" autocomplete="off" placeholder="Enter student ID">
+          <button id="feePaymentFindBtn" type="button">Find Student</button>
+        </div>
+        <p id="feePaymentStatus" class="fee-payment-status" aria-live="polite">Enter your student ID to view the payable fee.</p>
+        <div id="feePaymentDetails" class="fee-payment-details" hidden>
+          <span>Student Name</span>
+          <strong id="feePaymentStudentName"></strong>
+          <span>Fee Amount</span>
+          <strong id="feePaymentAmount"></strong>
+          <button id="payOnlineBtn" type="button">Pay Online</button>
+        </div>
+      </div>
+    </section>
+  </div>
   <button id="themeToggleBtn" class="theme-toggle-btn" type="button" aria-label="Switch to night mode">
     <span class="theme-toggle-icon" aria-hidden="true"></span>
   </button>

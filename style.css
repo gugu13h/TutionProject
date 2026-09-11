@@ -4930,6 +4930,80 @@ body.theme-night .online-test-btn {
   transform: translateX(3px);
 }
 
+.fee-payment-card {
+  width: min(480px, calc(100vw - 32px));
+}
+
+.fee-payment-body {
+  display: grid;
+  gap: 12px;
+}
+
+.fee-payment-body label,
+.fee-payment-details span {
+  color: #6b3c20;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.fee-payment-search {
+  display: flex;
+  gap: 10px;
+}
+
+.fee-payment-search input {
+  min-width: 0;
+  flex: 1;
+}
+
+.fee-payment-search button {
+  width: auto;
+  white-space: nowrap;
+}
+
+.fee-payment-status {
+  min-height: 1.4em;
+  margin: 0;
+  color: #6a4b35;
+  font-size: 0.84rem;
+}
+
+.fee-payment-details {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px 18px;
+  align-items: center;
+  padding: 16px;
+  border: 1px solid rgba(148, 75, 25, 0.2);
+  border-radius: 14px;
+  background: #fff9ee;
+}
+
+.fee-payment-details strong {
+  color: #5d2612;
+  text-align: right;
+}
+
+.fee-payment-details button {
+  grid-column: 1 / -1;
+  margin-top: 6px;
+}
+
+body.theme-night .fee-payment-body label,
+body.theme-night .fee-payment-details span,
+body.theme-night .fee-payment-status {
+  color: #f6d6a4;
+}
+
+body.theme-night .fee-payment-details {
+  border-color: rgba(255, 205, 127, 0.25);
+  background: rgba(78, 37, 20, 0.68);
+}
+
+body.theme-night .fee-payment-details strong {
+  color: #fff0cd;
+}
+
 .side-menu-support {
   display: grid;
   gap: 9px;
@@ -4973,5 +5047,13 @@ body.theme-night .side-menu-toggle span { background: #ffe1a3; }
     left: 10px;
     width: 42px;
     height: 42px;
+  }
+
+  .fee-payment-search {
+    flex-direction: column;
+  }
+
+  .fee-payment-search button {
+    width: 100%;
   }
 }
