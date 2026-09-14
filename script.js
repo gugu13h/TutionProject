@@ -59,7 +59,6 @@ const loginStudentId = document.getElementById("loginStudentId");
 const studentClassSelect = document.getElementById("studentClassSelect");
 const studentData = document.getElementById("studentData");
 const studentNotificationList = document.getElementById("studentNotificationList");
-const dailyQuestionsPanel = document.getElementById("dailyQuestionsPanel");
 const studentRecordModal = document.getElementById("studentRecordModal");
 const studentModalBody = document.getElementById("studentModalBody");
 const feeReminderModal = document.getElementById("feeReminderModal");
@@ -102,8 +101,6 @@ const newScheduleBtnText = document.getElementById("newScheduleBtnText");
 const scheduleCloseBtn = document.getElementById("scheduleCloseBtn");
 const scheduleSubmitBtn = document.getElementById("scheduleSubmitBtn");
 const scheduleCancelBtn = document.getElementById("scheduleCancelBtn");
-const teacherGenerateQuestionsBtn = document.getElementById("teacherGenerateQuestionsBtn");
-const teacherQuestionStatus = document.getElementById("teacherQuestionStatus");
 const ratingModal = document.getElementById("ratingModal");
 const ratingModalTitle = document.getElementById("ratingModalTitle");
 const currentRatingDisplay = document.getElementById("currentRatingDisplay");
@@ -299,7 +296,6 @@ window.sendWhatsApp = sendWhatsApp;
 window.openTeacherWhatsApp = openTeacherWhatsApp;
 window.uploadTeacherPhoto = uploadTeacherPhoto;
 window.saveTeacherNotice = saveTeacherNotice;
-window.generateTeacherDailyQuestions = generateTeacherDailyQuestions;
 window.setStudentRating = setStudentRating;
 window.submitStudentRating = submitStudentRating;
 window.setRating = setRating;
@@ -324,7 +320,6 @@ initializeTeacherMessagesModal();
 initializeStudentRegisterForm();
 initializeScheduleForm();
 initializeTeacherSettingsPanel();
-initializeDailyQuestions();
 initializeAboutTeacherButton();
 startScheduleCleanupLoop();
 startAttendanceCleanupLoop();
@@ -679,7 +674,6 @@ async function teacherLogin() {
 
 function showStudentPage() {
   showPage("studentPage");
-  renderDailyQuestionsForStudent(loginStudentId.value.trim());
   renderStudentNotificationStatus();
   void requestStudentNotificationPermission();
 }
@@ -2877,8 +2871,6 @@ async function loadStudentData(options = {}) {
   const requestedId = loginStudentId.value.trim();
   const studentRecordForLogin = students.find((student) => isSameStudentId(student.id, requestedId));
   const id = studentRecordForLogin?.id || requestedId;
-  renderDailyQuestionsForStudent(id);
-
   if (studentRecordForLogin && persistSession) {
     saveStudentSession(studentRecordForLogin.id);
     await requestStudentNotificationPermission();
@@ -4972,7 +4964,6 @@ function applyTeacherProfile() {
       input.value = notices[index] === DEFAULT_HOME_NOTICE ? "" : notices[index] || "";
     }
   });
-  updateTeacherQuestionStatus();
 }
 
 function getTeacherNoticeInputs() {
