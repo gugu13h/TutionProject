@@ -327,7 +327,6 @@ startStudentCountdownLoop();
 startTeacherScheduleLoop();
 loadRanchiWeather();
 initializeAppData();
-startStudentNotificationLoop();
 
 async function initializeAppData() {
   if (!isFirebaseReady()) {
@@ -2022,7 +2021,7 @@ function formatDateTimeForNotification(date) {
   return `${date.toLocaleDateString("en-IN")} ${formatTime12Hour(formatTimeInputValue(date))}`;
 }
 
-function getNotificationEventsForSchedule(schedule, classStartTime) {
+function getNotificationEventsForSchedule(schedule, classStartTime, hideClassTime = false) {
   const classOverTime = classStartTime + CLASS_TIMER_DURATION_MS;
   const classOverDate = new Date(classOverTime);
   return [
@@ -2030,27 +2029,33 @@ function getNotificationEventsForSchedule(schedule, classStartTime) {
       type: "ready",
       time: classStartTime - CLASS_REMINDER_BEFORE_MS,
       expiresAt: classStartTime,
-      title: "Your class is in 30 min",
-      body: `Be ready. Class starts at ${formatTime12Hour(schedule.time)}.`
+      title: hideClassTime ? "Class reminder" : "Your class is in 30 min",
+      body: hideClassTime
+        ? "Be ready for your upcoming class."
+        : `Be ready. Class starts at ${formatTime12Hour(schedule.time)}.`
     },
     {
       type: "started",
       time: classStartTime,
       expiresAt: classStartTime + 10 * 60 * 1000,
       title: "Your class is started",
-      body: `Class started at ${formatTime12Hour(schedule.time)}.`
+      body: hideClassTime
+        ? "Your class has started."
+        : `Class started at ${formatTime12Hour(schedule.time)}.`
     },
     {
       type: "over",
       time: classOverTime,
       expiresAt: classOverTime + 60 * 60 * 1000,
       title: "Your class is over",
-      body: `Today's class completed at ${formatTime12Hour(formatTimeInputValue(classOverDate))}.`
+      body: hideClassTime
+        ? "Today's class has ended."
+        : `Today's class completed at ${formatTime12Hour(formatTimeInputValue(classOverDate))}.`
     }
   ];
 }
 
-function getManualClassNotificationContent(schedule, type = schedule?.classNotificationType) {
+function getManualClassNotificationContent(schedule, type = schedule?.classNotificationType, hideClassTime = false) {
   const timeText = schedule?.time ? formatTime12Hour(schedule.time) : "Holiday (No Class)";
   const classLabel = `${schedule?.date || ""} ${schedule?.day || ""}`.trim();
   const sentAt = Number(schedule?.classNotificationSentAt);
@@ -2061,21 +2066,23 @@ function getManualClassNotificationContent(schedule, type = schedule?.classNotif
   if (type === "scheduled") {
     return {
       title: "Class scheduled",
-      body: `Your class is scheduled${classLabel ? ` on ${classLabel}` : ""} at ${timeText}.`
+      body: hideClassTime
+        ? `Your class is scheduled${classLabel ? ` on ${classLabel}` : ""}.`
+        : `Your class is scheduled${classLabel ? ` on ${classLabel}` : ""} at ${timeText}.`
     };
   }
 
   if (type === "reminder") {
     return {
-      title: "Your class is in 30 min",
-      body: `Be ready. Class starts at ${timeText}.`
+      title: hideClassTime ? "Class reminder" : "Your class is in 30 min",
+      body: hideClassTime ? "Be ready for your upcoming class." : `Be ready. Class starts at ${timeText}.`
     };
   }
 
   if (type === "over") {
     return {
       title: "Class over",
-      body: sentTimeText ? `Class over at ${sentTimeText}.` : "Class over."
+      body: hideClassTime ? "Class over." : sentTimeText ? `Class over at ${sentTimeText}.` : "Class over."
     };
   }
 
@@ -2092,7 +2099,7 @@ function getManualClassNotificationKey(studentId, schedule) {
   return `${STUDENT_NOTIFICATION_SEEN_PREFIX}:${normalizeStudentId(studentId)}:${scheduleKey}:manual:${notificationId}`;
 }
 
-function sendManualClassNotificationIfDue(studentId, schedule, now = Date.now()) {
+function sendManualClassNotificationIfDue(studentId, schedule, now = Date.now(), hideClassTime = false) {
   if (!studentId || !schedule?.classNotificationType || !schedule?.classNotificationSentAt) {
     return false;
   }
@@ -2107,7 +2114,7 @@ function sendManualClassNotificationIfDue(studentId, schedule, now = Date.now())
     return false;
   }
 
-  const content = getManualClassNotificationContent(schedule);
+  const content = getManualClassNotificationContent(schedule, schedule.classNotificationType, hideClassTime);
   if (!content) {
     return false;
   }
@@ -2136,7 +2143,9 @@ function sendDueStudentClassNotifications() {
       return;
     }
 
-    sendManualClassNotificationIfDue(studentId, schedule, now);
+    const feeStudent = students.find((student) => isSameStudentId(student.id, studentId)) || scheduleStudent;
+    const hideClassTime = getPendingFeeMonthCount(feeStudent) >= 2;
+    sendManualClassNotificationIfDue(studentId, schedule, now, hideClassTime);
 
     const classDateTime = getScheduleDateTime(schedule);
     if (!classDateTime) {
@@ -2159,13 +2168,15 @@ function sendDueStudentClassNotifications() {
       const title = status === "cancelled" ? "Class cancelled" : "Class over";
       const body = status === "cancelled"
         ? getClassStopStudentMessage(schedule)
-        : `Class over at ${formatDateTimeForNotification(stoppedDate)}. ${String(schedule.classStoppedReason || "").trim()}`;
+        : hideClassTime
+          ? `Class over. ${String(schedule.classStoppedReason || "").trim()}`
+          : `Class over at ${formatDateTimeForNotification(stoppedDate)}. ${String(schedule.classStoppedReason || "").trim()}`;
       showStudentClassNotification(title, body.trim());
       markStudentNotificationSent(notificationKey);
       return;
     }
 
-    getNotificationEventsForSchedule(schedule, classDateTime.getTime()).forEach((event) => {
+    getNotificationEventsForSchedule(schedule, classDateTime.getTime(), hideClassTime).forEach((event) => {
       if (now < event.time || now > event.expiresAt) {
         return;
       }
@@ -2228,11 +2239,21 @@ function notifyStudentScheduleChanges(studentId, previousSchedules, nextSchedule
       return;
     }
 
+    const scheduleStudent = (schedule.students || []).find((student) => isSameStudentId(student.id, studentId));
+    const feeStudent = students.find((student) => isSameStudentId(student.id, studentId)) || scheduleStudent;
+    const hideClassTime = feeStudent && getPendingFeeMonthCount(feeStudent) >= 2;
     const timeText = schedule.time ? formatTime12Hour(schedule.time) : "Holiday (No Class)";
-    const title = previousSchedule ? "Class time updated" : "New class scheduled";
-    const body = previousSchedule
-      ? `New class time: ${schedule.date} ${schedule.day || ""} at ${timeText}.`
-      : `Your class is scheduled on ${schedule.date} ${schedule.day || ""} at ${timeText}.`;
+    const title = hideClassTime
+      ? "Class schedule updated"
+      : previousSchedule
+        ? "Class time updated"
+        : "New class scheduled";
+    const overdueFeeMonths = feeStudent ? getPendingFeeMonthCount(feeStudent) : 0;
+    const body = hideClassTime
+      ? `Your class time is hidden because your fees are overdue for ${overdueFeeMonths} months. Kindly pay to unlock your class time slot.`
+      : previousSchedule
+        ? `New class time: ${schedule.date} ${schedule.day || ""} at ${timeText}.`
+        : `Your class is scheduled on ${schedule.date} ${schedule.day || ""} at ${timeText}.`;
     showStudentClassNotification(title, body);
     markStudentNotificationSent(notificationKey);
   });
@@ -2250,9 +2271,12 @@ async function checkStudentScheduleUpdates() {
     if (isFirebaseReady()) {
       const previousSchedules = schedules.slice();
       const nextSchedules = await getSchedules();
+      const schedulesChanged = JSON.stringify(previousSchedules) !== JSON.stringify(nextSchedules);
       notifyStudentScheduleChanges(studentId, previousSchedules, nextSchedules);
       schedules = nextSchedules;
-      refreshStudentDataViewIfNeeded();
+      if (schedulesChanged) {
+        refreshStudentDataViewIfNeeded();
+      }
     }
     sendDueStudentClassNotifications();
   } catch (error) {
@@ -2288,11 +2312,15 @@ function startTeacherScheduleLoop() {
   }
 
   teacherScheduleTimerId = window.setInterval(() => {
+    if (document.visibilityState !== "visible") {
+      return;
+    }
+
     const activePage = document.querySelector(".page.active");
     if (activePage && activePage.id === "teacherPage") {
       loadSchedules();
     }
-  }, 5000);
+  }, 30 * 1000);
 }
 
 function formatUpcomingCountdownDuration(totalSeconds) {
@@ -2393,8 +2421,8 @@ function showClassStopPopupIfNeeded(studentId, schedule) {
   alert(getClassStopStudentMessage(schedule));
 }
 
-function getCountdownMarkup(schedule, classDateTime, isHoliday) {
-  if (isHoliday || !schedule.time || !(classDateTime instanceof Date) || Number.isNaN(classDateTime.getTime())) {
+function getCountdownMarkup(schedule, classDateTime, isHoliday, hideClassTime = false) {
+  if (hideClassTime || isHoliday || !schedule.time || !(classDateTime instanceof Date) || Number.isNaN(classDateTime.getTime())) {
     return "";
   }
 
@@ -2432,9 +2460,18 @@ function getCountdownMarkup(schedule, classDateTime, isHoliday) {
 }
 
 function updateClassTimers() {
+  if (document.visibilityState !== "visible") {
+    return;
+  }
+
+  const countdownElements = document.querySelectorAll(".class-countdown");
+  if (countdownElements.length === 0) {
+    return;
+  }
+
   const now = Date.now();
 
-  document.querySelectorAll(".class-countdown").forEach((countdownElement) => {
+  countdownElements.forEach((countdownElement) => {
     const classStart = getClassStartTimeFromElement(countdownElement);
     if (!Number.isFinite(classStart)) {
       countdownElement.closest(".class-countdown-panel")?.remove();
@@ -2931,6 +2968,16 @@ async function loadStudentData(options = {}) {
         const attendanceReason = student.attendanceReason || "";
         const isAbsent = attendanceStatus === "not-coming";
         const isHoliday = attendanceStatus === "holiday";
+        const overdueFeeMonths = getPendingFeeMonthCount(displayStudent);
+        const isClassTimeRestricted = overdueFeeMonths >= 2;
+        const classTimeHtml = schedule.time
+          ? isClassTimeRestricted
+            ? `<span class="class-time-restriction">
+                <span class="class-time-restricted-value" aria-hidden="true">${escapeHtml(formatTime12Hour(schedule.time))}</span>
+                <strong class="class-time-overdue-message" role="status">Oops! Your fee is overdue for ${overdueFeeMonths} months. Kindly pay to unlock your class time slot.</strong>
+              </span>`
+            : `<span style="color: #0f766e; font-weight: bold;">${formatTime12Hour(schedule.time)}</span>`
+          : "Holiday (No Class)";
         const attendanceReasonHtml = attendanceReason
           ? `<strong>Reason:</strong> <span style="color:#dc2626; font-weight:700;">${escapeHtml(attendanceReason)}</span><br>`
           : "";
@@ -2952,7 +2999,7 @@ async function loadStudentData(options = {}) {
               </div>
               ${absenceReasonHtml}`
             : `<div style="margin-top: 10px; padding: 8px; background: #fee2e2; border-radius: 5px; color: #b91c1c; font-weight: bold;">Attendance time is closed.</div>`;
-        const countdownMarkup = getCountdownMarkup(schedule, classDateTime, isHoliday);
+        const countdownMarkup = getCountdownMarkup(schedule, classDateTime, isHoliday, isClassTimeRestricted);
         if (
           !attendancePopupSchedule &&
           attendanceStatus === "pending" &&
@@ -2965,7 +3012,8 @@ async function loadStudentData(options = {}) {
             studentId: student.id,
             studentName: displayStudent.name,
             date: schedule.date,
-            time: schedule.time
+            time: schedule.time,
+            hideClassTime: isClassTimeRestricted
           };
         }
         
@@ -2975,7 +3023,7 @@ async function loadStudentData(options = {}) {
             <strong>Name:</strong> ${displayStudent.name}<br>
             <strong>Class:</strong> ${formatStudentClass(displayStudent)}<br>
             <strong>Class Date:</strong> ${schedule.date}<br>
-            <strong>Class Time:</strong> <span style="color: #0f766e; font-weight: bold;">${schedule.time ? formatTime12Hour(schedule.time) : "Holiday (No Class)"}</span><br>
+            <strong>Class Time:</strong> ${classTimeHtml}<br>
             ${countdownMarkup}
             ${classStopNoticeHtml}
             <strong>Day:</strong> ${schedule.day}<br>
@@ -3135,7 +3183,7 @@ function showStudentAttendancePopup(attendancePrompt) {
       <p>${escapeHtml(attendancePrompt.studentName || "Student")}, please mark today's attendance.</p>
       <div class="student-attendance-popup-meta">
         ${escapeHtml(attendancePrompt.date || "")}
-        ${attendancePrompt.time ? ` at ${escapeHtml(formatTime12Hour(attendancePrompt.time))}` : ""}
+        ${attendancePrompt.time && !attendancePrompt.hideClassTime ? ` at ${escapeHtml(formatTime12Hour(attendancePrompt.time))}` : ""}
       </div>
       <div class="student-attendance-popup-actions">
         <button type="button" class="student-attendance-popup-action student-attendance-present">I will come</button>
@@ -5484,6 +5532,26 @@ function getPreviousFeeMonthKey(date) {
 
 function getFeeDueMonthKey(date, student) {
   return hasFeeCycleCrossed(date, student) ? getFeeMonthKey(date) : getPreviousFeeMonthKey(date);
+}
+
+function getPendingFeeMonthCount(student, referenceDate = new Date()) {
+  const dueMonthKey = getFeeDueMonthKey(referenceDate, student || {});
+  const feeHistory = student?.feeHistory || {};
+  const pendingMonthKeys = new Set(
+    Object.entries(feeHistory)
+      .filter(([monthKey, feeRecord]) =>
+        /^\d{4}-(0[1-9]|1[0-2])$/.test(monthKey) &&
+        monthKey <= dueMonthKey &&
+        feeRecord?.status === "pending"
+      )
+      .map(([monthKey]) => monthKey)
+  );
+
+  if (student?.feePending && feeHistory[dueMonthKey]?.status !== "paid") {
+    pendingMonthKeys.add(dueMonthKey);
+  }
+
+  return pendingMonthKeys.size;
 }
 
 function getFeeStatusText(student) {
