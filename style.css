@@ -205,7 +205,7 @@ body.theme-night.weather-thunder {
   inset: 0;
   z-index: -2;
   overflow: hidden;
-  background: #e8efe9;
+  background: #0b1023 url('assets/diwali-background.jpeg') center / cover no-repeat;
 }
 
 .bg-slide,
@@ -216,6 +216,7 @@ body.theme-night.weather-thunder {
 }
 
 .bg-slide {
+  display: none;
   background-position: center;
   background-size: cover;
   background-repeat: no-repeat;
@@ -245,18 +246,12 @@ body.theme-night.weather-thunder {
 }
 
 .background-overlay {
-  background:
-    linear-gradient(135deg, rgba(238, 245, 255, 0.86) 0%, rgba(247, 251, 255, 0.76) 48%, rgba(237, 253, 248, 0.78) 100%),
-    radial-gradient(circle at top left, rgba(37, 99, 235, 0.18), transparent 30%),
-    radial-gradient(circle at bottom right, rgba(15, 118, 110, 0.18), transparent 28%);
+  background: linear-gradient(135deg, rgba(7, 13, 30, 0.34), rgba(7, 13, 30, 0.42));
   z-index: 1;
 }
 
 body.theme-night .background-overlay {
-  background:
-    linear-gradient(135deg, rgba(8, 17, 31, 0.9) 0%, rgba(15, 23, 42, 0.86) 48%, rgba(18, 32, 31, 0.88) 100%),
-    radial-gradient(circle at top left, rgba(96, 165, 250, 0.18), transparent 30%),
-    radial-gradient(circle at bottom right, rgba(45, 212, 191, 0.14), transparent 28%);
+  background: linear-gradient(135deg, rgba(7, 13, 30, 0.42), rgba(7, 13, 30, 0.5));
 }
 
 body.weather-ready {
@@ -264,10 +259,11 @@ body.weather-ready {
 }
 
 body.weather-ready .background-overlay {
-  background: var(--weather-overlay-bg);
+  background: linear-gradient(135deg, rgba(7, 13, 30, 0.34), rgba(7, 13, 30, 0.42));
 }
 
 .sky-effects {
+  display: none;
   z-index: 2;
   overflow: hidden;
   pointer-events: none;
@@ -1129,7 +1125,7 @@ body.theme-night #loginPage .login-layout {
 #loginPage .student-auth-card {
   background:
     linear-gradient(110deg, rgba(2, 10, 15, 0.84) 0%, rgba(4, 18, 25, 0.63) 53%, rgba(2, 10, 15, 0.38) 100%),
-    url('assets/student-access-chalkboard.jpg') center / cover no-repeat;
+    url('assets/diwali-lamps.jpeg') center / cover no-repeat;
   border: 1px solid rgba(255, 255, 255, 0.16);
   box-shadow: 0 30px 50px rgba(37, 99, 235, 0.24);
   color: #f8fafc;
@@ -2062,7 +2058,7 @@ body.weather-ready #loginPage .login-layout::after {
 body.weather-ready #loginPage .student-auth-card {
   background:
     linear-gradient(110deg, rgba(2, 10, 15, 0.84) 0%, rgba(4, 18, 25, 0.63) 53%, rgba(2, 10, 15, 0.38) 100%),
-    url('assets/student-access-chalkboard.jpg') center / cover no-repeat;
+    url('assets/diwali-lamps.jpeg') center / cover no-repeat;
   box-shadow: 0 30px 50px var(--weather-shadow);
 }
 
