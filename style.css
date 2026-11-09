@@ -2391,6 +2391,40 @@ a.secondary-btn:active,
   animation: clickColorRipple 0.64s ease-out forwards;
 }
 
+.click-firework {
+  position: fixed;
+  left: var(--firework-x);
+  top: var(--firework-y);
+  z-index: 10000;
+  pointer-events: none;
+}
+
+.click-firework::before {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 16px 6px rgba(255, 255, 255, 0.8), 0 0 30px 12px rgba(250, 204, 21, 0.42);
+  transform: translate(-50%, -50%) scale(0);
+  animation: fireworkFlash 420ms ease-out forwards;
+}
+
+.firework-spark {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 3px;
+  height: 12px;
+  border-radius: 50%;
+  background: linear-gradient(to top, transparent, var(--spark-color) 45%, #fff);
+  box-shadow: 0 0 7px var(--spark-color);
+  transform: translate(-50%, -50%) rotate(var(--spark-angle));
+  animation: fireworkSpark 850ms cubic-bezier(0.12, 0.62, 0.26, 1) forwards;
+}
+
 .secondary-btn,
 a.secondary-btn {
   background:
@@ -3823,6 +3857,34 @@ body.theme-night .status-due-soon {
   }
 }
 
+@keyframes fireworkSpark {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(var(--spark-angle)) scale(1);
+  }
+
+  72% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--spark-x)), calc(-50% + var(--spark-y))) rotate(var(--spark-angle)) scale(0.25);
+  }
+}
+
+@keyframes fireworkFlash {
+  0% {
+    opacity: 0.95;
+    transform: translate(-50%, -50%) scale(0.2);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(3.5);
+  }
+}
+
 @keyframes themeColorBurst {
   0% {
     opacity: 0.85;
@@ -4401,7 +4463,9 @@ body.theme-night .status-due-soon {
   .flask-bowl,
   .chem-bubble,
   .maths-visual span,
-  .click-ripple {
+  .click-ripple,
+  .firework-spark,
+  .click-firework::before {
     animation: none;
   }
 

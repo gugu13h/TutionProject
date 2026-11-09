@@ -508,7 +508,12 @@ function applyThemeMode(mode) {
 
 function initializeClickAnimations() {
   document.addEventListener("click", (event) => {
-    const clickable = event.target.closest("button, a.secondary-btn, .about-teacher-btn");
+    if (event.detail !== 0) {
+      playClickFirework(event);
+    }
+
+    const target = event.target instanceof Element ? event.target : null;
+    const clickable = target?.closest("button, a.secondary-btn, .about-teacher-btn");
 
     if (!clickable || clickable.disabled || clickable.classList.contains("is-disabled")) {
       return;
@@ -516,6 +521,42 @@ function initializeClickAnimations() {
 
     playClickRipple(clickable, event);
   });
+}
+
+function playClickFirework(event) {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    return;
+  }
+
+  const firework = document.createElement("span");
+  const sparkCount = 24;
+  let finishedSparks = 0;
+
+  firework.className = "click-firework";
+  firework.setAttribute("aria-hidden", "true");
+  firework.style.setProperty("--firework-x", `${event.clientX}px`);
+  firework.style.setProperty("--firework-y", `${event.clientY}px`);
+
+  for (let index = 0; index < sparkCount; index += 1) {
+    const angle = (Math.PI * 2 * index) / sparkCount + (Math.random() - 0.5) * 0.18;
+    const distance = 42 + Math.random() * 62;
+    const spark = document.createElement("span");
+
+    spark.className = "firework-spark";
+    spark.style.setProperty("--spark-x", `${Math.cos(angle) * distance}px`);
+    spark.style.setProperty("--spark-y", `${Math.sin(angle) * distance}px`);
+    spark.style.setProperty("--spark-angle", `${(angle * 180) / Math.PI + 90}deg`);
+    spark.style.setProperty("--spark-color", CLICK_RIPPLE_COLORS[index % CLICK_RIPPLE_COLORS.length]);
+    spark.addEventListener("animationend", () => {
+      finishedSparks += 1;
+      if (finishedSparks === sparkCount) {
+        firework.remove();
+      }
+    }, { once: true });
+    firework.appendChild(spark);
+  }
+
+  document.body.appendChild(firework);
 }
 
 function playClickRipple(element, event) {
