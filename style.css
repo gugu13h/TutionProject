@@ -633,6 +633,53 @@ body.theme-night .theme-toggle-icon::before {
   display: block;
 }
 
+.festival-wishes {
+  margin-bottom: 20px;
+}
+
+.festival-wish {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  padding: 16px 20px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 20px;
+  color: #fff;
+  box-shadow: 0 14px 30px rgba(120, 53, 15, 0.18);
+  isolation: isolate;
+}
+
+.festival-wish {
+  background: linear-gradient(115deg, #7c2d12, #ea580c 52%, #0f766e);
+}
+
+.festival-wish-icon {
+  flex: 0 0 auto;
+  font-size: 2rem;
+  filter: drop-shadow(0 3px 6px rgba(15, 23, 42, 0.28));
+}
+
+.festival-wish h2 {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.45;
+}
+
+.festival-wish p {
+  margin: 3px 0 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.festival-wish-sparkle {
+  margin-left: auto;
+  font-size: 1.4rem;
+}
+
 .hero-card,
 .panel-card {
   background: var(--bg-card);
@@ -4089,6 +4136,10 @@ body.theme-night .status-due-soon {
 
   .home-info-strip {
     grid-template-columns: 1fr;
+  }
+
+  .festival-wish {
+    padding: 14px 16px;
   }
 
   #loginPage .login-layout {
