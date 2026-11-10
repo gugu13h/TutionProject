@@ -3429,6 +3429,13 @@ body.theme-night .student-attendance-popup-card {
   line-height: 1.7;
 }
 
+.fee-reminder-note {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  margin: -12px 0 0;
+}
+
 .fee-reminder-pay-btn {
   width: min(100%, 280px);
   margin: 0 auto;
