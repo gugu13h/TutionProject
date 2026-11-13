@@ -120,6 +120,8 @@ const feePaymentDetails = document.getElementById("feePaymentDetails");
 const feePaymentStudentName = document.getElementById("feePaymentStudentName");
 const feePaymentAmount = document.getElementById("feePaymentAmount");
 const payOnlineBtn = document.getElementById("payOnlineBtn");
+const childrensDayModal = document.getElementById("childrensDayModal");
+const childrensDayCloseBtn = document.getElementById("childrensDayCloseBtn");
 
 const FIREBASE_WARNING = "Firebase config missing. Open firebase-api.js and paste your Firebase web app config.";
 const DEFAULT_TEACHER_PHOTO = "https://placehold.co/300x300/f2efe6/8b5e34?text=Teacher";
@@ -312,6 +314,7 @@ window.setAttendanceFromCalendar = setAttendanceFromCalendar;
 initializeThemeMode();
 initializeSideMenu();
 initializeFeePayment();
+initializeChildrensDayModal();
 initializeClickAnimations();
 initializeScheduleDefaults();
 initializeStudentModal();
@@ -377,8 +380,25 @@ function initializeSideMenu() {
     if (event.key === "Escape") {
       setSideMenuOpen(false);
       closeFeePaymentModal();
+      closeChildrensDayModal();
     }
   });
+}
+
+function initializeChildrensDayModal() {
+  childrensDayCloseBtn?.addEventListener("click", closeChildrensDayModal);
+  childrensDayModal?.addEventListener("click", (event) => {
+    if (event.target === childrensDayModal) {
+      closeChildrensDayModal();
+    }
+  });
+  childrensDayCloseBtn?.focus();
+}
+
+function closeChildrensDayModal() {
+  if (!childrensDayModal) return;
+  childrensDayModal.classList.remove("active");
+  childrensDayModal.setAttribute("aria-hidden", "true");
 }
 
 function initializeFeePayment() {
