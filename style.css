@@ -205,7 +205,7 @@ body.theme-night.weather-thunder {
   inset: 0;
   z-index: -2;
   overflow: hidden;
-  background: #0b1023 url('assets/diwali-background.jpeg') center / cover no-repeat;
+  background: #0b1023 url('assets/student-access-chalkboard.jpg') center / cover no-repeat;
 }
 
 .bg-slide,
@@ -653,7 +653,7 @@ body.theme-night .theme-toggle-icon::before {
 }
 
 .festival-wish {
-  background: linear-gradient(115deg, #7c2d12, #ea580c 52%, #0f766e);
+  background: linear-gradient(115deg, #172554, #1d4ed8 52%, #0f766e);
 }
 
 .festival-wish-icon {
@@ -1172,7 +1172,7 @@ body.theme-night #loginPage .login-layout {
 #loginPage .student-auth-card {
   background:
     linear-gradient(110deg, rgba(2, 10, 15, 0.84) 0%, rgba(4, 18, 25, 0.63) 53%, rgba(2, 10, 15, 0.38) 100%),
-    url('assets/diwali-lamps.jpeg') center / cover no-repeat;
+    url('assets/student-access-chalkboard.jpg') center / cover no-repeat;
   border: 1px solid rgba(255, 255, 255, 0.16);
   box-shadow: 0 30px 50px rgba(37, 99, 235, 0.24);
   color: #f8fafc;
@@ -2105,7 +2105,7 @@ body.weather-ready #loginPage .login-layout::after {
 body.weather-ready #loginPage .student-auth-card {
   background:
     linear-gradient(110deg, rgba(2, 10, 15, 0.84) 0%, rgba(4, 18, 25, 0.63) 53%, rgba(2, 10, 15, 0.38) 100%),
-    url('assets/diwali-lamps.jpeg') center / cover no-repeat;
+    url('assets/student-access-chalkboard.jpg') center / cover no-repeat;
   box-shadow: 0 30px 50px var(--weather-shadow);
 }
 
