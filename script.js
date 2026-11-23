@@ -878,8 +878,8 @@ async function addStudent() {
 
 function showStudents() {
   const uiPositionState = captureUiPositionState();
-  studentList.innerHTML = "";
   const visibleStudents = students.filter((student) => !isSameStudentId(student.id, "82"));
+  const studentCards = [];
 
   visibleStudents.forEach((student, visibleIndex) => {
     const studentIndex = students.indexOf(student);
@@ -889,7 +889,7 @@ function showStudents() {
     const studentDetailsId = `teacherStudentDetails_${visibleIndex}`;
     const studentKey = normalizeStudentId(student.id);
     
-    studentList.innerHTML += `
+    studentCards.push(`
       <div class="box teacher-student-card" data-student-key="${escapeHtml(studentKey)}">
         <div class="teacher-student-summary">
           <button
@@ -904,7 +904,7 @@ function showStudents() {
           <span class="teacher-student-id">ID: ${escapeHtml(student.id)}</span>
         </div>
         <div id="${studentDetailsId}" class="teacher-student-details" hidden>
-          <img class="profile-avatar record-photo" src="${student.photoUrl || DEFAULT_STUDENT_PHOTO}" alt="${escapeHtml(student.name)} photo">
+          <img class="profile-avatar record-photo" src="${student.photoUrl || DEFAULT_STUDENT_PHOTO}" alt="${escapeHtml(student.name)} photo" loading="lazy" decoding="async">
           <div>
             <strong>Name:</strong> ${escapeHtml(student.name)}<br>
             <strong>ID:</strong> ${escapeHtml(student.id)}<br>
@@ -925,8 +925,9 @@ function showStudents() {
           </div>
         </div>
       </div>
-    `;
+    `);
   });
+  studentList.innerHTML = studentCards.join("");
   restoreUiPositionState(uiPositionState);
 }
 
@@ -974,9 +975,9 @@ async function deleteStudent(index) {
 }
 
 function showStudentCheckList() {
-  studentCheckList.innerHTML = "";
+  const studentCheckItems = [];
   students.forEach((student, index) => {
-    studentCheckList.innerHTML += `
+    studentCheckItems.push(`
       <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
         <label style="flex: 1;">
           <input type="checkbox" id="student_${index}" value="${index}">
@@ -986,8 +987,9 @@ function showStudentCheckList() {
           <input type="checkbox" id="holiday_${index}" value="${index}"> Holiday
         </label>
       </div>
-    `;
+    `);
   });
+  studentCheckList.innerHTML = studentCheckItems.join("");
 }
 
 function editStudent(index) {
@@ -2514,6 +2516,11 @@ function updateClassTimers() {
     return;
   }
 
+  const activePage = document.querySelector(".page.active");
+  if (!activePage || (activePage.id !== "teacherPage" && activePage.id !== "studentPage")) {
+    return;
+  }
+
   const countdownElements = document.querySelectorAll(".class-countdown");
   if (countdownElements.length === 0) {
     return;
@@ -2565,7 +2572,7 @@ function getClassStartTimeFromElement(countdownElement) {
 function loadSchedules() {
   const uiPositionState = captureUiPositionState();
   const visibleSchedules = getVisibleSchedules();
-  scheduleList.innerHTML = "";
+  const scheduleCards = [];
   visibleSchedules.forEach((schedule, index) => {
     const scheduleDateTime = getScheduleDateTime(schedule);
     const countdownMarkup = getCountdownMarkup(schedule, scheduleDateTime, !schedule.time);
@@ -2574,7 +2581,7 @@ function loadSchedules() {
     const scheduleDetailsId = `scheduleDetails_${index}`;
     const scheduleTimeLabel = schedule.time ? formatTime12Hour(schedule.time) : "Holiday (No Class)";
 
-    scheduleList.innerHTML += `
+    scheduleCards.push(`
       <div class="box schedule-card" data-schedule-key="${escapeHtml(scheduleKey)}">
         <button
           class="schedule-card-toggle"
@@ -2595,8 +2602,9 @@ function loadSchedules() {
           ${scheduleActions}
         </div>
       </div>
-    `;
+    `);
   });
+  scheduleList.innerHTML = scheduleCards.join("");
   updateClassTimers();
   updateTeacherMessagesButton();
   restoreUiPositionState(uiPositionState);
@@ -3069,7 +3077,7 @@ async function loadStudentData(options = {}) {
         
         const studentRecordHtml = `
           <div class="box">
-            <img class="profile-avatar record-photo" src="${displayStudent.photoUrl || DEFAULT_STUDENT_PHOTO}" alt="${displayStudent.name} photo">
+            <img class="profile-avatar record-photo" src="${displayStudent.photoUrl || DEFAULT_STUDENT_PHOTO}" alt="${displayStudent.name} photo" loading="lazy" decoding="async">
             <strong>Name:</strong> ${displayStudent.name}<br>
             <strong>Class:</strong> ${formatStudentClass(displayStudent)}<br>
             <strong>Class Date:</strong> ${schedule.date}<br>
@@ -3113,7 +3121,7 @@ async function loadStudentData(options = {}) {
 
       const studentInfoHtml = `
         <div class="box">
-          <img class="profile-avatar record-photo" src="${studentRecord.photoUrl || DEFAULT_STUDENT_PHOTO}" alt="${studentRecord.name} photo">
+          <img class="profile-avatar record-photo" src="${studentRecord.photoUrl || DEFAULT_STUDENT_PHOTO}" alt="${studentRecord.name} photo" loading="lazy" decoding="async">
           <strong>Name:</strong> ${studentRecord.name}<br>
           <strong>ID:</strong> ${studentRecord.id}<br>
           <strong>Class:</strong> ${formatStudentClass(studentRecord)}<br>

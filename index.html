@@ -124,7 +124,7 @@
   </button>
   <a id="aboutTeacherBtn" class="about-teacher-btn" href="https://portfolionew-gauravprabhakar.vercel.app/"
     aria-label="About teacher">
-    <img id="aboutTeacherPhoto" src="https://placehold.co/300x300/f2efe6/8b5e34?text=Teacher" alt="">
+    <img id="aboutTeacherPhoto" src="https://placehold.co/300x300/f2efe6/8b5e34?text=Teacher" alt="" decoding="async">
     <span>About Teacher</span>
   </a>
   <a class="online-test-btn" href="https://gp-online-exam-portal-pi.vercel.app/" aria-label="Open online test">
@@ -164,7 +164,7 @@
         </section>
 
         <section class="hero-card student-auth-card">
-          <img class="student-access-photo" src="assets/student-access-teacher.jpeg" alt="" aria-hidden="true">
+          <img class="student-access-photo" src="assets/student-access-teacher.jpeg" alt="" aria-hidden="true" fetchpriority="high" decoding="async">
           <div class="science-scene home-science-scene" aria-hidden="true">
             <span class="formula-chip formula-chip-1">F=ma</span>
             <span class="formula-chip formula-chip-2">H<sub>2</sub>O</span>
@@ -189,7 +189,7 @@
 
         <section class="panel-card auth-card teacher-auth-card" hidden>
           <img id="teacherLoginBackgroundPhoto" class="teacher-login-bg-photo"
-            src="https://res.cloudinary.com/den0tn3tb/image/upload/v1/defaults/teacher-avatar" alt="">
+            src="https://res.cloudinary.com/den0tn3tb/image/upload/v1/defaults/teacher-avatar" alt="" loading="lazy" decoding="async">
           <div class="science-scene teacher-science-scene" aria-hidden="true">
             <span class="formula-chip formula-chip-1">PV=nRT</span>
             <span class="formula-chip formula-chip-2">H<sub>2</sub>O</span>
@@ -208,7 +208,7 @@
           <div class="teacher-login-top">
             <div class="teacher-photo-container">
               <img id="teacherLoginPhoto" class="profile-avatar large-avatar"
-                src="https://res.cloudinary.com/den0tn3tb/image/upload/v1/defaults/teacher-avatar" alt="Teacher profile">
+                src="https://res.cloudinary.com/den0tn3tb/image/upload/v1/defaults/teacher-avatar" alt="Teacher profile" loading="lazy" decoding="async">
             </div>
             <div class="teacher-login-copy">
               <span class="eyebrow">Teacher Login</span>
@@ -360,7 +360,7 @@
             <div class="profile-upload-card">
               <h4>Teacher Profile Photo</h4>
               <img id="teacherDashboardPhoto" class="profile-avatar xl-avatar"
-                src="https://res.cloudinary.com/den0tn3tb/image/upload/v1/defaults/teacher-avatar" alt="Teacher profile">
+                src="https://res.cloudinary.com/den0tn3tb/image/upload/v1/defaults/teacher-avatar" alt="Teacher profile" loading="lazy" decoding="async">
               <div class="field-group">
                 <label for="teacherPhotoFile">Upload Photo</label>
                 <input id="teacherPhotoFile" type="file" accept="image/*">
