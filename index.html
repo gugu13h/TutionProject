@@ -4,14 +4,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="google-site-verification" content="38k3kiG97kJt8-Qb5COdxlSgQ_reXu7dBmumhZBF6ck" />
+  <meta name="application-name" content="Gaurav Tuition Classes Ranchi">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Gaurav Tuition Classes</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css?v=remove-childrens-day-popup-1">
-  <link rel="icon" type="image/png" href="/logo.png">
-  <link rel="apple-touch-icon" href="/logo.png">
+  <link rel="icon" type="image/png" 
+  href="/logo.png">
+  <link rel="apple-touch-icon"
+   href="/logo.png">
 
 <title>Gaurav Tuition Classes</title>
 
@@ -23,7 +26,7 @@
 
 <meta name="robots" content="index, follow">
 
-<meta property="og:site_name" content="Gaurav Tuition Classes">
+<meta property="og:site_name" content="Gaurav Tuition Classes Ranchi">
 
 <meta property="og:title" content="Gaurav Tuition Classes">
 
@@ -79,6 +82,7 @@
     </div>
     <nav class="side-menu-links">
       <a href="https://gp-online-exam-portal-pi.vercel.app/">Online Test</a>
+      <button id="teacherLoginMenuBtn" type="button">Teacher Login</button>
       <button id="feePaymentMenuBtn" type="button">Fee Payment</button>
       <button id="drawerThemeBtn" type="button">Switch to Night Mode</button>
       <a href="https://portfolionew-gauravprabhakar.vercel.app/">About Teacher</a>
@@ -182,7 +186,7 @@
           <button class="secondary-btn large-login-btn" onclick="showStudentPage()">Student Login</button>
         </section>
 
-        <section class="panel-card auth-card teacher-auth-card">
+        <section class="panel-card auth-card teacher-auth-card" hidden>
           <img id="teacherLoginBackgroundPhoto" class="teacher-login-bg-photo"
             src="https://res.cloudinary.com/den0tn3tb/image/upload/v1/defaults/teacher-avatar" alt="">
           <div class="science-scene teacher-science-scene" aria-hidden="true">
@@ -226,6 +230,96 @@
           <button onclick="teacherLogin()">Teacher Login</button>
         </section>
       </div>
+
+      <section class="home-profile" aria-label="About Gaurav Tuition Classes">
+        <header class="home-profile-hero">
+          <p class="home-profile-kicker">Gaurav Tuition Classes · Ranchi, Jharkhand</p>
+          <h2>Understand it well, and the marks will follow.</h2>
+          <p class="home-profile-intro">Concept-based coaching for students of Classes 4-12th, with personal attention and a supportive learning environment, aligned to the CBSE and school syllabus.</p>
+          <div class="home-profile-highlights">
+            <span class="home-profile-pill">Home tuition available</span>
+            <span class="home-profile-pill">Classes: <strong>4-12th</strong></span>
+          </div>
+          <a class="home-profile-cta" href="#homeSubjects">See subjects <span aria-hidden="true">&darr;</span></a>
+        </header>
+
+        <section id="homeSubjects" class="home-profile-section" aria-labelledby="homeSubjectsTitle">
+          <div class="home-profile-section-heading">
+            <span class="home-profile-eyebrow">Learn with confidence</span>
+            <h2 id="homeSubjectsTitle">Subjects we teach</h2>
+            <p>Every subject is explained clearly, so each student builds a strong foundation.</p>
+          </div>
+          <div class="home-subject-grid">
+            <article class="home-subject-card">
+              <span class="home-subject-icon" aria-hidden="true">🔢</span>
+              <h3>Mathematics</h3>
+              <p>Numbers, logic and problem solving</p>
+            </article>
+            <article class="home-subject-card">
+              <span class="home-subject-icon" aria-hidden="true">🔬</span>
+              <h3>Science</h3>
+              <p>Understanding how things work</p>
+            </article>
+            <article class="home-subject-card">
+              <span class="home-subject-icon" aria-hidden="true">📖</span>
+              <h3>English</h3>
+              <p>Grammar and literature</p>
+            </article>
+            <article class="home-subject-card">
+              <span class="home-subject-icon" aria-hidden="true">🌍</span>
+              <h3>Social Science</h3>
+              <p>SST</p>
+            </article>
+            <article class="home-subject-card">
+              <span class="home-subject-icon" aria-hidden="true">💻</span>
+              <h3>Computer Science</h3>
+              <p>From basics onwards</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="home-profile-section home-teaching-section" aria-labelledby="homeTeachingTitle">
+          <div class="home-profile-section-heading">
+            <span class="home-profile-eyebrow">A better way to learn</span>
+            <h2 id="homeTeachingTitle">How we teach</h2>
+            <p>Student-friendly and concept-based: we focus on understanding, not memorization.</p>
+          </div>
+          <ul class="home-teaching-list">
+            <li>Clear explanations of every topic</li>
+            <li>Focus on understanding concepts rather than memorization</li>
+            <li>Regular practice and homework</li>
+            <li>Chapter-wise tests and assessments</li>
+            <li>Doubt-clearing sessions</li>
+            <li>Special attention to each student’s progress</li>
+            <li>Preparation according to the CBSE and school syllabus</li>
+          </ul>
+        </section>
+
+        <section class="home-mission-card" aria-labelledby="homeMissionTitle">
+          <span class="home-profile-eyebrow">Our mission</span>
+          <h2 id="homeMissionTitle">Helping every student move forward</h2>
+          <blockquote>To make learning simple, effective and enjoyable, while building students’ confidence, knowledge and academic skills.</blockquote>
+        </section>
+
+        <section class="home-profile-section home-contact-section" aria-labelledby="homeContactTitle">
+          <div class="home-profile-section-heading">
+            <span class="home-profile-eyebrow">We’re here to help</span>
+            <h2 id="homeContactTitle">Get in touch</h2>
+          </div>
+          <div class="home-contact-grid">
+            <article class="home-contact-card">
+              <span class="home-contact-label">Location</span>
+              <h3>Gaurav Tuition Classes</h3>
+              <p>Tumbaguttu · Karamtoli · Namkum, Ranchi<br>Latma Road · Singh More · Hatia</p>
+            </article>
+            <article class="home-contact-card">
+              <span class="home-contact-label">Contact</span>
+              <a class="home-contact-call" href="tel:8789507019" aria-label="Call 8789507019">Contact Now</a>
+            </article>
+          </div>
+        </section>
+        <footer class="home-profile-footer">© Gaurav Tuition Classes, Ranchi</footer>
+      </section>
     </div>
 
     <div id="teacherPage" class="page dashboard-page">

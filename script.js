@@ -109,6 +109,9 @@ const sideMenuToggle = document.getElementById("sideMenuToggle");
 const sideMenu = document.getElementById("sideMenu");
 const sideMenuClose = document.getElementById("sideMenuClose");
 const sideMenuBackdrop = document.getElementById("sideMenuBackdrop");
+const teacherLoginMenuBtn = document.getElementById("teacherLoginMenuBtn");
+const teacherAuthCard = document.querySelector(".teacher-auth-card");
+const loginLayout = document.querySelector(".login-layout");
 const drawerThemeBtn = document.getElementById("drawerThemeBtn");
 const feePaymentMenuBtn = document.getElementById("feePaymentMenuBtn");
 const feePaymentModal = document.getElementById("feePaymentModal");
@@ -366,6 +369,13 @@ function initializeSideMenu() {
   sideMenuToggle?.addEventListener("click", () => setSideMenuOpen(true));
   sideMenuClose?.addEventListener("click", () => setSideMenuOpen(false));
   sideMenuBackdrop?.addEventListener("click", () => setSideMenuOpen(false));
+  teacherLoginMenuBtn?.addEventListener("click", () => {
+    teacherAuthCard?.removeAttribute("hidden");
+    loginLayout?.classList.add("teacher-login-visible");
+    setSideMenuOpen(false);
+    teacherAuthCard?.scrollIntoView({ behavior: "smooth", block: "center" });
+    username?.focus({ preventScroll: true });
+  });
   drawerThemeBtn?.addEventListener("click", (event) => {
     toggleThemeMode(event);
     setSideMenuOpen(false);
