@@ -1184,6 +1184,22 @@ body.theme-night #loginPage .login-layout {
   border: 1px solid rgba(255, 255, 255, 0.16);
   box-shadow: 0 30px 50px rgba(37, 99, 235, 0.24);
   color: #f8fafc;
+  padding-right: clamp(280px, 38%, 440px);
+}
+
+.student-access-photo {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 0;
+  width: 38%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 22%;
+  opacity: 0.92;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 28%);
+  mask-image: linear-gradient(to right, transparent 0%, #000 28%);
 }
 
 #loginPage .student-auth-card h1,
@@ -1201,9 +1217,17 @@ body.theme-night #loginPage .login-layout {
   border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
-.student-auth-card > :not(.science-scene) {
+.student-auth-card > :not(.science-scene):not(.student-access-photo) {
   position: relative;
   z-index: 1;
+}
+
+.login-layout.teacher-login-visible .student-auth-card {
+  padding-right: 34px;
+}
+
+.login-layout.teacher-login-visible .student-access-photo {
+  opacity: 0.48;
 }
 
 .teacher-auth-card > :not(.science-scene) {
@@ -4681,6 +4705,12 @@ body.theme-night .status-due-soon {
 
   .student-auth-card {
     min-height: auto;
+    padding-right: 20px;
+  }
+
+  .student-access-photo {
+    width: 44%;
+    opacity: 0.42;
   }
 
   .home-science-scene .atom-animation {
